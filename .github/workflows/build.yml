@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04  # Android SDK 사전 설치된 안정적 환경
 
     steps:
       # 1. 소스코드 체크아웃
@@ -28,19 +28,23 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # 4. Android SDK 셋업
-      - name: Android SDK 셋업
-        uses: android-actions/setup-android@v3
+      # 4. Android SDK 환경변수 확인 및 설정 (ubuntu-22.04 사전 설치)
+      - name: Android SDK 환경변수 설정
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
-      # 5. npm 패키지 설치 (Capacitor CLI 포함)
+      # 5. npm 패키지 설치 (lock 파일 기준 정확한 버전 설치)
       - name: npm 패키지 설치
-        run: npm install
+        run: npm ci
 
       # 6. Android 플랫폼 추가 (android/ 폴더가 없을 때 자동 생성)
       - name: Android 플랫폼 추가
         run: |
           if [ ! -d android ]; then
-            ./node_modules/.bin/cap add android
+            npx cap add android
           else
             echo "android 디렉토리가 이미 존재합니다. 스킵합니다."
           fi
@@ -49,7 +53,7 @@ jobs:
 
       # 7. 웹 소스를 Android 프로젝트에 동기화
       - name: 웹→Android 동기화
-        run: ./node_modules/.bin/cap sync android
+        run: npx cap sync android
         env:
           CI: true
 
