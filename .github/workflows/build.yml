@@ -2,7 +2,7 @@ name: Android APK 자동 빌드
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "claude/**" ]
   workflow_dispatch:  # 수동 트리거 허용
 
 jobs:
