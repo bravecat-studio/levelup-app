@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('login-screen').classList.add('d-none');
             document.getElementById('app-container').classList.remove('d-none');
             document.getElementById('app-container').classList.add('d-flex');
+            const loginPanel = document.getElementById('login-log-panel');
+            if (loginPanel) loginPanel.style.display = 'none';
             
             document.querySelector('main').style.overflowY = 'auto'; 
             
@@ -79,6 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
             AppLogger.info('[Auth] 로그아웃 상태');
             document.getElementById('login-screen').classList.remove('d-none');
             document.getElementById('app-container').classList.add('d-none');
+            const loginPanel = document.getElementById('login-log-panel');
+            if (loginPanel) loginPanel.style.display = 'flex';
         }
     });
 
