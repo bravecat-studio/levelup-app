@@ -4,7 +4,7 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 import { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
+    apiKey: "AIzaSyDK88BvgUDSaVh1qkLXsb8JvgUCNyj7-GQ",
     authDomain: "levelup-app-53d02.firebaseapp.com",
     projectId: "levelup-app-53d02",
     storageBucket: "levelup-app-53d02.firebasestorage.app",
