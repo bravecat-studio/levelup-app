@@ -828,7 +828,16 @@ async function simulateGoogleLogin() {
             AppLogger.info('[Auth] 앱 구글 로그인 성공: ' + result.user.email);
         } catch (e) {
             console.error("앱 구글 로그인 실패:", e);
-            alert("Google 로그인 실패: " + (e.message || JSON.stringify(e)));
+            const errCode = e.code || (e.error && e.error.code);
+            let errMsg = e.message || JSON.stringify(e);
+            if (String(errCode) === '10') {
+                errMsg = 'DEVELOPER_ERROR (코드 10)\n\n' +
+                    'SHA-1 지문이 Firebase 콘솔에 등록되지 않았거나\n' +
+                    'OAuth 클라이언트 ID가 일치하지 않습니다.\n\n' +
+                    'GitHub Actions 빌드 로그의 "SHA-1 지문 출력" 단계에서\n' +
+                    '지문을 확인 후 Firebase 콘솔에 등록하세요.';
+            }
+            alert("Google 로그인 실패: " + errMsg);
         }
     } else {
         // ── 웹 브라우저: 기존 Popup 방식 유지 ──

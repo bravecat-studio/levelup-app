@@ -52,6 +52,8 @@
                 logs.splice(0, logs.length - MAX_ENTRIES);
             }
             saveLogs(logs);
+            // 뱃지 즉시 갱신 (로그인 전·후 화면 모두)
+            if (window.AppLogger) { window.AppLogger._refreshBadge(); }
         } catch (_) { /* 로깅 자체 오류는 무시 */ }
     }
 
@@ -120,7 +122,7 @@
         /** 저장된 로그 수 */
         count: function () { return getLogs().length; },
 
-        /** 로그를 .txt 파일로 다운로드 */
+        /** 로그를 .txt 파일로 다운로드 (Android APK 환경 지원) */
         export: function () {
             const logs = getLogs();
             if (!logs.length) { alert('저장된 로그가 없습니다.'); return; }
@@ -139,17 +141,63 @@
                 ''
             ].join('\n');
 
-            const blob = new Blob([header + lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href     = url;
-            a.download = 'levelup-log-' + new Date().toISOString().replace(/[:.]/g, '-') + '.txt';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            const content  = header + lines.join('\n');
+            const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-            AppLogger.info('[LogExport] 로그 파일 내보내기 완료 (' + logs.length + '개)');
+            if (isNative) {
+                // Android WebView는 Blob URL 다운로드를 지원하지 않음
+                // → Web Share API로 공유하거나, 텍스트 모달로 표시
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'LEVEL UP 오류 로그 (' + logs.length + '개)',
+                        text: content
+                    }).catch(function (e) {
+                        if (e.name !== 'AbortError') { AppLogger._showLogText(content); }
+                    });
+                } else {
+                    AppLogger._showLogText(content);
+                }
+                AppLogger.info('[LogExport] 로그 내보내기 (' + logs.length + '개)');
+            } else {
+                // 웹 브라우저: 기존 Blob 다운로드 방식
+                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                a.href     = url;
+                a.download = 'levelup-log-' + new Date().toISOString().replace(/[:.]/g, '-') + '.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                AppLogger.info('[LogExport] 로그 파일 내보내기 완료 (' + logs.length + '개)');
+            }
+        },
+
+        /** Android APK용 로그 텍스트 표시 모달 (복사 가능) */
+        _showLogText: function (content) {
+            var overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.96);z-index:9999;display:flex;flex-direction:column;padding:15px;box-sizing:border-box;';
+
+            var title = document.createElement('div');
+            title.style.cssText = 'color:#00d9ff;font-weight:bold;margin-bottom:8px;font-size:0.85rem;flex-shrink:0;';
+            title.textContent = '로그 전체 선택 후 복사하세요';
+
+            var ta = document.createElement('textarea');
+            ta.style.cssText = 'flex-grow:1;background:#111;color:#aaa;border:1px solid #333;padding:10px;font-family:monospace;font-size:0.65rem;resize:none;border-radius:6px;width:100%;box-sizing:border-box;';
+            ta.readOnly = true;
+            ta.value = content;
+
+            var btn = document.createElement('button');
+            btn.style.cssText = 'margin-top:10px;padding:12px;background:#333;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;flex-shrink:0;';
+            btn.textContent = '닫기';
+            btn.onclick = function () { document.body.removeChild(overlay); };
+
+            overlay.appendChild(title);
+            overlay.appendChild(ta);
+            overlay.appendChild(btn);
+            document.body.appendChild(overlay);
+            // 텍스트 전체 자동 선택
+            setTimeout(function () { ta.focus(); ta.select(); }, 100);
         },
 
         /** 로그 전체 초기화 */
@@ -188,10 +236,13 @@
             AppLogger._refreshBadge();
         },
 
-        /** 설정 화면의 로그 카운트 뱃지 갱신 */
+        /** 로그 카운트 뱃지 갱신 (설정 화면 + 로그인 전 화면) */
         _refreshBadge: function () {
+            const cnt = AppLogger.count() + '개';
             const badge = document.getElementById('log-count-badge');
-            if (badge) badge.textContent = AppLogger.count() + '개';
+            if (badge) badge.textContent = cnt;
+            const loginBadge = document.getElementById('login-log-badge');
+            if (loginBadge) loginBadge.textContent = cnt;
         },
 
         /** 초기화: 인터셉터·핸들러 설치 및 앱 시작 로그 기록 */
