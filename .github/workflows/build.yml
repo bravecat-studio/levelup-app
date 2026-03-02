@@ -99,12 +99,8 @@ jobs:
       # 9-1. 디버그 키스토어 SHA-1 출력 (Firebase 등록용)
       - name: SHA-1 지문 출력 (Firebase 등록용)
         run: |
-          keytool -list -v \
-            -keystore ~/.android/debug.keystore \
-            -alias androiddebugkey \
-            -storepass android \
-            -keypass android \
-            | grep -A1 "Certificate fingerprints"
+          cd android
+          ./gradlew signingReport 2>/dev/null | grep -A3 "Variant: debug" | grep "SHA1"
 
       # 10. 빌드된 APK 파일을 Artifact로 업로드
       - name: APK 업로드 (Artifact)
