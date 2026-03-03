@@ -36,6 +36,24 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
+      # 4-1. 고정 디버그 키스토어 복원 (SHA-1 일관성 → Google 로그인 안정화)
+      #       GitHub Secrets에 DEBUG_KEYSTORE_BASE64를 설정하면 매 빌드마다 동일한
+      #       SHA-1이 사용되어 Firebase Console 재등록 불필요.
+      #       생성 방법: base64 -w 0 ~/.android/debug.keystore > keystore.b64
+      - name: 디버그 키스토어 복원
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p ~/.android
+            echo "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+            echo "✅ 고정 디버그 키스토어 복원 완료 (SHA-1 동일)"
+          else
+            echo "ℹ️ DEBUG_KEYSTORE_BASE64 시크릿 미설정"
+            echo "   → 기본 debug.keystore 사용 (SHA-1이 빌드마다 변경됨)"
+            echo "   → Google 로그인 오류 코드 10 발생 시 Firebase Console에 새 SHA-1 등록 필요"
+          fi
+
       # 5. npm 패키지 설치 (lock 파일 기준 정확한 버전 설치)
       - name: npm 패키지 설치
         run: npm ci
@@ -44,7 +62,7 @@ jobs:
       - name: 웹 빌드 디렉토리 준비
         run: |
           mkdir -p www
-          cp index.html app.js style.css data.js www/
+          cp index.html app.js style.css data.js logger.js www/
 
       # 6-1. Google OAuth Web Client ID를 capacitor.config.json에 주입
       - name: Google Web Client ID 주입
