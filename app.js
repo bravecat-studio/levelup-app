@@ -1111,25 +1111,89 @@ function changeTheme() {
 function toggleGPS() {
     const isChecked = document.getElementById('gps-toggle').checked;
     const statusDiv = document.getElementById('gps-status');
+    const lang = i18n[AppState.currentLang];
     statusDiv.style.display = 'flex';
-    
-    if (isChecked) {
-        statusDiv.innerHTML = '위치 탐색 중...';
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                () => { statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${i18n[AppState.currentLang].gps_on || '위치 권한 활성화됨'}</span>`; },
-                () => {
-                    statusDiv.innerHTML = `<span style="color:var(--neon-red);">${i18n[AppState.currentLang].gps_err || '위치 정보 오류'}</span>`;
-                    document.getElementById('gps-toggle').checked = false;
-                }
-            );
-        } else {
-            statusDiv.innerHTML = `<span style="color:var(--neon-red);">지원하지 않는 기기입니다.</span>`;
-            document.getElementById('gps-toggle').checked = false;
-        }
-    } else {
-        statusDiv.innerHTML = `<span style="color:var(--text-sub);">${i18n[AppState.currentLang].gps_off || '위치 탐색 중지됨'}</span>`;
+
+    if (!isChecked) {
+        statusDiv.innerHTML = `<span style="color:var(--text-sub);">${lang.gps_off || '위치 탐색 중지됨'}</span>`;
+        return;
     }
+
+    if (!("geolocation" in navigator)) {
+        statusDiv.innerHTML = `<span style="color:var(--neon-red);">${lang.gps_no_support || '위치 서비스를 지원하지 않는 기기입니다.'}</span>`;
+        document.getElementById('gps-toggle').checked = false;
+        if (window.AppLogger) AppLogger.warn('[GPS] Geolocation API not supported');
+        return;
+    }
+
+    statusDiv.innerHTML = `<span style="color:var(--neon-gold);">${lang.gps_searching || '위치 탐색 중...'}</span>`;
+
+    const geoOptions = {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000
+    };
+
+    let retryCount = 0;
+    const maxRetries = 2;
+
+    function attemptGeoLocation() {
+        navigator.geolocation.getCurrentPosition(
+            () => {
+                statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.gps_on || '위치 권한 활성화됨'}</span>`;
+                if (window.AppLogger) AppLogger.info('[GPS] Location acquired successfully');
+            },
+            (error) => {
+                // TIMEOUT(3): retry with lower accuracy
+                if (error.code === error.TIMEOUT && retryCount < maxRetries) {
+                    retryCount++;
+                    if (window.AppLogger) AppLogger.info(`[GPS] Timeout, retrying (${retryCount}/${maxRetries})...`);
+                    statusDiv.innerHTML = `<span style="color:var(--neon-gold);">${lang.gps_retrying || '위치 재탐색 중...'} (${retryCount}/${maxRetries})</span>`;
+                    navigator.geolocation.getCurrentPosition(
+                        () => {
+                            statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.gps_on || '위치 권한 활성화됨'}</span>`;
+                            if (window.AppLogger) AppLogger.info('[GPS] Location acquired on retry');
+                        },
+                        (retryErr) => {
+                            if (retryErr.code === retryErr.TIMEOUT && retryCount < maxRetries) {
+                                retryCount++;
+                                attemptGeoLocation();
+                            } else {
+                                handleGeoError(retryErr);
+                            }
+                        },
+                        { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 }
+                    );
+                    return;
+                }
+                handleGeoError(error);
+            },
+            geoOptions
+        );
+    }
+
+    function handleGeoError(error) {
+        let errMsg;
+        switch (error.code) {
+            case error.PERMISSION_DENIED:
+                errMsg = lang.gps_denied || '위치 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.';
+                break;
+            case error.POSITION_UNAVAILABLE:
+                errMsg = lang.gps_unavailable || '위치 정보를 사용할 수 없습니다. GPS 신호를 확인해주세요.';
+                break;
+            case error.TIMEOUT:
+                errMsg = lang.gps_timeout || '위치 탐색 시간이 초과되었습니다. 다시 시도해주세요.';
+                break;
+            default:
+                errMsg = lang.gps_err || '위치 정보 오류';
+                break;
+        }
+        statusDiv.innerHTML = `<span style="color:var(--neon-red);">${errMsg}</span>`;
+        document.getElementById('gps-toggle').checked = false;
+        if (window.AppLogger) AppLogger.error(`[GPS] Error code=${error.code}: ${error.message}`);
+    }
+
+    attemptGeoLocation();
 }
 
 async function toggleHealthSync() {
