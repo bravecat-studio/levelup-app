@@ -831,17 +831,25 @@ async function simulateGoogleLogin() {
             if (accessToken) { localStorage.setItem('gfit_token', accessToken); }
             AppLogger.info('[Auth] 앱 구글 로그인 성공: ' + result.user.email);
         } catch (e) {
-            console.error("앱 구글 로그인 실패:", e);
-            const errCode = e.code || (e.error && e.error.code);
-            let errMsg = e.message || JSON.stringify(e);
-            if (String(errCode) === '10') {
-                errMsg = 'DEVELOPER_ERROR (코드 10)\n\n' +
-                    'SHA-1 지문이 Firebase 콘솔에 등록되지 않았거나\n' +
-                    'OAuth 클라이언트 ID가 일치하지 않습니다.\n\n' +
-                    'GitHub Actions 빌드 로그의 "SHA-1 지문 출력" 단계에서\n' +
-                    '지문을 확인 후 Firebase 콘솔에 등록하세요.';
+            const errCode = String(e.code || (e.error && e.error.code) || '');
+            const errRaw = e.message || JSON.stringify(e);
+            AppLogger.error('앱 구글 로그인 실패: ' + errRaw, (e.stack || '') + '\ncode=' + errCode);
+            let errMsg = errRaw;
+            if (errCode === '12501') {
+                // 사용자가 로그인 취소 → 알림 없이 조용히 종료
+                AppLogger.info('[Auth] 구글 로그인 취소 (사용자)');
+                return;
             }
-            alert("Google 로그인 실패: " + errMsg);
+            if (errCode === '10') {
+                errMsg = 'DEVELOPER_ERROR (코드 10)\n\n' +
+                    'APK 서명 SHA-1 지문이 Firebase에 등록되지 않았습니다.\n\n' +
+                    '해결 방법:\n' +
+                    '1. GitHub Actions 빌드 로그 → "SHA-1 지문 출력" 단계에서 SHA-1 확인\n' +
+                    '2. Firebase Console → 프로젝트 설정 → Android 앱(com.levelup.reboot)\n' +
+                    '3. "SHA 인증서 지문" 섹션에 SHA-1 추가\n' +
+                    '4. google-services.json 다시 다운로드 → 저장소에 커밋 후 재빌드';
+            }
+            alert("Google 로그인 실패:\n" + errMsg);
         }
     } else {
         // ── 웹 브라우저: 기존 Popup 방식 유지 ──
