@@ -26,6 +26,14 @@ googleFitProvider.addScope('https://www.googleapis.com/auth/fitness.activity.rea
 googleFitProvider.setCustomParameters({ prompt: 'consent' });
 
 // --- 상태 관리 객체 ---
+function getWeekStartDate() {
+    const today = new Date();
+    const day = today.getDay();
+    const start = new Date(today);
+    start.setDate(today.getDate() - day);
+    return `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
+}
+
 let AppState = getInitialAppState();
 
 function getInitialAppState() {
@@ -47,7 +55,8 @@ function getInitialAppState() {
         },
         quest: {
             currentDayOfWeek: new Date().getDay(),
-            completedState: Array.from({length: 7}, () => Array(12).fill(false))
+            completedState: Array.from({length: 7}, () => Array(12).fill(false)),
+            weekStart: getWeekStartDate()
         },
         social: { mode: 'global', sortCriteria: 'total', users: [] },
         dungeon: { lastGeneratedDate: null, slot: 0, stationIdx: 0, maxParticipants: 5, globalParticipants: 0, globalProgress: 0, isJoined: false, hasContributed: false, targetStat: 'str', isCleared: false },
@@ -151,6 +160,7 @@ async function saveUserData() {
             points: AppState.user.points,
             titleHistoryStr: JSON.stringify(AppState.user.titleHistory),
             questStr: JSON.stringify(AppState.quest.completedState),
+            questWeekStart: AppState.quest.weekStart,
             dungeonStr: JSON.stringify(AppState.dungeon), 
             friends: AppState.user.friends || [],
             photoURL: AppState.user.photoURL || null,
@@ -172,7 +182,12 @@ async function loadUserDataFromDB(user) {
             if(data.titleHistoryStr) {
                 try { AppState.user.titleHistory = JSON.parse(data.titleHistoryStr); } catch(e) { AppState.user.titleHistory = [{level:1, title:{ko:"각성자"}}]; }
             }
-            if(data.questStr) AppState.quest.completedState = JSON.parse(data.questStr);
+            if(data.questStr) {
+                const savedWeek = data.questWeekStart || "";
+                if(savedWeek === getWeekStartDate()) {
+                    AppState.quest.completedState = JSON.parse(data.questStr);
+                }
+            }
             if(data.dungeonStr) {
                 AppState.dungeon = JSON.parse(data.dungeonStr);
                 if(!AppState.dungeon.maxParticipants) AppState.dungeon.maxParticipants = 5; 
