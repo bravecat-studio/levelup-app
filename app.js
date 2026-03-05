@@ -1108,8 +1108,39 @@ function changeTheme() {
 }
 
 // --- GPS 및 건강 데이터 설정 ---
-function toggleGPS() {
-    const isChecked = document.getElementById('gps-toggle').checked;
+
+/** 앱 설정 화면 열기 (Capacitor native → Android 앱 상세 설정) */
+function openAppSettings() {
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    if (!isNative) return;
+
+    try {
+        // Capacitor Android 환경: 네이티브 브릿지를 통해 앱 설정 화면 호출
+        const cap = window.Capacitor;
+
+        // 방법 1: @capacitor/app 플러그인이 설치된 경우
+        if (cap.Plugins && cap.Plugins.App && cap.Plugins.App.openUrl) {
+            // Android intent URI → 앱 상세 설정 화면
+            cap.Plugins.App.openUrl({ url: `package:${cap.config && cap.config.appId ? cap.config.appId : 'com.levelup.reboot'}` });
+            return;
+        }
+
+        // 방법 2: Capacitor 네이티브 브릿지 직접 호출 (커스텀 플러그인 AppSettings)
+        if (cap.toNative) {
+            cap.toNative('AppSettings', 'open', { callbackId: 'openSettings' });
+            return;
+        }
+
+        // 방법 3: 폴백 - Android intent:// scheme
+        window.location.href = `intent://settings/app_detail#Intent;scheme=package;S.android.intent.extra.PACKAGE_NAME=com.levelup.reboot;end`;
+    } catch (e) {
+        if (window.AppLogger) AppLogger.warn('[GPS] Failed to open native settings: ' + e.message);
+    }
+}
+
+async function toggleGPS() {
+    const gpsToggle = document.getElementById('gps-toggle');
+    const isChecked = gpsToggle.checked;
     const statusDiv = document.getElementById('gps-status');
     const lang = i18n[AppState.currentLang];
     statusDiv.style.display = 'flex';
@@ -1121,11 +1152,40 @@ function toggleGPS() {
 
     if (!("geolocation" in navigator)) {
         statusDiv.innerHTML = `<span style="color:var(--neon-red);">${lang.gps_no_support || '위치 서비스를 지원하지 않는 기기입니다.'}</span>`;
-        document.getElementById('gps-toggle').checked = false;
+        gpsToggle.checked = false;
         if (window.AppLogger) AppLogger.warn('[GPS] Geolocation API not supported');
         return;
     }
 
+    // 1단계: 권한 상태 사전 확인 (Permissions API 지원 시)
+    if (navigator.permissions && navigator.permissions.query) {
+        try {
+            const permStatus = await navigator.permissions.query({ name: 'geolocation' });
+
+            if (permStatus.state === 'denied') {
+                // 권한이 이미 거부된 상태 → 시스템 설정으로 안내
+                if (window.AppLogger) AppLogger.info('[GPS] Permission already denied, redirecting to settings');
+                const confirmMsg = lang.gps_denied_confirm || '위치 권한이 거부된 상태입니다.\n앱 설정에서 위치 권한을 허용하시겠습니까?';
+                statusDiv.innerHTML = `<span style="color:var(--neon-red);">${lang.gps_denied || '위치 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.'}</span>`;
+                gpsToggle.checked = false;
+
+                if (confirm(confirmMsg)) {
+                    openAppSettings();
+                }
+                return;
+            }
+
+            // 'granted' 또는 'prompt' → 정상 진행
+            if (permStatus.state === 'granted') {
+                if (window.AppLogger) AppLogger.info('[GPS] Permission already granted');
+            }
+        } catch (e) {
+            // Permissions API 미지원 시 무시하고 진행
+            if (window.AppLogger) AppLogger.info('[GPS] Permissions API not available, proceeding with geolocation request');
+        }
+    }
+
+    // 2단계: 위치 탐색 시도
     statusDiv.innerHTML = `<span style="color:var(--neon-gold);">${lang.gps_searching || '위치 탐색 중...'}</span>`;
 
     const geoOptions = {
@@ -1144,7 +1204,6 @@ function toggleGPS() {
                 if (window.AppLogger) AppLogger.info('[GPS] Location acquired successfully');
             },
             (error) => {
-                // TIMEOUT(3): retry with lower accuracy
                 if (error.code === error.TIMEOUT && retryCount < maxRetries) {
                     retryCount++;
                     if (window.AppLogger) AppLogger.info(`[GPS] Timeout, retrying (${retryCount}/${maxRetries})...`);
@@ -1177,7 +1236,15 @@ function toggleGPS() {
         switch (error.code) {
             case error.PERMISSION_DENIED:
                 errMsg = lang.gps_denied || '위치 권한이 거부되었습니다. 설정에서 권한을 허용해주세요.';
-                break;
+                gpsToggle.checked = false;
+                if (window.AppLogger) AppLogger.error(`[GPS] Permission denied: ${error.message}`);
+                // 권한 거부 → 설정 이동 확인
+                statusDiv.innerHTML = `<span style="color:var(--neon-red);">${errMsg}</span>`;
+                const confirmMsg = lang.gps_denied_confirm || '위치 권한이 거부된 상태입니다.\n앱 설정에서 위치 권한을 허용하시겠습니까?';
+                if (confirm(confirmMsg)) {
+                    openAppSettings();
+                }
+                return;
             case error.POSITION_UNAVAILABLE:
                 errMsg = lang.gps_unavailable || '위치 정보를 사용할 수 없습니다. GPS 신호를 확인해주세요.';
                 break;
@@ -1189,7 +1256,7 @@ function toggleGPS() {
                 break;
         }
         statusDiv.innerHTML = `<span style="color:var(--neon-red);">${errMsg}</span>`;
-        document.getElementById('gps-toggle').checked = false;
+        gpsToggle.checked = false;
         if (window.AppLogger) AppLogger.error(`[GPS] Error code=${error.code}: ${error.message}`);
     }
 
