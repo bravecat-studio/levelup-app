@@ -36,13 +36,17 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
 
-      # 4-1. 고정 debug keystore 복원 (SHA-1 고정용)
-      - name: 디버그 키스토어 복원
+      # 4-1. 고정 debug keystore 준비 (SHA-1 고정용)
+      - name: 디버그 키스토어 준비
         run: |
           mkdir -p ~/.android
           base64 -d debug-keystore.b64 > ~/.android/debug.keystore
           SHA1=$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android 2>/dev/null | grep "SHA1:" | head -1 | awk '{print $2}')
-          echo "✅ 키스토어 복원 완료 — SHA-1: $SHA1"
+          echo "✅ 키스토어 준비 완료 — SHA-1: $SHA1"
+          if [ -z "$SHA1" ]; then
+            echo "❌ 키스토어 복원 실패"
+            exit 1
+          fi
 
       # 5. npm 패키지 설치 (lock 파일 기준 정확한 버전 설치)
       - name: npm 패키지 설치
@@ -92,7 +96,54 @@ jobs:
         env:
           CI: true
 
-      # 8. Gradle 래퍼 실행 권한 부여
+      # 8-1. build.gradle에 고정 서명 설정 주입 (Gradle 기본 키스토어 우선순위 무시)
+      - name: build.gradle 서명 설정 주입
+        run: |
+          cp ~/.android/debug.keystore android/app/debug.keystore
+          python3 << 'PYEOF'
+          import re
+
+          with open('android/app/build.gradle', 'r') as f:
+              content = f.read()
+
+          signing_block = '''    signingConfigs {
+              debug {
+                  storeFile file("debug.keystore")
+                  storePassword "android"
+                  keyAlias "androiddebugkey"
+                  keyPassword "android"
+              }
+          }
+          '''
+
+          # signingConfigs 블록이 없으면 buildTypes 앞에 삽입
+          if 'signingConfigs' not in content:
+              content = content.replace('    buildTypes {', signing_block + '    buildTypes {')
+
+          # debug buildType에 signingConfig 추가
+          if 'signingConfig signingConfigs.debug' not in content:
+              if re.search(r'\s+debug\s*\{', content):
+                  content = re.sub(
+                      r'(\s+debug\s*\{)',
+                      r'\1\n            signingConfig signingConfigs.debug',
+                      content, count=1
+                  )
+              else:
+                  content = content.replace(
+                      '    buildTypes {',
+                      '    buildTypes {\n        debug {\n            signingConfig signingConfigs.debug\n        }'
+                  )
+
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+
+          print("✅ build.gradle 서명 설정 주입 완료")
+          PYEOF
+
+          echo "--- build.gradle 서명 관련 설정 확인 ---"
+          grep -n "signingConfig\|signingConfigs\|storeFile" android/app/build.gradle || echo "서명 설정 없음"
+
+      # 8-2. Gradle 래퍼 실행 권한 부여
       - name: Gradle 실행 권한 부여
         run: chmod +x android/gradlew
 
