@@ -120,19 +120,20 @@ jobs:
           if 'signingConfigs' not in content:
               content = content.replace('    buildTypes {', signing_block + '    buildTypes {')
 
-          # debug buildType에 signingConfig 추가
+          # buildTypes 내부의 debug 블록에만 signingConfig 추가
+          # buildTypes 위치를 찾아서 그 이후의 debug 블록에만 적용
           if 'signingConfig signingConfigs.debug' not in content:
-              if re.search(r'\s+debug\s*\{', content):
-                  content = re.sub(
-                      r'(\s+debug\s*\{)',
-                      r'\1\n            signingConfig signingConfigs.debug',
-                      content, count=1
-                  )
-              else:
-                  content = content.replace(
-                      '    buildTypes {',
-                      '    buildTypes {\n        debug {\n            signingConfig signingConfigs.debug\n        }'
-                  )
+              bt_match = re.search(r'buildTypes\s*\{', content)
+              if bt_match:
+                  bt_pos = bt_match.end()
+                  after_bt = content[bt_pos:]
+                  debug_match = re.search(r'(debug\s*\{)', after_bt)
+                  if debug_match:
+                      insert_pos = bt_pos + debug_match.end()
+                      content = content[:insert_pos] + '\n            signingConfig signingConfigs.debug' + content[insert_pos:]
+                  else:
+                      # debug 블록이 없으면 buildTypes 안에 새로 생성
+                      content = content[:bt_pos] + '\n        debug {\n            signingConfig signingConfigs.debug\n        }\n' + content[bt_pos:]
 
           with open('android/app/build.gradle', 'w') as f:
               f.write(content)
