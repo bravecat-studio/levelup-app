@@ -18,8 +18,12 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope('https://www.googleapis.com/auth/fitness.activity.read');
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Google Fit 전용 provider (fitness scope 포함) - 동기화 활성화 시에만 사용
+const googleFitProvider = new GoogleAuthProvider();
+googleFitProvider.addScope('https://www.googleapis.com/auth/fitness.activity.read');
+googleFitProvider.setCustomParameters({ prompt: 'consent' });
 
 // --- 상태 관리 객체 ---
 let AppState = getInitialAppState();
@@ -827,8 +831,6 @@ async function simulateGoogleLogin() {
             const idToken = googleUser.authentication.idToken;
             const credential = GoogleAuthProvider.credential(idToken);
             const result = await signInWithCredential(auth, credential);
-            const accessToken = googleUser.authentication.accessToken;
-            if (accessToken) { localStorage.setItem('gfit_token', accessToken); }
             AppLogger.info('[Auth] 앱 구글 로그인 성공: ' + result.user.email);
         } catch (e) {
             const errCode = String(e.code || (e.error && e.error.code) || '');
@@ -854,9 +856,7 @@ async function simulateGoogleLogin() {
     } else {
         // ── 웹 브라우저: 기존 Popup 방식 유지 ──
         try {
-            const result = await signInWithPopup(auth, googleProvider);
-            const credential = GoogleAuthProvider.credentialFromResult(result);
-            if (credential?.accessToken) { localStorage.setItem('gfit_token', credential.accessToken); }
+            await signInWithPopup(auth, googleProvider);
         } catch (e) {
             console.error("웹 구글 로그인 실패:", e);
             alert("Google 로그인 실패: " + e.message);
@@ -1112,14 +1112,70 @@ function toggleGPS() {
     }
 }
 
-function toggleHealthSync() { 
-    AppState.user.syncEnabled = document.getElementById('sync-toggle').checked; 
-    saveUserData(); 
-    if(AppState.user.syncEnabled) syncHealthData(true); 
-    else {
-        const statusDiv = document.getElementById('sync-status');
+async function toggleHealthSync() {
+    const toggle = document.getElementById('sync-toggle');
+    const statusDiv = document.getElementById('sync-status');
+
+    if (toggle.checked) {
+        // Google Fit 토큰이 없으면 fitness scope 권한 요청
+        if (!localStorage.getItem('gfit_token')) {
+            statusDiv.style.display = 'flex';
+            statusDiv.innerHTML = `<span style="color:var(--text-sub);">Google Fit 권한 요청 중...</span>`;
+            const granted = await requestFitnessScope();
+            if (!granted) {
+                toggle.checked = false;
+                statusDiv.innerHTML = `<span style="color:var(--neon-red);">Google Fit 권한이 필요합니다.</span>`;
+                return;
+            }
+        }
+        AppState.user.syncEnabled = true;
+        saveUserData();
+        syncHealthData(true);
+    } else {
+        AppState.user.syncEnabled = false;
+        saveUserData();
         statusDiv.style.display = 'flex';
         statusDiv.innerHTML = `<span style="color:var(--text-sub);">${i18n[AppState.currentLang].sync_off || '동기화 해제됨'}</span>`;
+    }
+}
+
+// Google Fit fitness scope를 별도로 요청하는 함수
+async function requestFitnessScope() {
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+
+    if (isNative) {
+        try {
+            const { GoogleAuth } = window.Capacitor.Plugins;
+            if (!GoogleAuth) return false;
+            await GoogleAuth.initialize({
+                scopes: ['profile', 'email', 'https://www.googleapis.com/auth/fitness.activity.read']
+            });
+            const googleUser = await GoogleAuth.signIn();
+            const accessToken = googleUser.authentication.accessToken;
+            if (accessToken) {
+                localStorage.setItem('gfit_token', accessToken);
+                return true;
+            }
+            return false;
+        } catch (e) {
+            const errCode = String(e.code || (e.error && e.error.code) || '');
+            if (errCode === '12501') return false; // 사용자 취소
+            AppLogger.error('Google Fit 권한 요청 실패: ' + (e.message || JSON.stringify(e)));
+            return false;
+        }
+    } else {
+        try {
+            const result = await signInWithPopup(auth, googleFitProvider);
+            const credential = GoogleAuthProvider.credentialFromResult(result);
+            if (credential?.accessToken) {
+                localStorage.setItem('gfit_token', credential.accessToken);
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.error('Google Fit 권한 요청 실패:', e);
+            return false;
+        }
     }
 }
 
