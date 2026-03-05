@@ -821,8 +821,13 @@ async function simulateGoogleLogin() {
                 return;
             }
             // v3.x requires explicit initialization before signIn()
-            // Without this, GoogleSignInClient remains null → NullPointerException
-            await GoogleAuth.initialize();
+            // ⚠️ clientId must be the Web client ID (type 3, not Android type 1)
+            // Plugin reads "clientId" (not "serverClientId") on Android native side
+            await GoogleAuth.initialize({
+                clientId: '233040099152-htr1tnuqmpadikjvj9hbitf4tuh0ako5.apps.googleusercontent.com',
+                scopes: ['profile', 'email', 'https://www.googleapis.com/auth/fitness.activity.read'],
+                grantOfflineAccess: true
+            });
             const googleUser = await GoogleAuth.signIn();
             const idToken = googleUser.authentication.idToken;
             const credential = GoogleAuthProvider.credential(idToken);
@@ -842,12 +847,11 @@ async function simulateGoogleLogin() {
             }
             if (errCode === '10') {
                 errMsg = 'DEVELOPER_ERROR (코드 10)\n\n' +
-                    'APK 서명 SHA-1 지문이 Firebase에 등록되지 않았습니다.\n\n' +
-                    '해결 방법:\n' +
-                    '1. GitHub Actions 빌드 로그 → "SHA-1 지문 출력" 단계에서 SHA-1 확인\n' +
-                    '2. Firebase Console → 프로젝트 설정 → Android 앱(com.levelup.reboot)\n' +
-                    '3. "SHA 인증서 지문" 섹션에 SHA-1 추가\n' +
-                    '4. google-services.json 다시 다운로드 → 저장소에 커밋 후 재빌드';
+                    '가능한 원인:\n' +
+                    '1. clientId 설정 오류 (capacitor.config.json의 "clientId" 키 확인)\n' +
+                    '2. APK 서명 SHA-1이 Firebase Console에 미등록\n' +
+                    '3. Google Cloud Console의 OAuth 동의 화면 미설정\n\n' +
+                    '→ 로그 뷰어에서 상세 오류를 확인하세요.';
             }
             alert("Google 로그인 실패:\n" + errMsg);
         }
