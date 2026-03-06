@@ -105,17 +105,18 @@ jobs:
         run: |
           cp debug.keystore android/app/debug.keystore
           # build.gradle에 명시적 signingConfigs 추가
-          sed -i '/android {/a\
-    signingConfigs {\
-        debug {\
-            storeFile file("debug.keystore")\
-            storePassword "android"\
-            keyAlias "androiddebugkey"\
-            keyPassword "android"\
-        }\
-    }' android/app/build.gradle
+          cat > /tmp/signing_patch.gradle << 'GRADLEOF'
+          signingConfigs {
+              debug {
+                  storeFile file("debug.keystore")
+                  storePassword "android"
+                  keyAlias "androiddebugkey"
+                  keyPassword "android"
+              }
+          }
+          GRADLEOF
+          sed -i '/^android {$/r /tmp/signing_patch.gradle' android/app/build.gradle
           echo "✅ Gradle 서명 설정 패치 완료"
-          echo "=== 패치된 signingConfigs ==="
           grep -A 8 'signingConfigs' android/app/build.gradle || true
 
       # 9. Debug APK 빌드
