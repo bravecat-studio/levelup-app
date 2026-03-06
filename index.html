@@ -43,8 +43,8 @@
             </div>
 
             <div class="login-terms">
-                계속하면 BRAVECAT의 <a href="terms.html">소비자 약관</a> 및 <a href="usage-policy.html">이용 정책</a>에
-                동의하고, <a href="privacy.html">개인정보 처리방침</a>을 확인하는 것으로
+                계속하면 BRAVECAT의 <a href="#" onclick="openLegalModal('terms');return false;">소비자 약관</a> 및 <a href="#" onclick="openLegalModal('usage');return false;">이용 정책</a>에
+                동의하고, <a href="#" onclick="openLegalModal('privacy');return false;">개인정보 처리방침</a>을 확인하는 것으로
                 간주됩니다.
             </div>
 
@@ -298,8 +298,18 @@
         </div>
     </div>
 
+    <!-- 법률 페이지 풀스크린 모달 -->
+    <div id="legal-modal" class="legal-modal d-none">
+        <div class="legal-modal-header">
+            <button class="legal-back-btn" onclick="closeLegalModal()">←</button>
+            <span class="legal-modal-title" id="legal-modal-title"></span>
+        </div>
+        <div class="legal-modal-body" id="legal-modal-body"></div>
+    </div>
+
     <script src="logger.js"></script>
     <script src="data.js"></script>
+    <script src="legal-content.js"></script>
     <script type="module" src="app.js"></script>
 </body>
 </html>
