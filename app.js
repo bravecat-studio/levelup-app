@@ -89,7 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderQuestList(); 
             fetchSocialData(); 
             
-            updateDiaryPreview();
             if (AppState.user.syncEnabled) { syncHealthData(false); }
         } else {
             AppLogger.info('[Auth] 로그아웃 상태');
@@ -154,18 +153,25 @@ function bindEvents() {
     
     document.getElementById('btn-raid-action').addEventListener('click', window.simulateRaidAction);
 
-    // Diary
-    document.getElementById('btn-open-diary').addEventListener('click', openDiaryModal);
-    document.getElementById('btn-diary-save').addEventListener('click', saveDiaryEntry);
-    document.getElementById('diary-text').addEventListener('input', (e) => {
+    // Diary tab
+    document.getElementById('btn-diary-tab-save').addEventListener('click', saveDiaryEntryTab);
+    document.getElementById('diary-tab-text').addEventListener('input', (e) => {
         if (e.target.value.length > 500) e.target.value = e.target.value.substring(0, 500);
-        document.getElementById('diary-char-count').innerText = `${e.target.value.length} / 500`;
+        document.getElementById('diary-tab-char-count').innerText = `${e.target.value.length} / 500`;
     });
-    document.querySelectorAll('.diary-mood-btn').forEach(btn => {
+    document.querySelectorAll('#diary-mood-selector-tab .diary-mood-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.diary-mood-btn').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('#diary-mood-selector-tab .diary-mood-btn').forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
         });
+    });
+    document.getElementById('diary-cal-prev').addEventListener('click', () => {
+        diaryCalendarDate.setMonth(diaryCalendarDate.getMonth() - 1);
+        renderDiaryCalendar();
+    });
+    document.getElementById('diary-cal-next').addEventListener('click', () => {
+        diaryCalendarDate.setMonth(diaryCalendarDate.getMonth() + 1);
+        renderDiaryCalendar();
     });
     document.getElementById('btn-raid-complete').addEventListener('click', window.completeDungeon);
 }
@@ -177,17 +183,19 @@ async function saveUserData() {
         await setDoc(doc(db, "users", auth.currentUser.uid), {
             name: AppState.user.name,
             stats: AppState.user.stats,
+            pendingStats: AppState.user.pendingStats,
             level: AppState.user.level,
             points: AppState.user.points,
             titleHistoryStr: JSON.stringify(AppState.user.titleHistory),
             questStr: JSON.stringify(AppState.quest.completedState),
             questWeekStart: AppState.quest.weekStart,
-            dungeonStr: JSON.stringify(AppState.dungeon), 
+            dungeonStr: JSON.stringify(AppState.dungeon),
             friends: AppState.user.friends || [],
             photoURL: AppState.user.photoURL || null,
-            syncEnabled: AppState.user.syncEnabled, 
+            syncEnabled: AppState.user.syncEnabled,
             stepData: AppState.user.stepData,
-            instaId: AppState.user.instaId || "" 
+            instaId: AppState.user.instaId || "",
+            diaryStr: localStorage.getItem('diary_entries') || '{}'
         }, { merge: true });
     } catch(e) { console.error("DB 저장 실패:", e); AppLogger.error('[DB] 저장 실패', e.stack || e.message); }
 }
@@ -216,10 +224,14 @@ async function loadUserDataFromDB(user) {
                 AppState.dungeon.globalParticipants = 0;
                 AppState.dungeon.globalProgress = 0;
             }
+            if(data.pendingStats) AppState.user.pendingStats = data.pendingStats;
             if(data.friends) AppState.user.friends = data.friends;
             if(data.syncEnabled !== undefined) AppState.user.syncEnabled = data.syncEnabled;
             if(data.stepData) AppState.user.stepData = data.stepData;
             if(data.instaId) AppState.user.instaId = data.instaId;
+            if(data.diaryStr) {
+                try { localStorage.setItem('diary_entries', data.diaryStr); } catch(e) {}
+            }
             document.getElementById('sync-toggle').checked = AppState.user.syncEnabled;
             AppState.user.name = data.name || user.displayName || "신규 헌터";
             if(data.photoURL) {
@@ -657,8 +669,9 @@ function switchTab(tabId, el) {
         mainEl.style.overflowY = 'auto';
     }
     
-    if(tabId === 'social') fetchSocialData(); 
+    if(tabId === 'social') fetchSocialData();
     if(tabId === 'quests') { renderQuestList(); renderCalendar(); }
+    if(tabId === 'diary') { renderDiaryCalendar(); loadDiaryForDate(diarySelectedDate); }
     if(tabId === 'dungeon') {
         updateDungeonStatus();
         window.syncGlobalDungeon(); 
@@ -706,14 +719,15 @@ function changeLanguage(langCode) {
     });
     
     if(document.getElementById('app-container').classList.contains('d-flex')){
-        drawRadarChart(); 
-        renderUsers(AppState.social.sortCriteria); 
-        renderQuestList(); 
-        renderCalendar(); 
+        drawRadarChart();
+        renderUsers(AppState.social.sortCriteria);
+        renderQuestList();
+        renderCalendar();
+        renderDiaryCalendar();
         renderQuote();
-        updatePointUI(); 
+        updatePointUI();
         updateDungeonStatus();
-        loadPlayerName(); 
+        loadPlayerName();
     }
 }
 
@@ -1122,40 +1136,76 @@ function openDungeonInfoModal() {
     m.classList.add('d-flex');
 }
 
-// --- ★ 다이어리 기능 ★ ---
+// --- ★ 약관 모달 (인앱 표시 - 인라인) ★ ---
+const legalContents = {
+    terms: {
+        title: '소비자 약관',
+        html: `<div class="legal-date" style="font-size:0.75rem;color:#888;margin-bottom:20px;">시행일: 2025년 3월 1일 | 최종 수정: 2026년 3월 1일</div>
+<div class="section" style="margin-bottom:16px;"><p>본 소비자 약관(이하 "약관")은 <b>BRAVECAT</b>(이하 "회사")이 제공하는 <b>LEVEL UP: REBOOT</b> 모바일 애플리케이션(이하 "서비스")의 이용 조건을 규정합니다. 서비스를 이용함으로써 본 약관에 동의하는 것으로 간주됩니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">1. 서비스 개요</h2><p>LEVEL UP: REBOOT는 일상 생활의 자기계발 활동을 게임화(Gamification)하여 사용자의 동기 부여와 습관 형성을 돕는 모바일 애플리케이션입니다.</p><ul style="padding-left:20px;margin-bottom:10px;"><li>일일 퀘스트 시스템을 통한 자기계발 목표 관리</li><li>능력치(스탯) 시스템을 통한 성장 시각화</li><li>소셜 기능을 통한 커뮤니티 참여</li><li>던전/레이드 시스템을 통한 협력 콘텐츠</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">2. 계정 및 이용 자격</h2><h3 style="font-size:0.9rem;font-weight:600;margin:12px 0 6px;">2.1 이용 자격</h3><p>서비스를 이용하려면 만 18세 이상이어야 합니다.</p><h3 style="font-size:0.9rem;font-weight:600;margin:12px 0 6px;">2.2 계정 관리</h3><p>사용자는 본인의 계정 정보를 안전하게 관리할 책임이 있으며, 계정을 통해 발생하는 모든 활동에 대한 책임은 사용자 본인에게 있습니다.</p><h3 style="font-size:0.9rem;font-weight:600;margin:12px 0 6px;">2.3 계정 생성</h3><p>계정은 이메일/비밀번호 또는 Google OAuth를 통해 생성할 수 있습니다. 하나의 자연인은 하나의 계정만 생성하여야 합니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">3. 서비스 이용</h2><p>서비스의 기본 기능은 무료로 제공됩니다. 회사는 운영상 또는 기술상의 필요에 따라 서비스를 변경하거나 중단할 수 있습니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">4. 건강 및 면책 사항</h2><p>본 서비스는 건강 보조 및 동기 부여 목적으로만 제공됩니다. 의학적 조언, 진단, 치료를 대체하지 않습니다. 퀘스트 수행 중 발생하는 신체적 부상이나 손해에 대해 회사는 일절 책임지지 않습니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">5. 위치 정보</h2><p>던전/레이드 기능을 위해 사용자의 위치 정보를 수집할 수 있습니다. 위치 정보 수집은 사용자의 명시적 동의 하에만 이루어집니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">6. 금지 행위</h2><ul style="padding-left:20px;"><li>서비스의 정상적인 운영을 방해하는 행위</li><li>다른 사용자의 개인정보를 무단으로 수집하는 행위</li><li>자동화된 수단을 이용한 부정 이용</li><li>서비스 데이터를 임의로 조작하는 행위</li><li>타인을 사칭하거나 허위 정보를 제공하는 행위</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">7. 계정 정지 및 해지</h2><p>회사는 약관 위반 시 사전 통지 없이 서비스 이용을 제한하거나 계정을 정지 또는 삭제할 수 있습니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">8. 책임 제한</h2><p>회사는 서비스를 "있는 그대로(AS IS)" 제공하며, 서비스의 완전성, 정확성, 신뢰성에 대해 보증하지 않습니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">9. 약관 변경</h2><p>회사는 필요한 경우 약관을 변경할 수 있으며, 변경된 약관은 서비스 내 공지를 통해 고지합니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">10. 준거법 및 분쟁 해결</h2><p>본 약관은 대한민국 법률에 따라 해석되며, 서울중앙지방법원을 제1심 관할 법원으로 합니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">11. 문의</h2><p><b>BRAVECAT</b><br>이메일: support@bravecat.studio</p></div>`
+    },
+    'usage-policy': {
+        title: '이용 정책',
+        html: `<div class="legal-date" style="font-size:0.75rem;color:#888;margin-bottom:20px;">시행일: 2025년 3월 1일 | 최종 수정: 2026년 3월 1일</div>
+<div class="section" style="margin-bottom:16px;"><p>본 이용 정책(이하 "정책")은 <b>BRAVECAT</b>이 운영하는 <b>LEVEL UP: REBOOT</b> 서비스(이하 "서비스")의 올바른 이용 기준을 정합니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">1. 기본 이용 원칙</h2><ul style="padding-left:20px;"><li>정직하고 성실하게 서비스를 이용할 것</li><li>다른 사용자의 권리를 존중할 것</li><li>서비스의 공정한 운영에 기여할 것</li><li>관련 법률 및 규정을 준수할 것</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">2. 금지되는 행위</h2><h3 style="font-size:0.9rem;font-weight:600;margin:12px 0 6px;">2.1 데이터 조작 및 부정 행위</h3><ul style="padding-left:20px;"><li>퀘스트 완료 데이터를 허위로 기록하는 행위</li><li>자동화 도구를 사용하여 퀘스트를 완료하거나 포인트를 획득하는 행위</li><li>Google Fit 데이터를 조작하는 행위</li><li>GPS 위치 정보를 위조하는 행위</li><li>레이드/던전 참여를 부정하게 조작하는 행위</li></ul><h3 style="font-size:0.9rem;font-weight:600;margin:12px 0 6px;">2.2 커뮤니티 행위 기준</h3><ul style="padding-left:20px;"><li>다른 사용자에 대한 괴롭힘, 비방, 차별적 언행</li><li>불쾌하거나 유해한 프로필 이미지 또는 닉네임 사용</li><li>스팸, 광고, 또는 상업적 목적의 메시지 전송</li><li>타인의 개인정보를 무단으로 공개하는 행위</li></ul><h3 style="font-size:0.9rem;font-weight:600;margin:12px 0 6px;">2.3 기술적 남용</h3><ul style="padding-left:20px;"><li>서비스의 보안 시스템을 우회하는 행위</li><li>서비스 서버에 과도한 부하를 발생시키는 행위</li><li>소스 코드를 무단으로 역설계하는 행위</li><li>다중 계정을 생성하여 서비스를 남용하는 행위</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">3. 소셜 기능 이용 기준</h2><p>랭킹은 공정한 경쟁을 위해 운영됩니다. 친구 기능은 상호 존중을 기반으로 이용되어야 합니다. 인스타그램 연동은 사용자의 선택 사항입니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">4. 던전/레이드 이용 기준</h2><p>던전/레이드는 특정 시간대(06:00~08:00, 11:30~13:30, 19:00~21:00 KST)에 운영되는 협동 콘텐츠입니다. 허위 참여 및 데이터 조작은 금지됩니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">5. 위반 시 조치</h2><ol style="padding-left:20px;"><li><b>경고:</b> 경미한 위반 시 사전 경고</li><li><b>기능 제한:</b> 특정 기능 이용 일시 제한</li><li><b>데이터 초기화:</b> 부정 획득 포인트/스탯/랭킹 초기화</li><li><b>계정 정지:</b> 심각한 위반 시 계정 정지</li><li><b>영구 차단:</b> 반복/중대 위반 시 영구 삭제</li></ol></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">6. 신고 및 문의</h2><p><b>BRAVECAT</b><br>이메일: report@bravecat.studio</p></div>`
+    },
+    privacy: {
+        title: '개인정보 처리방침',
+        html: `<div class="legal-date" style="font-size:0.75rem;color:#888;margin-bottom:20px;">시행일: 2025년 3월 1일 | 최종 수정: 2026년 3월 1일</div>
+<div class="section" style="margin-bottom:16px;"><p><b>BRAVECAT</b>(이하 "회사")은 <b>LEVEL UP: REBOOT</b> 서비스 이용자의 개인정보를 중요시하며, 「개인정보 보호법」 등 관련 법령을 준수합니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">1. 수집하는 개인정보 항목</h2><ul style="padding-left:20px;"><li><b>필수 정보:</b> 이메일 주소, 비밀번호(암호화 저장)</li><li><b>Google 로그인:</b> Google 계정 이메일, 프로필 이름, 프로필 사진 URL</li><li><b>프로필 정보:</b> 닉네임, 프로필 사진, 인스타그램 ID</li><li><b>서비스 이용 정보:</b> 퀘스트 완료 기록, 포인트, 스탯, 레벨, 칭호 이력</li><li><b>위치 정보:</b> GPS 좌표(사용자 동의 후)</li><li><b>건강 정보:</b> 일일 걸음 수(Google Fit 연동 시)</li><li><b>기기 정보:</b> 기기 유형, OS 버전, 앱 버전</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">2. 수집 및 이용 목적</h2><ul style="padding-left:20px;"><li><b>서비스 제공:</b> 계정 생성 및 관리, 퀘스트 시스템 운영</li><li><b>소셜 기능:</b> 글로벌 랭킹, 친구 시스템</li><li><b>던전/레이드:</b> 위치 기반 레이드 매칭</li><li><b>건강 연동:</b> Google Fit 데이터를 포인트로 환산</li><li><b>서비스 개선:</b> 이용 통계 분석, 오류 진단</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">3. 보유 및 이용 기간</h2><ul style="padding-left:20px;"><li>계정 정보: 회원 탈퇴 시까지 (탈퇴 후 30일 이내 파기)</li><li>서비스 이용 기록: 최종 접속일로부터 1년</li><li>위치 정보: 수집 후 즉시 처리, 미보관</li><li>건강 데이터: 포인트 환산 완료 시 삭제</li><li>오류 로그: 수집일로부터 90일</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">4. 제3자 제공</h2><p>원칙적으로 제3자에게 제공하지 않습니다. 사용자 동의가 있거나 법적 의무가 있는 경우에만 예외로 합니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">5. 처리 위탁</h2><ul style="padding-left:20px;"><li>Google Firebase: 사용자 인증, 데이터베이스 호스팅</li><li>Google Cloud Platform: 클라우드 인프라, 데이터 저장</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">6. 사용자의 권리</h2><ul style="padding-left:20px;"><li>열람 요구: 본인의 개인정보 처리 현황 열람</li><li>정정 요구: 부정확한 개인정보의 정정</li><li>삭제 요구: 불필요한 개인정보의 삭제</li><li>동의 철회: 위치/건강 정보 수집 동의 철회 (앱 설정에서 가능)</li></ul></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">7. 안전성 확보 조치</h2><p>비밀번호 암호화 저장, SSL/TLS 암호화 통신, 데이터베이스 접근 권한 관리, Google Cloud 보안 인프라 활용 등의 조치를 취하고 있습니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">8. 국외 이전</h2><p>서비스는 Google Firebase(미국 소재)를 통해 데이터를 저장하므로, 미국에 위치한 서버에 이전 및 보관될 수 있습니다.</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">9. 개인정보 보호책임자</h2><p><b>BRAVECAT</b><br>이메일: privacy@bravecat.studio</p></div>
+<div class="section" style="margin-bottom:16px;"><h2 style="font-size:1rem;font-weight:700;color:var(--neon-blue);margin:18px 0 10px;">10. 권익 침해 구제</h2><ul style="padding-left:20px;"><li>개인정보 침해신고센터 (한국인터넷진흥원): 118</li><li>개인정보 분쟁조정위원회: 1833-6972</li><li>대검찰청 사이버수사과: 1301</li><li>경찰청 사이버안전국: 182</li></ul></div>`
+    }
+};
+
+window.openLegalModal = function(type) {
+    const info = legalContents[type];
+    if (!info) return;
+    const modal = document.getElementById('legalModal');
+    const title = document.getElementById('legal-modal-title');
+    const body = document.getElementById('legal-modal-body');
+    title.innerText = info.title;
+    body.innerHTML = info.html;
+    modal.classList.remove('d-none');
+    modal.classList.add('d-flex');
+};
+
+// --- ★ 다이어리 기능 (탭 기반) ★ ---
+let diaryCalendarDate = new Date(); // current month being viewed
+let diarySelectedDate = getTodayStr();
+
 function getTodayStr() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-function openDiaryModal() {
-    const today = getTodayStr();
-    const lang = AppState.currentLang;
-    document.getElementById('diary-date-display').innerText = today;
-
-    // Load existing diary entry for today
-    const saved = getDiaryEntry(today);
-    const textarea = document.getElementById('diary-text');
-    textarea.value = saved ? saved.text : '';
-    document.getElementById('diary-char-count').innerText = `${(textarea.value || '').length} / 500`;
-
-    // Reset mood buttons
-    document.querySelectorAll('.diary-mood-btn').forEach(btn => btn.classList.remove('selected'));
-    if (saved && saved.mood) {
-        const moodBtn = document.querySelector(`.diary-mood-btn[data-mood="${saved.mood}"]`);
-        if (moodBtn) moodBtn.classList.add('selected');
-    }
-
-    const m = document.getElementById('diaryModal');
-    m.classList.remove('d-none');
-    m.classList.add('d-flex');
+function dateToStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-
-window.closeDiaryModal = function() {
-    const m = document.getElementById('diaryModal');
-    m.classList.add('d-none');
-    m.classList.remove('d-flex');
-};
 
 function getDiaryEntry(dateStr) {
     try {
@@ -1164,44 +1214,141 @@ function getDiaryEntry(dateStr) {
     } catch { return null; }
 }
 
-function saveDiaryEntry() {
-    const today = getTodayStr();
-    const text = document.getElementById('diary-text').value.trim();
-    const selectedMood = document.querySelector('.diary-mood-btn.selected');
+function getAllDiaryEntries() {
+    try {
+        return JSON.parse(localStorage.getItem('diary_entries') || '{}');
+    } catch { return {}; }
+}
+
+function renderDiaryCalendar() {
+    const year = diaryCalendarDate.getFullYear();
+    const month = diaryCalendarDate.getMonth();
+    const lang = AppState.currentLang;
+
+    const monthNames = {
+        ko: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+        en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        ja: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
+    };
+    const dayNames = {
+        ko: ['일', '월', '화', '수', '목', '금', '토'],
+        en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+        ja: ['日', '月', '火', '水', '木', '金', '土']
+    };
+
+    const label = document.getElementById('diary-cal-month-label');
+    if (label) label.innerText = `${year}. ${(monthNames[lang] || monthNames.ko)[month]}`;
+
+    // Weekday headers
+    const weekdaysEl = document.getElementById('diary-cal-weekdays');
+    if (weekdaysEl) {
+        weekdaysEl.innerHTML = (dayNames[lang] || dayNames.ko).map(d => `<span>${d}</span>`).join('');
+    }
+
+    // Calendar grid
+    const grid = document.getElementById('diary-cal-grid');
+    if (!grid) return;
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = getTodayStr();
+    const allEntries = getAllDiaryEntries();
+
+    let html = '';
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        html += '<div class="diary-cal-day empty"></div>';
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+        const ds = dateToStr(new Date(year, month, d));
+        const isToday = ds === todayStr;
+        const isSelected = ds === diarySelectedDate;
+        const hasEntry = !!allEntries[ds];
+        const isFuture = new Date(year, month, d) > new Date();
+        const classes = ['diary-cal-day'];
+        if (isToday) classes.push('today');
+        if (isSelected) classes.push('selected');
+        if (hasEntry) classes.push('has-entry');
+        html += `<div class="${classes.join(' ')}" ${!isFuture ? `onclick="window.selectDiaryDate('${ds}')"` : ''} ${isFuture ? 'style="opacity:0.3;cursor:default;"' : ''}>${d}</div>`;
+    }
+    grid.innerHTML = html;
+
+    // Update entry count for this month
+    const monthEntries = Object.keys(allEntries).filter(k => k.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)).length;
+    const countEl = document.getElementById('diary-entry-count');
+    if (countEl) countEl.innerText = `${monthEntries} / ${daysInMonth}`;
+}
+
+window.selectDiaryDate = function(dateStr) {
+    diarySelectedDate = dateStr;
+    loadDiaryForDate(dateStr);
+    renderDiaryCalendar();
+};
+
+function loadDiaryForDate(dateStr) {
+    const saved = getDiaryEntry(dateStr);
+    const textarea = document.getElementById('diary-tab-text');
+    if (!textarea) return;
+
+    textarea.value = saved ? saved.text : '';
+    const charCount = document.getElementById('diary-tab-char-count');
+    if (charCount) charCount.innerText = `${(textarea.value || '').length} / 500`;
+
+    const dateDisplay = document.getElementById('diary-selected-date');
+    if (dateDisplay) dateDisplay.innerText = dateStr;
+
+    // Reset mood buttons in tab
+    document.querySelectorAll('#diary-mood-selector-tab .diary-mood-btn').forEach(btn => btn.classList.remove('selected'));
+    if (saved && saved.mood) {
+        const moodBtn = document.querySelector(`#diary-mood-selector-tab .diary-mood-btn[data-mood="${saved.mood}"]`);
+        if (moodBtn) moodBtn.classList.add('selected');
+    }
+
+    // Disable editing for future dates
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const selected = new Date(dateStr + 'T00:00:00');
+    const isFuture = selected > today;
+    textarea.disabled = isFuture;
+    const saveBtn = document.getElementById('btn-diary-tab-save');
+    if (saveBtn) saveBtn.disabled = isFuture;
+}
+
+function saveDiaryEntryTab() {
+    const dateStr = diarySelectedDate;
+    const textarea = document.getElementById('diary-tab-text');
+    if (!textarea) return;
+    const text = textarea.value.trim();
+    const selectedMood = document.querySelector('#diary-mood-selector-tab .diary-mood-btn.selected');
     const mood = selectedMood ? selectedMood.dataset.mood : '';
 
-    if (!text) return;
+    if (!text) {
+        alert('내용을 입력해주세요.');
+        return;
+    }
 
     try {
         const diaries = JSON.parse(localStorage.getItem('diary_entries') || '{}');
-        diaries[today] = { text: text.substring(0, 500), mood, timestamp: Date.now() };
+        const isNewEntry = !diaries[dateStr];
+        diaries[dateStr] = { text: text.substring(0, 500), mood, timestamp: Date.now() };
         localStorage.setItem('diary_entries', JSON.stringify(diaries));
 
-        // Also save to Firebase if logged in
-        if (auth.currentUser) {
-            const diaryRef = doc(db, "users", auth.currentUser.uid, "diary", today);
-            setDoc(diaryRef, diaries[today]).catch(e => AppLogger.warn('[Diary] Firebase save error: ' + e.message));
+        // Reward: +20P & INT +0.5 (only for new entries, not edits)
+        if (isNewEntry) {
+            AppState.user.points += 20;
+            AppState.user.pendingStats.int += 0.5;
+            updatePointUI();
+            drawRadarChart();
+            AppLogger.info('[Diary] 보상 지급: +20P, INT +0.5');
         }
+
+        // Save to Firebase (main user document includes diaryStr)
+        saveUserData();
     } catch(e) { AppLogger.warn('[Diary] Save error: ' + e.message); }
 
-    // Update preview text on status page
-    const preview = document.getElementById('diary-preview');
-    if (preview) preview.innerText = i18n[AppState.currentLang].diary_written || '작성 완료 ✓';
-
-    closeDiaryModal();
-    AppLogger.info('[Diary] 다이어리 저장 완료');
-}
-
-function updateDiaryPreview() {
-    const today = getTodayStr();
-    const saved = getDiaryEntry(today);
-    const preview = document.getElementById('diary-preview');
-    if (!preview) return;
-    if (saved && saved.text) {
-        preview.innerText = i18n[AppState.currentLang].diary_written || '작성 완료 ✓';
-    } else {
-        preview.innerText = i18n[AppState.currentLang].diary_empty || '오늘의 기록을 남겨보세요';
-    }
+    renderDiaryCalendar();
+    alert(i18n[AppState.currentLang].diary_saved || '다이어리가 저장되었습니다.');
+    AppLogger.info('[Diary] 다이어리 저장 완료: ' + dateStr);
 }
 
 function changeTheme() {
