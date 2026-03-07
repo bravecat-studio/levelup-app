@@ -723,7 +723,7 @@ function changeLanguage(langCode) {
         renderUsers(AppState.social.sortCriteria);
         renderQuestList();
         renderCalendar();
-        renderDiaryCalendar();
+        renderPlannerCalendar();
         renderQuote();
         updatePointUI();
         updateDungeonStatus();
