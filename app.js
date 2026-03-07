@@ -662,9 +662,9 @@ function switchTab(tabId, el) {
     el.classList.add('active');
     
     const mainEl = document.querySelector('main');
-    if(tabId === 'status') { 
-        mainEl.style.overflowY = 'auto'; 
-        drawRadarChart(); updatePointUI(); 
+    if(tabId === 'status') {
+        mainEl.style.overflowY = 'auto';
+        drawRadarChart(); updatePointUI(); renderQuote();
     } else {
         mainEl.style.overflowY = 'auto';
     }
@@ -737,8 +737,12 @@ async function renderQuote() {
     const authorEl = document.getElementById('daily-quote-author');
     if(!quoteEl || !authorEl) return;
 
+    // 이미 명언이 표시되어 있으면 다시 로드하지 않음
+    if(quoteEl.innerText && quoteEl.innerText !== "위성 통신망에서 데이터를 수신 중입니다..." && quoteEl.style.opacity !== '0') return;
+
     try {
         quoteEl.innerText = "위성 통신망에서 데이터를 수신 중입니다...";
+        quoteEl.style.opacity = 1;
         authorEl.innerText = "";
 
         let apiUrl = 'https://korean-advice-open-api.vercel.app/api/advice';
@@ -746,7 +750,11 @@ async function renderQuote() {
             apiUrl = 'https://dummyjson.com/quotes/random';
         }
 
-        const response = await fetch(apiUrl);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(apiUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!response.ok) throw new Error("API 통신 에러");
 
         const data = await response.json();
@@ -755,7 +763,7 @@ async function renderQuote() {
 
         quoteEl.style.opacity = 0;
         authorEl.style.opacity = 0;
-        
+
         setTimeout(() => {
             quoteEl.innerText = `"${quoteText}"`;
             authorEl.innerText = `- ${quoteAuthor} -`;
