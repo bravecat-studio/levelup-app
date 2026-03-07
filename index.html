@@ -233,6 +233,7 @@
 
                 <!-- 타임박스 플래너 (일론 머스크 스타일) -->
                 <div class="system-card" id="planner-write-card">
+                    <!-- 날짜 + 무드 헤더 -->
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                         <div id="planner-selected-date" style="font-size:0.9rem; font-weight:bold; color:var(--neon-gold);"></div>
                         <div id="planner-mood-selector" style="display:flex; gap:6px;">
@@ -243,9 +244,34 @@
                             <button class="diary-mood-btn" data-mood="terrible" title="최악">😫</button>
                         </div>
                     </div>
+
+                    <!-- Top Priorities + Brain Dump 영역 -->
+                    <div class="planner-top-section">
+                        <div class="planner-priorities-box">
+                            <div class="planner-section-title">⭐ Top Priorities</div>
+                            <input class="planner-priority-input" id="priority-1" type="text" placeholder="1순위 목표" maxlength="50">
+                            <input class="planner-priority-input" id="priority-2" type="text" placeholder="2순위 목표" maxlength="50">
+                            <input class="planner-priority-input" id="priority-3" type="text" placeholder="3순위 목표" maxlength="50">
+                        </div>
+                        <div class="planner-braindump-box">
+                            <div class="planner-section-title">🧠 Brain Dump</div>
+                            <textarea class="planner-braindump-input" id="brain-dump" placeholder="생각, 아이디어, 할 일..." maxlength="300"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 타임박스 그리드 헤더 -->
+                    <div class="timebox-grid-header">
+                        <span class="timebox-hour-col"></span>
+                        <span class="timebox-col-header">:00</span>
+                        <span class="timebox-col-header">:30</span>
+                    </div>
+
+                    <!-- 타임박스 그리드 -->
                     <div id="planner-timebox-grid" class="planner-timebox-grid"></div>
+
+                    <!-- 저장 버튼 -->
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-                        <span style="font-size:0.7rem; color:var(--text-sub);" data-i18n="planner_reward">저장 시 +20P & AGI +0.5</span>
+                        <span style="font-size:0.7rem; color:var(--text-sub);" data-i18n="planner_reward">저장 시 +20P & AGI +0.5 (하루 1회)</span>
                         <button class="btn-primary" id="btn-planner-save" style="width:auto; padding:8px 20px;" data-i18n="diary_save">저장</button>
                     </div>
                 </div>

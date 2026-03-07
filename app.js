@@ -1249,7 +1249,7 @@ function renderPlannerCalendar() {
     }).join('');
 }
 
-// 타임박스 그리드 렌더링 (30분 단위, 06:00~23:30)
+// 타임박스 그리드 렌더링 (시간 단위 행, :00 / :30 두 열 - 05:00~23:30)
 function renderTimeboxGrid(dateStr) {
     const grid = document.getElementById('planner-timebox-grid');
     if (!grid) return;
@@ -1257,26 +1257,30 @@ function renderTimeboxGrid(dateStr) {
     const entry = getDiaryEntry(dateStr);
     const blocks = (entry && entry.blocks) ? entry.blocks : {};
     const lang = AppState.currentLang;
-    const placeholder = (i18n[lang] && i18n[lang].planner_placeholder) || '할 일을 입력하세요';
+    const placeholder = (i18n[lang] && i18n[lang].planner_placeholder) || '...';
 
-    const timeSlots = [];
-    for (let h = 6; h < 24; h++) {
-        timeSlots.push(`${String(h).padStart(2,'0')}:00`);
-        timeSlots.push(`${String(h).padStart(2,'0')}:30`);
+    const rows = [];
+    for (let h = 5; h < 24; h++) {
+        rows.push(h);
     }
 
-    grid.innerHTML = timeSlots.map(time => {
-        const val = blocks[time] || '';
-        const safeVal = val.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    grid.innerHTML = rows.map(h => {
+        const t00 = `${String(h).padStart(2,'0')}:00`;
+        const t30 = `${String(h).padStart(2,'0')}:30`;
+        const val00 = blocks[t00] || '';
+        const val30 = blocks[t30] || '';
+        const safe00 = val00.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+        const safe30 = val30.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
         return `
             <div class="timebox-row">
-                <span class="timebox-label">${time}</span>
-                <input class="timebox-input${val ? ' has-content' : ''}"
-                       type="text"
-                       data-time="${time}"
-                       value="${safeVal}"
-                       placeholder="${placeholder}"
-                       maxlength="60"
+                <span class="timebox-label">${h}</span>
+                <input class="timebox-input${val00 ? ' has-content' : ''}"
+                       type="text" data-time="${t00}" value="${safe00}"
+                       placeholder="${placeholder}" maxlength="40"
+                       oninput="this.classList.toggle('has-content', this.value.length > 0)">
+                <input class="timebox-input${val30 ? ' has-content' : ''}"
+                       type="text" data-time="${t30}" value="${safe30}"
+                       placeholder="${placeholder}" maxlength="40"
                        oninput="this.classList.toggle('has-content', this.value.length > 0)">
             </div>
         `;
@@ -1301,6 +1305,17 @@ function loadPlannerForDate(dateStr) {
         if (moodBtn) moodBtn.classList.add('selected');
     }
 
+    // Top Priorities 로드
+    const p1 = document.getElementById('priority-1');
+    const p2 = document.getElementById('priority-2');
+    const p3 = document.getElementById('priority-3');
+    const bd = document.getElementById('brain-dump');
+    const priorities = (saved && saved.priorities) ? saved.priorities : ['', '', ''];
+    if (p1) p1.value = priorities[0] || '';
+    if (p2) p2.value = priorities[1] || '';
+    if (p3) p3.value = priorities[2] || '';
+    if (bd) bd.value = (saved && saved.brainDump) ? saved.brainDump : '';
+
     // 타임박스 그리드 렌더링
     renderTimeboxGrid(dateStr);
 
@@ -1309,15 +1324,17 @@ function loadPlannerForDate(dateStr) {
     today.setHours(0,0,0,0);
     const selected = new Date(dateStr + 'T00:00:00');
     const isFuture = selected > today;
-    document.querySelectorAll('#planner-timebox-grid .timebox-input').forEach(input => {
-        input.disabled = isFuture;
-    });
+    const disableAll = (el) => { if (el) el.disabled = isFuture; };
+    document.querySelectorAll('#planner-timebox-grid .timebox-input').forEach(input => { input.disabled = isFuture; });
+    disableAll(p1); disableAll(p2); disableAll(p3); disableAll(bd);
     const saveBtn = document.getElementById('btn-planner-save');
     if (saveBtn) saveBtn.disabled = isFuture;
 }
 
-function savePlannerEntry() {
+async function savePlannerEntry() {
     const dateStr = diarySelectedDate;
+
+    // 타임박스 블록 수집
     const inputs = document.querySelectorAll('#planner-timebox-grid .timebox-input');
     const blocks = {};
     inputs.forEach(input => {
@@ -1325,18 +1342,51 @@ function savePlannerEntry() {
         if (val) blocks[input.dataset.time] = val;
     });
 
+    // Top Priorities 수집
+    const p1 = document.getElementById('priority-1');
+    const p2 = document.getElementById('priority-2');
+    const p3 = document.getElementById('priority-3');
+    const bd = document.getElementById('brain-dump');
+    const priorities = [
+        p1 ? p1.value.trim() : '',
+        p2 ? p2.value.trim() : '',
+        p3 ? p3.value.trim() : ''
+    ];
+    const brainDump = bd ? bd.value.trim() : '';
+
     const selectedMood = document.querySelector('#planner-mood-selector .diary-mood-btn.selected');
     const mood = selectedMood ? selectedMood.dataset.mood : '';
 
-    try {
-        const diaries = JSON.parse(localStorage.getItem('diary_entries') || '{}');
-        const isNewEntry = !diaries[dateStr];
-        const text = Object.entries(blocks).map(([t, v]) => `[${t}] ${v}`).join(' | ').substring(0, 500);
-        diaries[dateStr] = { text, mood, timestamp: Date.now(), blocks };
-        localStorage.setItem('diary_entries', JSON.stringify(diaries));
+    const hasContent = Object.keys(blocks).length > 0 || priorities.some(p => p) || brainDump;
 
-        // 보상: +20P & AGI +0.5 (신규 항목이고 내용이 있을 때만)
-        if (isNewEntry && Object.keys(blocks).length > 0) {
+    try {
+        let diaries;
+        try {
+            diaries = JSON.parse(localStorage.getItem('diary_entries') || '{}');
+        } catch(parseErr) {
+            AppLogger.warn('[Planner] diary_entries 파싱 오류, 초기화: ' + parseErr.message);
+            diaries = {};
+        }
+
+        // 보상: 하루 1회만 (rewarded 플래그로 관리)
+        const alreadyRewarded = diaries[dateStr] && diaries[dateStr].rewarded === true;
+        const giveReward = !alreadyRewarded && hasContent;
+
+        const text = Object.entries(blocks).map(([t, v]) => `[${t}] ${v}`).join(' | ').substring(0, 500);
+        diaries[dateStr] = {
+            text, mood, timestamp: Date.now(), blocks, priorities, brainDump,
+            rewarded: alreadyRewarded || giveReward
+        };
+
+        try {
+            localStorage.setItem('diary_entries', JSON.stringify(diaries));
+        } catch(storageErr) {
+            AppLogger.error('[Planner] localStorage 저장 실패: ' + storageErr.message);
+            alert('저장 공간이 부족합니다. 오래된 데이터를 정리해 주세요.');
+            return;
+        }
+
+        if (giveReward) {
             AppState.user.points += 20;
             AppState.user.pendingStats.agi += 0.5;
             updatePointUI();
@@ -1344,12 +1394,16 @@ function savePlannerEntry() {
             AppLogger.info('[Planner] 보상 지급: +20P, AGI +0.5');
         }
 
-        saveUserData();
-    } catch(e) { AppLogger.warn('[Planner] Save error: ' + e.message); }
+        await saveUserData();
+        AppLogger.info('[Planner] 플래너 저장 완료: ' + dateStr);
+    } catch(e) {
+        AppLogger.error('[Planner] Save error: ' + (e.stack || e.message));
+        alert('저장 중 오류가 발생했습니다: ' + e.message);
+        return;
+    }
 
     renderPlannerCalendar();
     alert(i18n[AppState.currentLang].diary_saved || '플래너가 저장되었습니다.');
-    AppLogger.info('[Planner] 플래너 저장 완료: ' + dateStr);
 }
 
 function changeTheme() {
