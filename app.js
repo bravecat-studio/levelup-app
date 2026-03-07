@@ -218,7 +218,19 @@ async function loadUserDataFromDB(user) {
             if(data.stepData) AppState.user.stepData = data.stepData;
             if(data.instaId) AppState.user.instaId = data.instaId;
             if(data.diaryStr) {
-                try { localStorage.setItem('diary_entries', data.diaryStr); } catch(e) {}
+                try {
+                    // 로컬 데이터가 더 최신일 수 있으므로 타임스탬프 기준으로 병합
+                    const dbDiaries = JSON.parse(data.diaryStr);
+                    let localDiaries = {};
+                    try { localDiaries = JSON.parse(localStorage.getItem('diary_entries') || '{}'); } catch(e) {}
+                    const merged = Object.assign({}, dbDiaries);
+                    Object.keys(localDiaries).forEach(d => {
+                        if (!merged[d] || (localDiaries[d].timestamp || 0) > (merged[d].timestamp || 0)) {
+                            merged[d] = localDiaries[d];
+                        }
+                    });
+                    localStorage.setItem('diary_entries', JSON.stringify(merged));
+                } catch(e) {}
             }
             document.getElementById('sync-toggle').checked = AppState.user.syncEnabled;
             AppState.user.name = data.name || user.displayName || "신규 헌터";
@@ -1368,14 +1380,15 @@ async function savePlannerEntry() {
             diaries = {};
         }
 
-        // 보상: 하루 1회만 (rewarded 플래그로 관리)
-        const alreadyRewarded = diaries[dateStr] && diaries[dateStr].rewarded === true;
+        // 보상: 하루 1회만 - diary_entries와 분리된 별도 키로 관리 (Firebase 덮어쓰기 영향 없음)
+        let plannerRewards = {};
+        try { plannerRewards = JSON.parse(localStorage.getItem('planner_rewards') || '{}'); } catch(e) {}
+        const alreadyRewarded = plannerRewards[dateStr] === true;
         const giveReward = !alreadyRewarded && hasContent;
 
         const text = Object.entries(blocks).map(([t, v]) => `[${t}] ${v}`).join(' | ').substring(0, 500);
         diaries[dateStr] = {
-            text, mood, timestamp: Date.now(), blocks, priorities, brainDump,
-            rewarded: alreadyRewarded || giveReward
+            text, mood, timestamp: Date.now(), blocks, priorities, brainDump
         };
 
         try {
@@ -1387,6 +1400,8 @@ async function savePlannerEntry() {
         }
 
         if (giveReward) {
+            plannerRewards[dateStr] = true;
+            localStorage.setItem('planner_rewards', JSON.stringify(plannerRewards));
             AppState.user.points += 20;
             AppState.user.pendingStats.agi += 0.5;
             updatePointUI();
