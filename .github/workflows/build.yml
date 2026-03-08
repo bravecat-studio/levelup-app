@@ -96,6 +96,28 @@ jobs:
         env:
           CI: true
 
+      # 8-0. AndroidManifest.xml에 위치 권한 추가 (Capacitor Geolocation 필수)
+      - name: 위치 권한 추가 (AndroidManifest)
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "ACCESS_FINE_LOCATION" "$MANIFEST"; then
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' "$MANIFEST"
+            echo "✅ 위치 권한 추가 완료"
+          else
+            echo "ℹ️ 위치 권한이 이미 존재합니다"
+          fi
+          grep "LOCATION" "$MANIFEST" || true
+
+      # 8-0b. 커스텀 네이티브 플러그인 복사 (AppSettingsPlugin)
+      - name: 커스텀 플러그인 복사
+        run: |
+          PLUGIN_DIR="android/app/src/main/java/com/levelup/reboot/plugins"
+          mkdir -p "$PLUGIN_DIR"
+          if [ -f "native-plugins/AppSettingsPlugin.java" ]; then
+            cp native-plugins/AppSettingsPlugin.java "$PLUGIN_DIR/"
+            echo "✅ AppSettingsPlugin.java 복사 완료"
+          fi
+
       # 8. Gradle 래퍼 실행 권한 부여
       - name: Gradle 실행 권한 부여
         run: chmod +x android/gradlew
