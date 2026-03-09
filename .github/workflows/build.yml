@@ -55,6 +55,10 @@ jobs:
         run: |
           mkdir -p www
           cp index.html app.js style.css data.js logger.js www/
+          # 추가 웹 파일 복사 (존재하는 경우만)
+          for f in ads.txt privacy.html terms.html usage-policy.html; do
+            [ -f "$f" ] && cp "$f" www/ && echo "  ✅ $f 복사됨"
+          done
 
       # 6-1. Google OAuth Web Client ID를 capacitor.config.json에 주입
       - name: Google Web Client ID 주입
@@ -161,24 +165,22 @@ jobs:
 
           # Capacitor는 빈 클래스를 생성하므로 import + onCreate 포함 전체 파일 교체
           if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY"; then
-            cat > "$MAIN_ACTIVITY" << 'JAVAEOF'
-package com.levelup.reboot;
-
-import com.getcapacitor.BridgeActivity;
-import com.levelup.reboot.plugins.AppSettingsPlugin;
-import com.levelup.reboot.plugins.GoogleFitPlugin;
-import com.levelup.reboot.plugins.HealthConnectPlugin;
-
-public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(android.os.Bundle savedInstanceState) {
-        registerPlugin(AppSettingsPlugin.class);
-        registerPlugin(GoogleFitPlugin.class);
-        registerPlugin(HealthConnectPlugin.class);
-        super.onCreate(savedInstanceState);
-    }
-}
-JAVAEOF
+            {
+              echo 'package com.levelup.reboot;'
+              echo 'import com.getcapacitor.BridgeActivity;'
+              echo 'import com.levelup.reboot.plugins.AppSettingsPlugin;'
+              echo 'import com.levelup.reboot.plugins.GoogleFitPlugin;'
+              echo 'import com.levelup.reboot.plugins.HealthConnectPlugin;'
+              echo 'public class MainActivity extends BridgeActivity {'
+              echo '    @Override'
+              echo '    public void onCreate(android.os.Bundle savedInstanceState) {'
+              echo '        registerPlugin(AppSettingsPlugin.class);'
+              echo '        registerPlugin(GoogleFitPlugin.class);'
+              echo '        registerPlugin(HealthConnectPlugin.class);'
+              echo '        super.onCreate(savedInstanceState);'
+              echo '    }'
+              echo '}'
+            } > "$MAIN_ACTIVITY"
             echo "✅ 플러그인 등록 (AppSettings, GoogleFit, HealthConnect) 주입 완료"
           else
             echo "ℹ️ 플러그인 등록이 이미 존재합니다"
@@ -193,17 +195,19 @@ JAVAEOF
         run: |
           BUILD_GRADLE="android/app/build.gradle"
 
-          # Health Connect 라이브러리 추가
+          # Health Connect 라이브러리 추가 (가용성 확인용 — 실제 데이터는 REST 폴백)
           if ! grep -q "health.connect" "$BUILD_GRADLE"; then
-            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.0.0-alpha11"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.1.0-alpha07"' "$BUILD_GRADLE"
             echo "✅ Health Connect 라이브러리 의존성 추가 완료"
           else
             echo "ℹ️ Health Connect 의존성이 이미 존재합니다"
           fi
 
           # Google Fit SDK 라이브러리 추가 (네이티브 피트니스 데이터 접근)
+          # 주의: sed a\ 명령에서 \n은 리터럴로 처리되므로 두 번으로 분리
           if ! grep -q "play-services-fitness" "$BUILD_GRADLE"; then
-            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-fitness:21.2.0"\n    implementation "com.google.android.gms:play-services-auth:21.3.0"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-fitness:21.2.0"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-auth:21.3.0"' "$BUILD_GRADLE"
             echo "✅ Google Fit SDK 의존성 추가 완료"
           else
             echo "ℹ️ Google Fit SDK 의존성이 이미 존재합니다"
