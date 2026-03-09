@@ -166,7 +166,7 @@ jobs:
 
           # === Health Connect Gradle 의존성 ===
           if ! grep -q "health.connect" "$BUILD_GRADLE"; then
-            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.0.0-alpha11"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.1.0-alpha07"' "$BUILD_GRADLE"
           fi
 
           # === Google Fit SDK 의존성 (Health Connect 미지원 기기용) ===
@@ -439,7 +439,7 @@ jobs:
 
           # Health Connect 의존성
           if ! grep -q "health.connect" "$BUILD_GRADLE"; then
-            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.0.0-alpha11"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.1.0-alpha07"' "$BUILD_GRADLE"
           fi
 
           # Google Fit SDK 의존성 (Health Connect 미지원 기기용)

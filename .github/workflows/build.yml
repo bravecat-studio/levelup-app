@@ -195,9 +195,9 @@ jobs:
         run: |
           BUILD_GRADLE="android/app/build.gradle"
 
-          # Health Connect 라이브러리 추가
+          # Health Connect 라이브러리 추가 (가용성 확인용 — 실제 데이터는 REST 폴백)
           if ! grep -q "health.connect" "$BUILD_GRADLE"; then
-            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.0.0-alpha11"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.1.0-alpha07"' "$BUILD_GRADLE"
             echo "✅ Health Connect 라이브러리 의존성 추가 완료"
           else
             echo "ℹ️ Health Connect 의존성이 이미 존재합니다"
