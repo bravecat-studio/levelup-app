@@ -47,7 +47,8 @@ function getInitialAppState() {
             titleHistory: [ { level: 1, title: { ko: "신규 각성자", en: "New Awakened", ja: "新規覚醒者" } } ],
             photoURL: null, 
             friends: [],
-            syncEnabled: false, 
+            syncEnabled: false,
+            gpsEnabled: false,
             stepData: { date: "", rewardedSteps: 0 },
             instaId: "" 
         },
@@ -186,6 +187,7 @@ async function saveUserData() {
             friends: AppState.user.friends || [],
             photoURL: AppState.user.photoURL || null,
             syncEnabled: AppState.user.syncEnabled,
+            gpsEnabled: AppState.user.gpsEnabled,
             stepData: AppState.user.stepData,
             instaId: AppState.user.instaId || "",
             diaryStr: localStorage.getItem('diary_entries') || '{}'
@@ -220,6 +222,7 @@ async function loadUserDataFromDB(user) {
             if(data.pendingStats) AppState.user.pendingStats = data.pendingStats;
             if(data.friends) AppState.user.friends = data.friends;
             if(data.syncEnabled !== undefined) AppState.user.syncEnabled = data.syncEnabled;
+            if(data.gpsEnabled !== undefined) AppState.user.gpsEnabled = data.gpsEnabled;
             if(data.stepData) AppState.user.stepData = data.stepData;
             if(data.instaId) AppState.user.instaId = data.instaId;
             if(data.diaryStr) {
@@ -238,6 +241,7 @@ async function loadUserDataFromDB(user) {
                 } catch(e) {}
             }
             document.getElementById('sync-toggle').checked = AppState.user.syncEnabled;
+            document.getElementById('gps-toggle').checked = AppState.user.gpsEnabled;
             AppState.user.name = data.name || user.displayName || "신규 헌터";
             if(data.photoURL) {
                 AppState.user.photoURL = data.photoURL;
@@ -1599,6 +1603,8 @@ async function toggleGPS() {
     statusDiv.style.display = 'flex';
 
     if (!isChecked) {
+        AppState.user.gpsEnabled = false;
+        saveUserData();
         statusDiv.innerHTML = `<span style="color:var(--text-sub);">${lang.gps_off || '위치 탐색 중지됨'}</span>`;
         return;
     }
@@ -1639,6 +1645,8 @@ async function toggleGPS() {
         });
 
         if (window.AppLogger) AppLogger.info(`[GPS] Native location: lat=${position.coords.latitude}, lng=${position.coords.longitude}`);
+        AppState.user.gpsEnabled = true;
+        saveUserData();
         statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.gps_on || '위치 권한 활성화됨'}</span>`;
     } catch (e) {
         if (window.AppLogger) AppLogger.error('[GPS] Native geolocation error: ' + (e.message || JSON.stringify(e)));
