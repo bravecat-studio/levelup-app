@@ -165,24 +165,22 @@ jobs:
 
           # Capacitor는 빈 클래스를 생성하므로 import + onCreate 포함 전체 파일 교체
           if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY"; then
-            cat > "$MAIN_ACTIVITY" << 'JAVAEOF'
-package com.levelup.reboot;
-
-import com.getcapacitor.BridgeActivity;
-import com.levelup.reboot.plugins.AppSettingsPlugin;
-import com.levelup.reboot.plugins.GoogleFitPlugin;
-import com.levelup.reboot.plugins.HealthConnectPlugin;
-
-public class MainActivity extends BridgeActivity {
-    @Override
-    public void onCreate(android.os.Bundle savedInstanceState) {
-        registerPlugin(AppSettingsPlugin.class);
-        registerPlugin(GoogleFitPlugin.class);
-        registerPlugin(HealthConnectPlugin.class);
-        super.onCreate(savedInstanceState);
-    }
-}
-JAVAEOF
+            {
+              echo 'package com.levelup.reboot;'
+              echo 'import com.getcapacitor.BridgeActivity;'
+              echo 'import com.levelup.reboot.plugins.AppSettingsPlugin;'
+              echo 'import com.levelup.reboot.plugins.GoogleFitPlugin;'
+              echo 'import com.levelup.reboot.plugins.HealthConnectPlugin;'
+              echo 'public class MainActivity extends BridgeActivity {'
+              echo '    @Override'
+              echo '    public void onCreate(android.os.Bundle savedInstanceState) {'
+              echo '        registerPlugin(AppSettingsPlugin.class);'
+              echo '        registerPlugin(GoogleFitPlugin.class);'
+              echo '        registerPlugin(HealthConnectPlugin.class);'
+              echo '        super.onCreate(savedInstanceState);'
+              echo '    }'
+              echo '}'
+            } > "$MAIN_ACTIVITY"
             echo "✅ 플러그인 등록 (AppSettings, GoogleFit, HealthConnect) 주입 완료"
           else
             echo "ℹ️ 플러그인 등록이 이미 존재합니다"
