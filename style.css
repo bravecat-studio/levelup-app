@@ -217,9 +217,12 @@ input:checked + .slider { background: var(--neon-blue); }
 input:checked + .slider:before { transform: translateX(18px); }
 
 nav { position: fixed; bottom: env(safe-area-inset-bottom); width: 100%; height: 65px; background: var(--nav-bg); display: flex; border-top: 1px solid var(--border-color); z-index: 10; }
-.nav-item { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.6rem; color: var(--text-sub); cursor: pointer; }
+.nav-item { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.6rem; color: var(--text-sub); cursor: pointer; transition: transform 0.15s, background 0.15s; user-select: none; -webkit-user-select: none; }
 .nav-item.active { color: var(--neon-blue); }
 .nav-icon { font-size: 1.2rem; margin-bottom: 3px; }
+.nav-item.nav-dragging { color: var(--neon-blue); transform: scale(1.15) translateY(-6px); background: rgba(0, 217, 255, 0.15); border-radius: 10px; box-shadow: 0 0 14px rgba(0, 217, 255, 0.5); z-index: 20; }
+nav.nav-reorder-mode .nav-item:not(.nav-dragging) { opacity: 0.6; }
+nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 
 /* 팝업창 및 가이드 표 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; display: none; justify-content: center; align-items: center; backdrop-filter: blur(3px); }
