@@ -220,8 +220,15 @@ function bindEvents() {
     document.getElementById('login-pw').addEventListener('input', function() {
         const hint = document.getElementById('pw-hint');
         if (!hint.classList.contains('d-none')) {
-            hint.classList.toggle('valid', validatePassword(this.value));
+            const isValid = validatePassword(this.value);
+            hint.style.color = isValid ? '#4ecdc4' : '#ff6b6b';
         }
+    });
+
+    document.querySelectorAll('#login-email, #login-pw, #login-pw-confirm').forEach(el => {
+        el.addEventListener('focus', function() {
+            setTimeout(() => this.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+        });
     });
 
     document.querySelectorAll('.nav-item').forEach(el => {
