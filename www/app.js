@@ -665,6 +665,26 @@ function renderDungeon() {
                     <iframe src="${mapUrl}" style="width:100%; height:100%; border:none;" allowfullscreen="" loading="lazy"></iframe>
                 </div>
                 <p style="font-size: 0.8rem; margin-bottom: 5px; color:var(--text-main); word-break:keep-all;">${m.desc1[AppState.currentLang]}</p>
+                <div class="raid-reward-box" style="margin: 10px 0; text-align:left;">
+                    <div class="raid-reward-header">
+                        <span class="raid-reward-icon">🏆</span>
+                        <span>${i18n[AppState.currentLang].raid_reward_label}</span>
+                    </div>
+                    <div class="raid-reward-items">
+                        <div class="raid-reward-item">
+                            <span class="raid-reward-key">${i18n[AppState.currentLang].raid_reward_condition}</span>
+                            <span class="raid-reward-val" style="color:var(--text-main); font-family:inherit; font-size:0.7rem; max-width:60%; text-align:right; word-break:keep-all;">${m.desc2[AppState.currentLang]}</span>
+                        </div>
+                        <div class="raid-reward-item">
+                            <span class="raid-reward-key">${i18n[AppState.currentLang].raid_reward_points}</span>
+                            <span class="raid-reward-val text-gold">+200 P</span>
+                        </div>
+                        <div class="raid-reward-item">
+                            <span class="raid-reward-key">${i18n[AppState.currentLang].raid_reward_stat}</span>
+                            <span class="raid-reward-val" style="color:${m.color};">${m.stat} +2.0</span>
+                        </div>
+                    </div>
+                </div>
                 <p style="font-size: 0.75rem; margin-bottom: 8px; color:var(--neon-gold); word-break:keep-all;">⚠️ ${st.name[AppState.currentLang]} 반경 ${DUNGEON_RADIUS_KM}km 이내 GPS 위치 확인 필요</p>
                 <div style="font-size: 0.8rem; margin: 12px 0; font-weight:bold;">
                     ${i18n[AppState.currentLang].raid_part}
@@ -682,6 +702,13 @@ function renderDungeon() {
             document.getElementById('active-stat-badge').style.color = m.color;
             document.getElementById('active-raid-title').innerText = m.title[AppState.currentLang];
             document.getElementById('active-raid-desc').innerText = m.desc2[AppState.currentLang];
+
+            const lang = AppState.currentLang;
+            document.getElementById('raid-reward-label').innerText = i18n[lang].raid_reward_label;
+            document.getElementById('raid-reward-points-label').innerText = i18n[lang].raid_reward_points;
+            document.getElementById('raid-reward-stat-label').innerText = i18n[lang].raid_reward_stat;
+            document.getElementById('raid-reward-stat-val').innerText = `${m.stat} +2.0`;
+            document.getElementById('raid-reward-stat-val').style.color = m.color;
             
             document.getElementById('raid-part-count').innerText = `${AppState.dungeon.globalParticipants} / ${AppState.dungeon.maxParticipants}`;
             document.getElementById('raid-progress-bar').style.width = `${AppState.dungeon.globalProgress}%`;

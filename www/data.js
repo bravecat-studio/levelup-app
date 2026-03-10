@@ -39,7 +39,8 @@ const i18n = {
         diary_save: "저장", diary_saved: "플래너가 저장되었습니다.", diary_written: "작성 완료 ✓",
         diary_tab_title: "🗓️ 플래너",
         planner_weekly: "주간 플래너", planner_reward: "저장 시 +20P & AGI +0.5",
-        planner_placeholder: "할 일을 입력하세요"
+        planner_placeholder: "할 일을 입력하세요",
+        raid_reward_label: "클리어 보상", raid_reward_points: "결속 포인트", raid_reward_stat: "성장 데이터", raid_reward_condition: "달성 조건"
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -80,7 +81,8 @@ const i18n = {
         diary_save: "Save", diary_saved: "Planner saved.", diary_written: "Written ✓",
         diary_tab_title: "🗓️ Planner",
         planner_weekly: "Weekly Planner", planner_reward: "Save: +20P & AGI +0.5",
-        planner_placeholder: "Enter task"
+        planner_placeholder: "Enter task",
+        raid_reward_label: "Clear Reward", raid_reward_points: "Bond Points", raid_reward_stat: "Growth Data", raid_reward_condition: "Condition"
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -121,7 +123,8 @@ const i18n = {
         diary_save: "保存", diary_saved: "プランナーが保存されました。", diary_written: "記録完了 ✓",
         diary_tab_title: "🗓️ プランナー",
         planner_weekly: "週間プランナー", planner_reward: "保存: +20P & AGI +0.5",
-        planner_placeholder: "タスクを入力"
+        planner_placeholder: "タスクを入力",
+        raid_reward_label: "クリア報酬", raid_reward_points: "結束ポイント", raid_reward_stat: "成長データ", raid_reward_condition: "達成条件"
     }
 };
 
