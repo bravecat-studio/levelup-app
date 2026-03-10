@@ -1,0 +1,317 @@
+name: 릴리즈 AAB 빌드 (플레이스토어 제출용)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: '버전 이름 (예: 1.0.0)'
+        required: true
+        default: '1.0.0'
+      version_code:
+        description: '버전 코드 (정수, 매 릴리즈마다 증가)'
+        required: true
+        default: '1'
+
+jobs:
+  build-release-aab:
+    runs-on: ubuntu-22.04
+
+    steps:
+      # 1. 소스코드 체크아웃
+      - name: 소스코드 체크아웃
+        uses: actions/checkout@v4
+
+      # 2. Node.js 환경 셋업
+      - name: Node.js 셋업
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 3. Java 17 환경 셋업
+      - name: Java 17 셋업
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # 4. Android SDK 환경변수 설정
+      - name: Android SDK 환경변수 설정
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+
+      # 5. 릴리즈 키스토어 복원 (GitHub Secrets에서)
+      - name: 릴리즈 키스토어 복원
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "❌ RELEASE_KEYSTORE_BASE64 시크릿이 설정되지 않았습니다."
+            echo "   아래 절차를 따라 릴리즈 키스토어를 생성하고 시크릿에 등록하세요:"
+            echo ""
+            echo "   1. 키스토어 생성:"
+            echo "      keytool -genkeypair -v \\"
+            echo "        -keystore levelup-release.keystore \\"
+            echo "        -alias levelup-key \\"
+            echo "        -keyalg RSA -keysize 2048 -validity 25000 \\"
+            echo "        -storepass YOUR_STORE_PASSWORD \\"
+            echo "        -keypass YOUR_KEY_PASSWORD \\"
+            echo "        -dname \"CN=BRAVECAT STUDIOS,O=BRAVECAT,C=KR\""
+            echo ""
+            echo "   2. Base64 인코딩:"
+            echo "      base64 -w 0 levelup-release.keystore"
+            echo ""
+            echo "   3. GitHub Secrets에 등록:"
+            echo "      - RELEASE_KEYSTORE_BASE64: (base64 결과값)"
+            echo "      - RELEASE_KEYSTORE_PASSWORD: (스토어 비밀번호)"
+            echo "      - RELEASE_KEY_ALIAS: levelup-key"
+            echo "      - RELEASE_KEY_PASSWORD: (키 비밀번호)"
+            exit 1
+          fi
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > release.keystore
+          echo "✅ 릴리즈 키스토어 복원 완료"
+
+      # 6. npm 패키지 설치
+      - name: npm 패키지 설치
+        run: npm ci
+
+      # 7. 웹 빌드 디렉토리 준비
+      - name: 웹 빌드 디렉토리 준비
+        run: |
+          mkdir -p www
+          cp index.html app.js style.css data.js logger.js www/
+          for f in ads.txt privacy.html terms.html usage-policy.html; do
+            [ -f "$f" ] && cp "$f" www/ && echo "  ✅ $f 복사됨"
+          done
+
+      # 8. Google Web Client ID 주입
+      - name: Google Web Client ID 주입
+        if: env.GOOGLE_WEB_CLIENT_ID != ''
+        env:
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+        run: |
+          sed -i "s|233040099152-REPLACE_WITH_WEB_CLIENT_HASH.apps.googleusercontent.com|$GOOGLE_WEB_CLIENT_ID|g" capacitor.config.json
+
+      # 9. Android 플랫폼 추가
+      - name: Android 플랫폼 추가
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+        env:
+          CI: true
+
+      # 10. google-services.json 배치
+      - name: google-services.json 배치
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ] && echo "$GOOGLE_SERVICES_JSON" | grep -q '"com.levelup.reboot"'; then
+            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "✅ GOOGLE_SERVICES_JSON 시크릿 사용"
+          else
+            cp google-services.json android/app/google-services.json
+            echo "⚠️ 템플릿 google-services.json 사용"
+          fi
+
+      # 11. 네이티브 플러그인 소스 주입
+      - name: 네이티브 플러그인 소스 주입
+        run: |
+          PLUGIN_DIR="android/app/src/main/java/com/levelup/reboot/plugins"
+          mkdir -p "$PLUGIN_DIR"
+          cp native-plugins/*.java "$PLUGIN_DIR/"
+          echo "✅ 네이티브 플러그인 주입 완료"
+
+      # 12. 커스텀 앱 아이콘 적용
+      - name: 커스텀 앱 아이콘 적용
+        run: |
+          RES_DIR="android/app/src/main/res"
+          for density in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
+            for icon in levelup.png levelup_foreground.png levelup_background.png levelup_monochrome.png; do
+              src="res/mipmap-${density}/${icon}"
+              dst="${RES_DIR}/mipmap-${density}/${icon}"
+              [ -f "$src" ] && cp "$src" "$dst" && echo "  ✅ ${density}/${icon}"
+            done
+          done
+          cp res/mipmap-anydpi-v26/levelup.xml "${RES_DIR}/mipmap-anydpi-v26/levelup.xml"
+          MANIFEST="${RES_DIR}/../AndroidManifest.xml"
+          sed -i 's|android:icon="@mipmap/ic_launcher"|android:icon="@mipmap/levelup"|g' "$MANIFEST"
+          sed -i 's|android:roundIcon="@mipmap/ic_launcher_round"|android:roundIcon="@mipmap/levelup"|g' "$MANIFEST"
+          echo "✅ 앱 아이콘 적용 완료"
+
+      # 13. 웹→Android 동기화
+      - name: 웹→Android 동기화
+        run: npx cap sync android
+        env:
+          CI: true
+
+      # 14. Android 권한 자동 주입
+      - name: Android 권한 자동 주입
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          ! grep -q "ACCESS_FINE_LOCATION" "$MANIFEST" && \
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' "$MANIFEST"
+          ! grep -q "ACTIVITY_RECOGNITION" "$MANIFEST" && \
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />' "$MANIFEST"
+          ! grep -q "health.permission.read.Steps" "$MANIFEST" && \
+            sed -i '/<manifest/a\    <uses-permission android:name="android.permission.health.READ_STEPS" />' "$MANIFEST"
+          ! grep -q "ACTION_SHOW_PERMISSIONS_RATIONALE" "$MANIFEST" && \
+            sed -i '/<\/activity>/i\            <intent-filter>\n                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />\n            </intent-filter>' "$MANIFEST"
+          echo "✅ 권한 주입 완료"
+          grep "uses-permission" "$MANIFEST"
+
+      # 15. MainActivity.java 플러그인 등록
+      - name: 커스텀 플러그인 등록 주입 (MainActivity.java)
+        run: |
+          MAIN_ACTIVITY="android/app/src/main/java/com/levelup/reboot/MainActivity.java"
+          if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY"; then
+            {
+              echo 'package com.levelup.reboot;'
+              echo 'import com.getcapacitor.BridgeActivity;'
+              echo 'import com.levelup.reboot.plugins.AppSettingsPlugin;'
+              echo 'import com.levelup.reboot.plugins.GoogleFitPlugin;'
+              echo 'import com.levelup.reboot.plugins.HealthConnectPlugin;'
+              echo 'public class MainActivity extends BridgeActivity {'
+              echo '    @Override'
+              echo '    public void onCreate(android.os.Bundle savedInstanceState) {'
+              echo '        registerPlugin(AppSettingsPlugin.class);'
+              echo '        registerPlugin(GoogleFitPlugin.class);'
+              echo '        registerPlugin(HealthConnectPlugin.class);'
+              echo '        super.onCreate(savedInstanceState);'
+              echo '    }'
+              echo '}'
+            } > "$MAIN_ACTIVITY"
+          fi
+          echo "✅ 플러그인 등록 완료"
+
+      # 16. Health Connect + Google Fit Gradle 의존성 주입
+      - name: Gradle 의존성 및 SDK 버전 주입
+        run: |
+          BUILD_GRADLE="android/app/build.gradle"
+          ! grep -q "health.connect" "$BUILD_GRADLE" && \
+            sed -i '/^dependencies {/a\    implementation "androidx.health.connect:connect-client:1.1.0-alpha07"' "$BUILD_GRADLE"
+          if ! grep -q "play-services-fitness" "$BUILD_GRADLE"; then
+            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-fitness:21.2.0"' "$BUILD_GRADLE"
+            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-auth:21.3.0"' "$BUILD_GRADLE"
+          fi
+          # compileSdk / targetSdk → 34 이상
+          sed -i 's/compileSdk\s*=\s*3[0-3]/compileSdk = 34/' "$BUILD_GRADLE"
+          sed -i 's/compileSdkVersion\s*3[0-3]/compileSdkVersion 34/' "$BUILD_GRADLE"
+          sed -i 's/targetSdk\s*=\s*3[0-3]/targetSdk = 34/' "$BUILD_GRADLE"
+          sed -i 's/targetSdkVersion\s*3[0-3]/targetSdkVersion 34/' "$BUILD_GRADLE"
+          # minSdk → 26 (Health Connect 필수)
+          sed -i 's/minSdkVersion\s*=\s*[0-9]\+/minSdkVersion = 26/' android/variables.gradle
+          echo "✅ Gradle 의존성 및 SDK 버전 설정 완료"
+
+      # 17. 버전 코드 / 버전 이름 주입
+      - name: 버전 정보 주입
+        run: |
+          BUILD_GRADLE="android/app/build.gradle"
+          VERSION_NAME="${{ github.event.inputs.version_name }}"
+          VERSION_CODE="${{ github.event.inputs.version_code }}"
+          sed -i "s/versionCode [0-9]\+/versionCode ${VERSION_CODE}/" "$BUILD_GRADLE"
+          sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" "$BUILD_GRADLE"
+          echo "✅ 버전 정보 설정: versionName=${VERSION_NAME}, versionCode=${VERSION_CODE}"
+          grep -E "versionCode|versionName" "$BUILD_GRADLE"
+
+      # 18. 릴리즈 서명 설정 (build.gradle에 signingConfigs 주입)
+      - name: 릴리즈 서명 설정 주입
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          cp release.keystore android/app/release.keystore
+
+          # signingConfigs 블록 추가
+          cat > /tmp/release_signing.gradle << 'GRADLEOF'
+              release {
+                  storeFile file("release.keystore")
+                  storePassword System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                  keyAlias System.getenv("RELEASE_KEY_ALIAS")
+                  keyPassword System.getenv("RELEASE_KEY_PASSWORD")
+              }
+          GRADLEOF
+
+          BUILD_GRADLE="android/app/build.gradle"
+
+          # signingConfigs { debug { ... } } 블록에 release 추가
+          if ! grep -q "signingConfigs" "$BUILD_GRADLE"; then
+            sed -i '/^android {$/a\    signingConfigs {\n        release {\n            storeFile file("release.keystore")\n            storePassword System.getenv("RELEASE_KEYSTORE_PASSWORD")\n            keyAlias System.getenv("RELEASE_KEY_ALIAS")\n            keyPassword System.getenv("RELEASE_KEY_PASSWORD")\n        }\n    }' "$BUILD_GRADLE"
+          else
+            # 기존 signingConfigs에 release 블록 추가
+            if ! grep -q "signingConfigs.*release\|release.*signingConfigs" "$BUILD_GRADLE"; then
+              sed -i '/signingConfigs {/a\        release {\n            storeFile file("release.keystore")\n            storePassword System.getenv("RELEASE_KEYSTORE_PASSWORD")\n            keyAlias System.getenv("RELEASE_KEY_ALIAS")\n            keyPassword System.getenv("RELEASE_KEY_PASSWORD")\n        }' "$BUILD_GRADLE"
+            fi
+          fi
+
+          # release buildType에 signingConfig 참조 추가
+          if grep -q "buildTypes" "$BUILD_GRADLE"; then
+            sed -i '/buildTypes/,/^    }/ {
+              /release {/,/}/ {
+                /signingConfig/!{/release {/a\                signingConfig signingConfigs.release}
+              }
+            }' "$BUILD_GRADLE" 2>/dev/null || true
+          fi
+
+          echo "✅ 릴리즈 서명 설정 완료"
+          echo ""
+          echo "📋 signingConfigs 확인:"
+          grep -A 6 "signingConfigs" "$BUILD_GRADLE" | head -20 || true
+
+      # 19. Gradle 실행 권한 부여
+      - name: Gradle 실행 권한 부여
+        run: chmod +x android/gradlew
+
+      # 20. 릴리즈 AAB 빌드
+      - name: 릴리즈 AAB 빌드
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew bundleRelease --stacktrace
+
+      # 21. AAB 서명 검증
+      - name: AAB 서명 검증
+        run: |
+          AAB_PATH="android/app/build/outputs/bundle/release/app-release.aab"
+          if [ -f "$AAB_PATH" ]; then
+            echo "✅ AAB 빌드 성공: $AAB_PATH"
+            ls -lh "$AAB_PATH"
+          else
+            echo "❌ AAB 파일을 찾을 수 없습니다."
+            find android/app/build/outputs/ -name "*.aab" 2>/dev/null || true
+            exit 1
+          fi
+
+      # 22. AAB 아티팩트 업로드
+      - name: AAB 업로드 (Artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: levelup-reboot-release-v${{ github.event.inputs.version_name }}-(${{ github.event.inputs.version_code }})
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 90
+
+      # 23. 빌드 결과 요약
+      - name: 빌드 결과 요약
+        if: success()
+        run: |
+          echo "## ✅ 플레이스토어 릴리즈 AAB 빌드 완료" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 앱 ID | \`com.levelup.reboot\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 버전 이름 | \`${{ github.event.inputs.version_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 버전 코드 | \`${{ github.event.inputs.version_code }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 빌드 유형 | Release AAB |" >> $GITHUB_STEP_SUMMARY
+          echo "| 아티팩트 | \`levelup-reboot-release-v${{ github.event.inputs.version_name }}-(${{ github.event.inputs.version_code }})\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 다음 단계" >> $GITHUB_STEP_SUMMARY
+          echo "1. 위 아티팩트에서 \`app-release.aab\` 파일을 다운로드하세요" >> $GITHUB_STEP_SUMMARY
+          echo "2. Google Play Console → 프로덕션 트랙 → 새 릴리즈 만들기" >> $GITHUB_STEP_SUMMARY
+          echo "3. AAB 파일을 업로드하세요" >> $GITHUB_STEP_SUMMARY
+          echo "4. 출시 노트(한국어)를 작성하세요" >> $GITHUB_STEP_SUMMARY
+          echo "5. 검토를 위해 제출하세요" >> $GITHUB_STEP_SUMMARY
