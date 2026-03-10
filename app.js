@@ -65,7 +65,94 @@ function getInitialAppState() {
 // --- 앱 초기 로드 ---
 let _initializedUid = null;
 
+// --- 탭 순서 관리 ---
+const DEFAULT_NAV_ORDER = ['status', 'diary', 'quests', 'dungeon', 'social', 'settings'];
+
+function loadNavOrder() {
+    const saved = localStorage.getItem('navTabOrder');
+    if (!saved) return;
+    try {
+        const order = JSON.parse(saved);
+        const nav = document.querySelector('nav');
+        if (!nav) return;
+        order.forEach(tabId => {
+            const item = nav.querySelector(`[data-tab="${tabId}"]`);
+            if (item) nav.appendChild(item);
+        });
+    } catch(e) {}
+}
+
+function saveNavOrder() {
+    const order = Array.from(document.querySelectorAll('.nav-item')).map(el => el.dataset.tab);
+    localStorage.setItem('navTabOrder', JSON.stringify(order));
+}
+
+let _navDragJustEnded = false;
+
+function initNavDragReorder() {
+    const nav = document.querySelector('nav');
+    let dragItem = null;
+    let longPressTimer = null;
+    let isDragging = false;
+    let wasMoved = false;
+
+    function onTouchStart(e) {
+        const item = e.currentTarget;
+        longPressTimer = setTimeout(() => {
+            isDragging = true;
+            wasMoved = false;
+            dragItem = item;
+            item.classList.add('nav-dragging');
+            nav.classList.add('nav-reorder-mode');
+            if (navigator.vibrate) navigator.vibrate(50);
+        }, 500);
+    }
+
+    function onTouchMove(e) {
+        if (!isDragging || !dragItem) return;
+        e.preventDefault();
+        wasMoved = true;
+        const touch = e.touches[0];
+        const navRect = nav.getBoundingClientRect();
+        const touchX = touch.clientX - navRect.left;
+        const items = Array.from(nav.querySelectorAll('.nav-item'));
+        const itemWidth = navRect.width / items.length;
+        const targetIndex = Math.max(0, Math.min(items.length - 1, Math.floor(touchX / itemWidth)));
+        const currentIndex = items.indexOf(dragItem);
+        if (targetIndex !== currentIndex) {
+            if (targetIndex > currentIndex) {
+                nav.insertBefore(dragItem, items[targetIndex].nextSibling);
+            } else {
+                nav.insertBefore(dragItem, items[targetIndex]);
+            }
+        }
+    }
+
+    function onTouchEnd() {
+        clearTimeout(longPressTimer);
+        if (isDragging && dragItem) {
+            dragItem.classList.remove('nav-dragging');
+            nav.classList.remove('nav-reorder-mode');
+            if (wasMoved) {
+                saveNavOrder();
+                _navDragJustEnded = true;
+                setTimeout(() => { _navDragJustEnded = false; }, 300);
+            }
+        }
+        isDragging = false;
+        dragItem = null;
+    }
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('touchstart', onTouchStart, { passive: true });
+        item.addEventListener('touchmove', onTouchMove, { passive: false });
+        item.addEventListener('touchend', onTouchEnd);
+        item.addEventListener('touchcancel', onTouchEnd);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    loadNavOrder();
     initTheme();
     bindEvents();
 
@@ -131,9 +218,10 @@ function bindEvents() {
     document.getElementById('auth-toggle-btn').addEventListener('click', toggleAuthMode);
     document.getElementById('login-email').addEventListener('focus', showEmailLoginFields);
     
-    document.querySelectorAll('.nav-item').forEach(el => { 
-        el.addEventListener('click', () => switchTab(el.dataset.tab, el)); 
+    document.querySelectorAll('.nav-item').forEach(el => {
+        el.addEventListener('click', () => { if (!_navDragJustEnded) switchTab(el.dataset.tab, el); });
     });
+    initNavDragReorder();
 
     document.getElementById('btn-edit-name').addEventListener('click', changePlayerName);
     document.getElementById('btn-edit-insta').addEventListener('click', changeInstaId);
