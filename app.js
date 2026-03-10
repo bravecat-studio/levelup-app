@@ -1110,6 +1110,8 @@ function toggleAuthMode() {
     const btnSubmit = document.getElementById('btn-login-submit');
     const toggleText = document.getElementById('auth-toggle-btn');
     document.getElementById('login-pw-confirm').classList.toggle('d-none', AppState.isLoginMode);
+    document.getElementById('pw-hint').classList.toggle('d-none', AppState.isLoginMode);
+    document.getElementById('disclaimer-box').classList.toggle('d-none', AppState.isLoginMode);
     btnSubmit.innerText = AppState.isLoginMode ? "시스템 접속" : "플레이어 등록";
     toggleText.innerText = AppState.isLoginMode ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인";
 }
