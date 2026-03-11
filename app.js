@@ -192,9 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
             _initializedUid = null;
             document.getElementById('login-screen').classList.remove('d-none');
             document.getElementById('app-container').classList.add('d-none');
-            // 로그아웃 시 로그 패널 숨김 (개발자 외 접근 차단)
+            // 로그아웃 시 로그 패널 표시 (로그인 화면에서 로그 확인 가능)
             const loginPanel = document.getElementById('login-log-panel');
-            if (loginPanel) loginPanel.style.display = 'none';
+            if (loginPanel) loginPanel.style.display = 'flex';
         }
     });
 
@@ -1280,6 +1280,35 @@ function validatePassword(pw) {
     return pw.length >= 8 && /[A-Z]/.test(pw) && (pw.match(/[^A-Za-z0-9]/g) || []).length >= 2;
 }
 
+function checkPasswordMatch() {
+    const pw = document.getElementById('login-pw').value;
+    const pwConfirm = document.getElementById('login-pw-confirm').value;
+    const confirmInput = document.getElementById('login-pw-confirm');
+    const hint = document.getElementById('pw-mismatch-hint');
+    if (!pwConfirm) {
+        confirmInput.classList.remove('input-error');
+        hint.classList.add('d-none');
+        return true;
+    }
+    if (pw !== pwConfirm) {
+        confirmInput.classList.add('input-error', 'shake');
+        hint.classList.remove('d-none');
+        if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
+        setTimeout(() => confirmInput.classList.remove('shake'), 400);
+        return false;
+    }
+    confirmInput.classList.remove('input-error');
+    hint.classList.add('d-none');
+    return true;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const pwConfirmEl = document.getElementById('login-pw-confirm');
+    if (pwConfirmEl) {
+        pwConfirmEl.addEventListener('input', checkPasswordMatch);
+    }
+});
+
 async function simulateLogin() {
     const email = document.getElementById('login-email').value;
     const pw = document.getElementById('login-pw').value;
@@ -1289,11 +1318,10 @@ async function simulateLogin() {
     try {
         if(!AppState.isLoginMode) {
             if(!validatePassword(pw)) throw new Error("비밀번호는 8자리 이상, 대문자 1개 이상, 특수문자 2개 이상 포함해야 합니다.");
-            const pwConfirm = document.getElementById('login-pw-confirm').value;
-            if(pw !== pwConfirm) throw new Error("비밀번호 불일치");
+            if(!checkPasswordMatch()) throw new Error("비밀번호가 일치하지 않습니다.");
             await createUserWithEmailAndPassword(auth, email, pw);
         } else { await signInWithEmailAndPassword(auth, email, pw); }
-    } catch (e) { alert("인증 오류: " + e.message); } 
+    } catch (e) { alert("인증 오류: " + e.message); }
     finally { btn.innerText = AppState.isLoginMode ? "시스템 접속" : "회원가입"; btn.disabled = false; }
 }
 
@@ -1637,11 +1665,6 @@ window.openLegalModal = function(type) {
 let diarySelectedDate = getTodayStr();
 // plannerTasks: [{text, ranked, rankOrder}, ...] (기본 6개 슬롯)
 let plannerTasks = Array(6).fill(null).map(() => ({ text: '', ranked: false, rankOrder: 0 }));
-
-function getTodayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 
 function dateToStr(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
