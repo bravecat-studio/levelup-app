@@ -1494,16 +1494,33 @@ function openTitleModal() {
 }
 
 function openStatusInfoModal() {
-    document.getElementById('info-modal-title').innerText = i18n[AppState.currentLang].modal_status_title;
+    const lang = AppState.currentLang;
+    document.getElementById('info-modal-title').innerText = i18n[lang].modal_status_title;
     const body = document.getElementById('info-modal-body');
-    let html = `<p style="font-size:0.75rem; color:var(--neon-gold); margin:0 0 8px 0;">${i18n[AppState.currentLang].stat_hint}</p>`;
-    html += `<table class="info-table"><thead><tr><th>${i18n[AppState.currentLang].th_stat}</th><th>${i18n[AppState.currentLang].th_desc}</th></tr></thead><tbody>`;
-    statKeys.forEach(k => { 
-        html += `<tr><td style="text-align:center"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${k.toUpperCase()}</span><br><b style="font-size:0.75rem; color:var(--text-main); display:inline-block; margin-top:3px;">${i18n[AppState.currentLang][k]}</b></td><td style="color:var(--text-sub); line-height:1.5;">${i18n[AppState.currentLang]['desc_'+k]}</td></tr>`; 
+    let html = `<p style="font-size:0.75rem; color:var(--neon-gold); margin:0 0 8px 0;">${i18n[lang].stat_hint}</p>`;
+    html += `<table class="info-table"><thead><tr><th>${i18n[lang].th_stat}</th><th>${i18n[lang].th_desc}</th></tr></thead><tbody>`;
+    statKeys.forEach(k => {
+        html += `<tr><td style="text-align:center"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${k.toUpperCase()}</span><br><b style="font-size:0.75rem; color:var(--text-main); display:inline-block; margin-top:3px;">${i18n[lang][k]}</b></td><td style="color:var(--text-sub); line-height:1.5;">${i18n[lang]['desc_'+k]}</td></tr>`;
     });
-    body.innerHTML = html + `</tbody></table>`;
-    const m = document.getElementById('infoModal'); 
-    m.classList.remove('d-none'); 
+    html += `</tbody></table>`;
+
+    // P0: 스트릭 시스템 & 스탯 감소 안내
+    const streakGuide = {
+        ko: { title: '🔥 스트릭 시스템', desc: '매일 퀘스트를 완료하면 연속 접속일(스트릭)이 증가합니다. 스트릭에 따라 보상 배율이 상승합니다.', decay: '⚠️ 3일 이상 미접속 시 스탯이 감소합니다.', tiers: '3일 → x1.2 | 7일 → x1.5 | 14일 → x2.0 | 30일 → x3.0' },
+        en: { title: '🔥 Streak System', desc: 'Complete quests daily to build your streak. Higher streaks give higher reward multipliers.', decay: '⚠️ Stats decrease after 3+ days of inactivity.', tiers: '3d → x1.2 | 7d → x1.5 | 14d → x2.0 | 30d → x3.0' },
+        ja: { title: '🔥 ストリークシステム', desc: '毎日クエストを完了するとストリークが増加します。ストリークに応じて報酬倍率が上昇します。', decay: '⚠️ 3日以上未接続でステータスが減少します。', tiers: '3日 → x1.2 | 7日 → x1.5 | 14日 → x2.0 | 30日 → x3.0' }
+    };
+    const sg = streakGuide[lang] || streakGuide.ko;
+    html += `<div style="margin-top:14px; background:rgba(255,100,0,0.06); border:1px solid rgba(255,100,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:#ff6a00; margin-bottom:6px;">${sg.title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 6px 0;">${sg.desc}</p>
+        <div style="font-size:0.7rem; color:var(--neon-gold); font-weight:bold; margin-bottom:6px;">${sg.tiers}</div>
+        <p style="font-size:0.7rem; color:var(--neon-red); margin:0;">${sg.decay}</p>
+    </div>`;
+
+    body.innerHTML = html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
     m.classList.add('d-flex');
 }
 
@@ -1537,9 +1554,28 @@ function openQuestInfoModal() {
         }); 
     });
     
-    body.innerHTML = html + `</tbody></table>`;
-    const m = document.getElementById('infoModal'); 
-    m.classList.remove('d-none'); 
+    html += `</tbody></table>`;
+
+    // P2: 크리티컬 히트 & 루트 드롭 안내
+    const questExtra = {
+        ko: { crit_title: '⚡ 크리티컬 히트', crit_desc: '퀘스트 완료 시 15% 확률로 크리티컬이 발생하여 보상이 2~3배가 됩니다.', loot_title: '🎁 일일 올클리어 보상', loot_desc: '하루 퀘스트를 모두 완료하면 랜덤 전리품이 드롭됩니다.', loot_tiers: '일반(60%) · 고급(25%) · 희귀(12%) · 전설(3%)' },
+        en: { crit_title: '⚡ Critical Hit', crit_desc: '15% chance of critical hit on quest completion — rewards are multiplied by 2~3x.', loot_title: '🎁 Daily All-Clear Reward', loot_desc: 'Complete all daily quests to receive a random loot drop.', loot_tiers: 'Common(60%) · Uncommon(25%) · Rare(12%) · Legendary(3%)' },
+        ja: { crit_title: '⚡ クリティカルヒット', crit_desc: 'クエスト完了時に15%の確率でクリティカルが発生し、報酬が2~3倍になります。', loot_title: '🎁 デイリーオールクリア報酬', loot_desc: '1日のクエストを全て完了するとランダム戦利品がドロップします。', loot_tiers: '一般(60%) · 高級(25%) · 希少(12%) · 伝説(3%)' }
+    };
+    const qe = questExtra[AppState.currentLang] || questExtra.ko;
+    html += `<div style="margin-top:14px; background:rgba(255,220,0,0.06); border:1px solid rgba(255,220,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-gold); margin-bottom:6px;">${qe.crit_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${qe.crit_desc}</p>
+    </div>
+    <div style="margin-top:8px; background:rgba(0,217,255,0.06); border:1px solid rgba(0,217,255,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-blue); margin-bottom:6px;">${qe.loot_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 4px 0;">${qe.loot_desc}</p>
+        <div style="font-size:0.7rem; color:var(--neon-gold); font-weight:bold;">${qe.loot_tiers}</div>
+    </div>`;
+
+    body.innerHTML = html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
     m.classList.add('d-flex');
 }
 
@@ -1578,9 +1614,37 @@ function openDungeonInfoModal() {
         </tr>`; 
     });
     
-    body.innerHTML = timeInfoHtml + html + `</tbody></table>`;
-    const m = document.getElementById('infoModal'); 
-    m.classList.remove('d-none'); 
+    html += `</tbody></table>`;
+
+    // P1: 보스 HP 시스템 & 근접 보너스 안내
+    const dungeonExtra = {
+        ko: { boss_title: '👹 보스 HP 시스템', boss_desc: '던전에 보스 HP 바가 도입되었습니다. 참여자들이 함께 데미지를 입혀 보스를 처치합니다. 참여 인원이 많을수록 보스 HP가 증가합니다.',
+            open_title: '🌐 GPS 제한 해제', open_desc: '누구나 위치에 관계없이 던전에 참여할 수 있습니다. 해당 역 반경 2km 이내 접속 시 근접 보너스 +50P가 추가 지급됩니다.',
+            rush_title: '🔥 주말 보스 러시', rush_desc: '토·일요일에는 보스 HP가 2배, 클리어 보상도 2배로 적용됩니다!' },
+        en: { boss_title: '👹 Boss HP System', boss_desc: 'Dungeons now feature a Boss HP bar. Participants deal damage together to defeat the boss. More participants = higher boss HP.',
+            open_title: '🌐 GPS Lock Removed', open_desc: 'Anyone can join dungeons regardless of location. +50P proximity bonus for being within 2km of the station.',
+            rush_title: '🔥 Weekend Boss Rush', rush_desc: 'On weekends, boss HP is doubled and clear rewards are doubled!' },
+        ja: { boss_title: '👹 ボスHPシステム', boss_desc: 'ダンジョンにボスHPバーが導入されました。参加者全員でダメージを与えてボスを撃破します。参加者が多いほどボスHPが増加します。',
+            open_title: '🌐 GPS制限解除', open_desc: '場所に関係なく誰でもダンジョンに参加できます。駅から半径2km以内で接続すると近接ボーナス+50Pが追加されます。',
+            rush_title: '🔥 週末ボスラッシュ', rush_desc: '土日はボスHP2倍、クリア報酬も2倍です！' }
+    };
+    const de = dungeonExtra[AppState.currentLang] || dungeonExtra.ko;
+    html += `<div style="margin-top:14px; background:rgba(255,60,60,0.06); border:1px solid rgba(255,60,60,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-red); margin-bottom:6px;">${de.boss_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${de.boss_desc}</p>
+    </div>
+    <div style="margin-top:8px; background:rgba(0,217,255,0.06); border:1px solid rgba(0,217,255,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-blue); margin-bottom:6px;">${de.open_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${de.open_desc}</p>
+    </div>
+    <div style="margin-top:8px; background:rgba(255,100,0,0.06); border:1px solid rgba(255,100,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:#ff6a00; margin-bottom:6px;">${de.rush_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${de.rush_desc}</p>
+    </div>`;
+
+    body.innerHTML = timeInfoHtml + html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
     m.classList.add('d-flex');
 }
 
