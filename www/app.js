@@ -231,6 +231,13 @@ function bindEvents() {
         }
     });
 
+    // 키보드가 입력 필드를 가리지 않도록 스크롤
+    document.querySelectorAll('#login-screen .login-input').forEach(input => {
+        input.addEventListener('focus', () => {
+            setTimeout(() => input.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+        });
+    });
+
     document.querySelectorAll('.nav-item').forEach(el => {
         el.addEventListener('click', () => { if (!_navDragJustEnded) switchTab(el.dataset.tab, el); });
     });
