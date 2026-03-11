@@ -1647,11 +1647,6 @@ let diarySelectedDate = getTodayStr();
 // plannerTasks: [{text, ranked, rankOrder}, ...] (기본 6개 슬롯)
 let plannerTasks = Array(6).fill(null).map(() => ({ text: '', ranked: false, rankOrder: 0 }));
 
-function getTodayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
 function dateToStr(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
