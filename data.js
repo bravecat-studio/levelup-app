@@ -10,9 +10,9 @@ const i18n = {
         
         nav_status: "상태창", nav_quest: "퀘스트", nav_diary: "플래너", nav_dungeon: "던전", nav_social: "소셜", nav_settings: "설정",
         prof_name: "플레이어 (나)", btn_hist: "칭호 이력 조회", avail_pts: "보유 포인트", btn_lvlup: "레벨 업", req_pts: "요구량:",
-        tot_score: "종합 스코어", radar_title: "STAT RADAR", stat_hint: "※ 대기 스탯은 레벨업 시 일괄 반영됩니다.",
+        tot_score: "종합 스코어", radar_title: "STAT RADAR", stat_hint: "※ 대기 스탯은 레벨업 시 반영. 스트릭 배율이 보상에 적용됩니다.",
         str: "근력", int: "지능", cha: "매력", vit: "체력", wlth: "재력", agi: "민첩",
-        quest_title: "Daily Quests", quest_hint: "※ 완료 시 +20P & 스탯 +0.5", cal_title: "주간 진척도",
+        quest_title: "Daily Quests", quest_hint: "※ 완료 시 +20P & 스탯 +0.5 (스트릭 배율 적용 · 15% 크리티컬 확률)", cal_title: "주간 진척도",
         raid_title: "Local Raid", raid_boss: "⚠️ 연합 보스 출현", raid_desc1: "이상 현상이 감지되었습니다.", raid_desc2: "연합 목표를 달성하고 전리품을 획득하세요.", raid_part: "참여 인원: ", raid_btn: "레이드 입장하기", raid_joined: "참여 완료", raid_success: "레이드 완료!", raid_waiting: "던전 출현 대기 중...", raid_time_info: "출현 시간: 06:00~08:00 | 11:30~13:30 | 19:00~21:00",
         soc_global: "🏆 글로벌 랭킹", soc_friend: "👥 내 친구", sort_tot: "종합스코어", sort_str: "근력", sort_int: "지능", sort_cha: "매력", sort_vit: "체력", sort_wlth: "재력", sort_agi: "민첩",
         set_title: "System Settings", set_lang: "언어 (Language)", set_theme: "라이트 모드", set_push: "푸시 알림 수신", set_gps: "앱 실행 시 현위치 탐색", set_sync: "구글 피트니스 앱 동기화", set_logout: "로그아웃",
@@ -54,7 +54,15 @@ const i18n = {
         // 크리티컬 & 루트
         critical_hit: "크리티컬!", loot_drop: "전리품 획득!", loot_common: "일반", loot_uncommon: "고급", loot_rare: "희귀", loot_legendary: "전설",
         daily_clear_bonus: "일일 퀘스트 올클리어!",
-        loot_bonus_points: "보너스 포인트", loot_stat_boost: "스탯 부스트", loot_title_fragment: "칭호 조각"
+        loot_bonus_points: "보너스 포인트", loot_stat_boost: "스탯 부스트", loot_title_fragment: "칭호 조각",
+
+        // P3: 주간 도전과제
+        challenge_title: "주간 도전과제", challenge_progress: "진행", challenge_complete: "완료!", challenge_reward: "보상 수령",
+        challenge_claimed: "수령 완료", challenge_reset_info: "매주 일요일 자동 초기화",
+
+        // P4: 일일 보너스 룰렛
+        roulette_title: "일일 보너스 룰렛", roulette_spin: "스핀!", roulette_desc: "퀘스트 1개 이상 완료 후 하루 1회 스핀 가능",
+        roulette_locked: "퀘스트를 완료하면 스핀 가능", roulette_used: "오늘 스핀 완료", roulette_result: "보상 획득!"
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -67,9 +75,9 @@ const i18n = {
         
         nav_status: "Status", nav_quest: "Quests", nav_diary: "Planner", nav_dungeon: "Dungeon", nav_social: "Social", nav_settings: "Settings",
         prof_name: "Player (Me)", btn_hist: "Title History", avail_pts: "Available Pts", btn_lvlup: "Level Up", req_pts: "Required:",
-        tot_score: "Total Score", radar_title: "STAT RADAR", stat_hint: "※ Pending stats are applied upon Level Up.",
+        tot_score: "Total Score", radar_title: "STAT RADAR", stat_hint: "※ Pending stats applied on Level Up. Streak multiplier affects rewards.",
         str: "STR", int: "INT", cha: "CHA", vit: "VIT", wlth: "WLTH", agi: "AGI",
-        quest_title: "Daily Quests", quest_hint: "※ Earn +20P & +0.5 pending stat per quest", cal_title: "Weekly Progress",
+        quest_title: "Daily Quests", quest_hint: "※ +20P & +0.5 stat per quest (streak multiplier · 15% critical chance)", cal_title: "Weekly Progress",
         raid_title: "Local Raid", raid_boss: "⚠️ Alliance Boss", raid_desc1: "Anomaly detected.", raid_desc2: "Achieve alliance goals to get loot.", raid_part: "Participants: ", raid_btn: "Enter Raid", raid_joined: "Joined", raid_success: "Raid Success!", raid_waiting: "Waiting for Dungeon...", raid_time_info: "Open Hours: 06:00~08:00 | 11:30~13:30 | 19:00~21:00",
         soc_global: "🏆 Global Rank", soc_friend: "👥 My Friends", sort_tot: "Total", sort_str: "STR", sort_int: "INT", sort_cha: "CHA", sort_vit: "VIT", sort_wlth: "WLTH", sort_agi: "AGI",
         set_title: "System Settings", set_lang: "Language", set_theme: "Light Theme", set_push: "Push Notifications", set_gps: "Auto Location Tracking", set_sync: "Google Fit Sync", set_logout: "Logout",
@@ -107,7 +115,15 @@ const i18n = {
 
         critical_hit: "CRITICAL!", loot_drop: "Loot Drop!", loot_common: "Common", loot_uncommon: "Uncommon", loot_rare: "Rare", loot_legendary: "Legendary",
         daily_clear_bonus: "Daily Quest All Clear!",
-        loot_bonus_points: "Bonus Points", loot_stat_boost: "Stat Boost", loot_title_fragment: "Title Fragment"
+        loot_bonus_points: "Bonus Points", loot_stat_boost: "Stat Boost", loot_title_fragment: "Title Fragment",
+
+        // P3: Weekly Challenges
+        challenge_title: "Weekly Challenges", challenge_progress: "Progress", challenge_complete: "Complete!", challenge_reward: "Claim",
+        challenge_claimed: "Claimed", challenge_reset_info: "Resets every Sunday",
+
+        // P4: Daily Bonus Roulette
+        roulette_title: "Daily Bonus Roulette", roulette_spin: "SPIN!", roulette_desc: "Complete 1+ quest to unlock daily spin",
+        roulette_locked: "Complete a quest to spin", roulette_used: "Spin used today", roulette_result: "Reward!"
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -120,9 +136,9 @@ const i18n = {
 
         nav_status: "ステータス", nav_quest: "クエスト", nav_diary: "プランナー", nav_dungeon: "ダンジョン", nav_social: "ソーシャル", nav_settings: "設定",
         prof_name: "プレイヤー (私)", btn_hist: "称号履歴", avail_pts: "保有ポイント", btn_lvlup: "レベルUP", req_pts: "必要量:",
-        tot_score: "総合スコア", radar_title: "STAT RADAR", stat_hint: "※ 待機ステータスはレベルUP時に反映",
+        tot_score: "総合スコア", radar_title: "STAT RADAR", stat_hint: "※ 待機ステータスはレベルUP時に反映。ストリーク倍率が報酬に適用されます。",
         str: "筋력", int: "知能", cha: "魅力", vit: "体力", wlth: "財力", agi: "敏捷",
-        quest_title: "デイリークエスト", quest_hint: "※ 完了で +20P & 待機ステータス+0.5", cal_title: "週間進捗度",
+        quest_title: "デイリークエスト", quest_hint: "※ +20P & +0.5ステータス (ストリーク倍率 · 15%クリティカル確率)", cal_title: "週間進捗度",
         raid_title: "ローカルレイド", raid_boss: "⚠️ 連合ボス出現", raid_desc1: "異常現象を感知。", raid_desc2: "連合の目標を達成し戦利品を獲得せよ。", raid_part: "参加人数: ", raid_btn: "入場する", raid_joined: "参加完了", raid_success: "レイド成功！", raid_waiting: "ダンジョン出現待機中...", raid_time_info: "出現時間: 06:00~08:00 | 11:30~13:30 | 19:00~21:00",
         soc_global: "🏆 グローバルランク", soc_friend: "👥 マイフレンド", sort_tot: "総合", sort_str: "筋力", sort_int: "知能", sort_cha: "魅力", sort_vit: "体力", sort_wlth: "財力", sort_agi: "敏捷",
         set_title: "システム設定", set_lang: "言語 (Language)", set_theme: "ライトモード", set_push: "プッシュ通知受信", set_gps: "起動時の位置情報取得", set_sync: "Google Fit 同期", set_logout: "ログアウト",
@@ -160,7 +176,15 @@ const i18n = {
 
         critical_hit: "クリティカル！", loot_drop: "戦利品獲得！", loot_common: "一般", loot_uncommon: "高級", loot_rare: "希少", loot_legendary: "伝説",
         daily_clear_bonus: "デイリークエスト全クリア！",
-        loot_bonus_points: "ボーナスポイント", loot_stat_boost: "ステータスブースト", loot_title_fragment: "称号の欠片"
+        loot_bonus_points: "ボーナスポイント", loot_stat_boost: "ステータスブースト", loot_title_fragment: "称号の欠片",
+
+        // P3: 週間チャレンジ
+        challenge_title: "週間チャレンジ", challenge_progress: "進行", challenge_complete: "完了！", challenge_reward: "受取",
+        challenge_claimed: "受取済", challenge_reset_info: "毎週日曜日にリセット",
+
+        // P4: デイリーボーナスルーレット
+        roulette_title: "デイリーボーナスルーレット", roulette_spin: "スピン！", roulette_desc: "クエスト1つ以上完了で1日1回スピン可能",
+        roulette_locked: "クエストを完了するとスピン可能", roulette_used: "本日スピン済", roulette_result: "報酬獲得！"
     }
 };
 

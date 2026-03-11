@@ -59,7 +59,7 @@ function getInitialAppState() {
             weekStart: getWeekStartDate()
         },
         social: { mode: 'global', sortCriteria: 'total', users: [] },
-        dungeon: { lastGeneratedDate: null, slot: 0, stationIdx: 0, maxParticipants: 5, globalParticipants: 0, globalProgress: 0, isJoined: false, hasContributed: false, targetStat: 'str', isCleared: false },
+        dungeon: { lastGeneratedDate: null, slot: 0, stationIdx: 0, maxParticipants: 5, globalParticipants: 0, globalProgress: 0, isJoined: false, hasContributed: false, targetStat: 'str', isCleared: false, bossMaxHP: 5, bossDamageDealt: 0 },
     };
 }
 
@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
             startRaidTimer();
             renderQuestList();
             fetchSocialData();
+
+            renderWeeklyChallenges();
+            renderRoulette();
 
             if (AppState.user.syncEnabled) { syncHealthData(false); }
         } else {
@@ -327,8 +330,10 @@ async function loadUserDataFromDB(user) {
             }
             if(data.dungeonStr) {
                 AppState.dungeon = JSON.parse(data.dungeonStr);
-                if(!AppState.dungeon.maxParticipants) AppState.dungeon.maxParticipants = 5; 
-                if(AppState.dungeon.hasContributed === undefined) AppState.dungeon.hasContributed = false; 
+                if(!AppState.dungeon.maxParticipants) AppState.dungeon.maxParticipants = 5;
+                if(AppState.dungeon.hasContributed === undefined) AppState.dungeon.hasContributed = false;
+                if(!AppState.dungeon.bossMaxHP) AppState.dungeon.bossMaxHP = isBossRush() ? 10 : 5;
+                if(AppState.dungeon.bossDamageDealt === undefined) AppState.dungeon.bossDamageDealt = 0;
                 AppState.dungeon.globalParticipants = 0;
                 AppState.dungeon.globalProgress = 0;
             }
@@ -394,6 +399,13 @@ function getStreakMultiplier(streak) {
 function applyStreakAndDecay() {
     const today = getTodayStr();
     const lastActive = AppState.user.streak.lastActiveDate;
+    // lastActiveDate가 없으면(신규 유저/기존 유저 최초) 감소 없이 오늘로 설정
+    if (!lastActive) {
+        AppState.user.streak.lastActiveDate = today;
+        AppState.user.streak.multiplier = getStreakMultiplier(AppState.user.streak.currentStreak);
+        renderStreakBadge();
+        return;
+    }
     const gap = getDaysBetween(lastActive, today);
 
     if (gap > 1) {
@@ -401,9 +413,9 @@ function applyStreakAndDecay() {
         if (AppState.user.streak.currentStreak > 0) {
             AppState.user.streak.currentStreak = 0;
         }
-        // 3일 이상 미접속 시 스탯 감소
+        // 3일 이상 미접속 시 스탯 감소 (최대 30일분으로 제한)
         if (gap > 3) {
-            const decayDays = gap - 3;
+            const decayDays = Math.min(gap - 3, 30);
             const decayAmount = decayDays * 0.1;
             let decayed = false;
             statKeys.forEach(k => {
@@ -437,6 +449,13 @@ function updateStreak() {
     AppState.user.streak.lastActiveDate = today;
     AppState.user.streak.multiplier = getStreakMultiplier(AppState.user.streak.currentStreak);
     renderStreakBadge();
+    // 스트릭 도전과제 업데이트 (현재 스트릭 값을 직접 설정)
+    const chData = getWeeklyChallenges();
+    const streakCh = chData.challenges.find(c => c.id === 'streak_days');
+    if (streakCh && !streakCh.claimed) {
+        streakCh.progress = Math.min(streakCh.target, AppState.user.streak.currentStreak);
+        localStorage.setItem('weekly_challenges', JSON.stringify(chData));
+    }
 }
 
 function renderStreakBadge() {
@@ -541,6 +560,7 @@ function checkDailyAllClear() {
 
     const loot = rollLootDrop();
     applyLootReward(loot);
+    updateChallengeProgress('all_clear_days');
     saveUserData();
     updatePointUI();
     showLootModal(loot);
@@ -668,17 +688,22 @@ window.toggleQuest = (i) => {
         pointReward = 20 * critMult;
         statReward = 0.5 * critMult;
         showCriticalFlash();
+        updateChallengeProgress('critical_hits');
     }
 
     AppState.user.points += Math.floor(pointReward * mult * factor);
     AppState.user.pendingStats[q.stat.toLowerCase()] += (statReward * factor);
 
-    if (state[i]) updateStreak();
+    if (state[i]) {
+        updateStreak();
+        updateChallengeProgress('quest_count');
+    }
 
     saveUserData();
     renderQuestList();
     renderCalendar();
     updatePointUI();
+    renderRoulette();
 
     if (isCritical) {
         setTimeout(() => {
@@ -1069,6 +1094,7 @@ window.completeDungeon = () => {
     AppState.dungeon.isCleared = true;
 
     updateStreak();
+    updateChallengeProgress('dungeon_clear');
     saveUserData();
     renderDungeon();
     updatePointUI();
@@ -1092,7 +1118,7 @@ function switchTab(tabId, el) {
     }
     
     if(tabId === 'social') fetchSocialData();
-    if(tabId === 'quests') { renderQuestList(); renderCalendar(); }
+    if(tabId === 'quests') { renderQuestList(); renderCalendar(); renderWeeklyChallenges(); renderRoulette(); }
     if(tabId === 'diary') { renderPlannerCalendar(); loadPlannerForDate(diarySelectedDate); }
     if(tabId === 'dungeon') {
         updateDungeonStatus();
@@ -1280,35 +1306,6 @@ function validatePassword(pw) {
     return pw.length >= 8 && /[A-Z]/.test(pw) && (pw.match(/[^A-Za-z0-9]/g) || []).length >= 2;
 }
 
-function checkPasswordMatch() {
-    const pw = document.getElementById('login-pw').value;
-    const pwConfirm = document.getElementById('login-pw-confirm').value;
-    const confirmInput = document.getElementById('login-pw-confirm');
-    const hint = document.getElementById('pw-mismatch-hint');
-    if (!pwConfirm) {
-        confirmInput.classList.remove('input-error');
-        hint.classList.add('d-none');
-        return true;
-    }
-    if (pw !== pwConfirm) {
-        confirmInput.classList.add('input-error', 'shake');
-        hint.classList.remove('d-none');
-        if (navigator.vibrate) navigator.vibrate([30, 20, 30]);
-        setTimeout(() => confirmInput.classList.remove('shake'), 400);
-        return false;
-    }
-    confirmInput.classList.remove('input-error');
-    hint.classList.add('d-none');
-    return true;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const pwConfirmEl = document.getElementById('login-pw-confirm');
-    if (pwConfirmEl) {
-        pwConfirmEl.addEventListener('input', checkPasswordMatch);
-    }
-});
-
 async function simulateLogin() {
     const email = document.getElementById('login-email').value;
     const pw = document.getElementById('login-pw').value;
@@ -1318,10 +1315,11 @@ async function simulateLogin() {
     try {
         if(!AppState.isLoginMode) {
             if(!validatePassword(pw)) throw new Error("비밀번호는 8자리 이상, 대문자 1개 이상, 특수문자 2개 이상 포함해야 합니다.");
-            if(!checkPasswordMatch()) throw new Error("비밀번호가 일치하지 않습니다.");
+            const pwConfirm = document.getElementById('login-pw-confirm').value;
+            if(pw !== pwConfirm) throw new Error("비밀번호 불일치");
             await createUserWithEmailAndPassword(auth, email, pw);
         } else { await signInWithEmailAndPassword(auth, email, pw); }
-    } catch (e) { alert("인증 오류: " + e.message); }
+    } catch (e) { alert("인증 오류: " + e.message); } 
     finally { btn.innerText = AppState.isLoginMode ? "시스템 접속" : "회원가입"; btn.disabled = false; }
 }
 
@@ -1513,16 +1511,33 @@ function openTitleModal() {
 }
 
 function openStatusInfoModal() {
-    document.getElementById('info-modal-title').innerText = i18n[AppState.currentLang].modal_status_title;
+    const lang = AppState.currentLang;
+    document.getElementById('info-modal-title').innerText = i18n[lang].modal_status_title;
     const body = document.getElementById('info-modal-body');
-    let html = `<p style="font-size:0.75rem; color:var(--neon-gold); margin:0 0 8px 0;">${i18n[AppState.currentLang].stat_hint}</p>`;
-    html += `<table class="info-table"><thead><tr><th>${i18n[AppState.currentLang].th_stat}</th><th>${i18n[AppState.currentLang].th_desc}</th></tr></thead><tbody>`;
-    statKeys.forEach(k => { 
-        html += `<tr><td style="text-align:center"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${k.toUpperCase()}</span><br><b style="font-size:0.75rem; color:var(--text-main); display:inline-block; margin-top:3px;">${i18n[AppState.currentLang][k]}</b></td><td style="color:var(--text-sub); line-height:1.5;">${i18n[AppState.currentLang]['desc_'+k]}</td></tr>`; 
+    let html = `<p style="font-size:0.75rem; color:var(--neon-gold); margin:0 0 8px 0;">${i18n[lang].stat_hint}</p>`;
+    html += `<table class="info-table"><thead><tr><th>${i18n[lang].th_stat}</th><th>${i18n[lang].th_desc}</th></tr></thead><tbody>`;
+    statKeys.forEach(k => {
+        html += `<tr><td style="text-align:center"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${k.toUpperCase()}</span><br><b style="font-size:0.75rem; color:var(--text-main); display:inline-block; margin-top:3px;">${i18n[lang][k]}</b></td><td style="color:var(--text-sub); line-height:1.5;">${i18n[lang]['desc_'+k]}</td></tr>`;
     });
-    body.innerHTML = html + `</tbody></table>`;
-    const m = document.getElementById('infoModal'); 
-    m.classList.remove('d-none'); 
+    html += `</tbody></table>`;
+
+    // P0: 스트릭 시스템 & 스탯 감소 안내
+    const streakGuide = {
+        ko: { title: '🔥 스트릭 시스템', desc: '매일 퀘스트를 완료하면 연속 접속일(스트릭)이 증가합니다. 스트릭에 따라 보상 배율이 상승합니다.', decay: '⚠️ 3일 이상 미접속 시 스탯이 감소합니다.', tiers: '3일 → x1.2 | 7일 → x1.5 | 14일 → x2.0 | 30일 → x3.0' },
+        en: { title: '🔥 Streak System', desc: 'Complete quests daily to build your streak. Higher streaks give higher reward multipliers.', decay: '⚠️ Stats decrease after 3+ days of inactivity.', tiers: '3d → x1.2 | 7d → x1.5 | 14d → x2.0 | 30d → x3.0' },
+        ja: { title: '🔥 ストリークシステム', desc: '毎日クエストを完了するとストリークが増加します。ストリークに応じて報酬倍率が上昇します。', decay: '⚠️ 3日以上未接続でステータスが減少します。', tiers: '3日 → x1.2 | 7日 → x1.5 | 14日 → x2.0 | 30日 → x3.0' }
+    };
+    const sg = streakGuide[lang] || streakGuide.ko;
+    html += `<div style="margin-top:14px; background:rgba(255,100,0,0.06); border:1px solid rgba(255,100,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:#ff6a00; margin-bottom:6px;">${sg.title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 6px 0;">${sg.desc}</p>
+        <div style="font-size:0.7rem; color:var(--neon-gold); font-weight:bold; margin-bottom:6px;">${sg.tiers}</div>
+        <p style="font-size:0.7rem; color:var(--neon-red); margin:0;">${sg.decay}</p>
+    </div>`;
+
+    body.innerHTML = html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
     m.classList.add('d-flex');
 }
 
@@ -1556,9 +1571,53 @@ function openQuestInfoModal() {
         }); 
     });
     
-    body.innerHTML = html + `</tbody></table>`;
-    const m = document.getElementById('infoModal'); 
-    m.classList.remove('d-none'); 
+    html += `</tbody></table>`;
+
+    // P2: 크리티컬 히트 & 루트 드롭 안내
+    const questExtra = {
+        ko: { crit_title: '⚡ 크리티컬 히트', crit_desc: '퀘스트 완료 시 15% 확률로 크리티컬이 발생하여 보상이 2~3배가 됩니다.', loot_title: '🎁 일일 올클리어 보상', loot_desc: '하루 퀘스트를 모두 완료하면 랜덤 전리품이 드롭됩니다.', loot_tiers: '일반(60%) · 고급(25%) · 희귀(12%) · 전설(3%)' },
+        en: { crit_title: '⚡ Critical Hit', crit_desc: '15% chance of critical hit on quest completion — rewards are multiplied by 2~3x.', loot_title: '🎁 Daily All-Clear Reward', loot_desc: 'Complete all daily quests to receive a random loot drop.', loot_tiers: 'Common(60%) · Uncommon(25%) · Rare(12%) · Legendary(3%)' },
+        ja: { crit_title: '⚡ クリティカルヒット', crit_desc: 'クエスト完了時に15%の確率でクリティカルが発生し、報酬が2~3倍になります。', loot_title: '🎁 デイリーオールクリア報酬', loot_desc: '1日のクエストを全て完了するとランダム戦利品がドロップします。', loot_tiers: '一般(60%) · 高級(25%) · 希少(12%) · 伝説(3%)' }
+    };
+    const qe = questExtra[AppState.currentLang] || questExtra.ko;
+    html += `<div style="margin-top:14px; background:rgba(255,220,0,0.06); border:1px solid rgba(255,220,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-gold); margin-bottom:6px;">${qe.crit_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${qe.crit_desc}</p>
+    </div>
+    <div style="margin-top:8px; background:rgba(0,217,255,0.06); border:1px solid rgba(0,217,255,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-blue); margin-bottom:6px;">${qe.loot_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 4px 0;">${qe.loot_desc}</p>
+        <div style="font-size:0.7rem; color:var(--neon-gold); font-weight:bold;">${qe.loot_tiers}</div>
+    </div>`;
+
+    // P3: 주간 도전과제 안내
+    const challengeGuide = {
+        ko: { title: '🏅 주간 도전과제', desc: '매주 3개의 도전과제가 랜덤으로 출현합니다. 조건을 달성하면 추가 보상(포인트+스탯)을 수령할 수 있습니다.', reset: '일요일마다 자동 초기화됩니다.' },
+        en: { title: '🏅 Weekly Challenges', desc: '3 random challenges appear each week. Complete conditions to claim bonus rewards (points + stats).', reset: 'Auto-resets every Sunday.' },
+        ja: { title: '🏅 週間チャレンジ', desc: '毎週3つのチャレンジがランダムで出現します。条件を達成すると追加報酬(ポイント+ステータス)を獲得できます。', reset: '毎週日曜日に自動リセットされます。' }
+    };
+    const cg = challengeGuide[AppState.currentLang] || challengeGuide.ko;
+    html += `<div style="margin-top:8px; background:rgba(200,150,0,0.06); border:1px solid rgba(200,150,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-gold); margin-bottom:6px;">${cg.title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 4px 0;">${cg.desc}</p>
+        <p style="font-size:0.7rem; color:var(--text-sub); margin:0;">${cg.reset}</p>
+    </div>`;
+
+    // P4: 일일 룰렛 안내
+    const rouletteGuide = {
+        ko: { title: '🎰 일일 보너스 룰렛', desc: '퀘스트를 1개 이상 완료하면 하루 1회 룰렛을 돌릴 수 있습니다. 포인트 또는 스탯 부스트가 랜덤으로 지급됩니다.' },
+        en: { title: '🎰 Daily Bonus Roulette', desc: 'Complete 1+ quests to unlock a daily spin. Win random points or stat boosts.' },
+        ja: { title: '🎰 デイリーボーナスルーレット', desc: 'クエストを1つ以上完了すると、1日1回ルーレットを回せます。ポイントまたはステータスブーストがランダムで付与されます。' }
+    };
+    const rg = rouletteGuide[AppState.currentLang] || rouletteGuide.ko;
+    html += `<div style="margin-top:8px; background:rgba(180,0,255,0.06); border:1px solid rgba(180,0,255,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-purple); margin-bottom:6px;">${rg.title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${rg.desc}</p>
+    </div>`;
+
+    body.innerHTML = html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
     m.classList.add('d-flex');
 }
 
@@ -1597,9 +1656,37 @@ function openDungeonInfoModal() {
         </tr>`; 
     });
     
-    body.innerHTML = timeInfoHtml + html + `</tbody></table>`;
-    const m = document.getElementById('infoModal'); 
-    m.classList.remove('d-none'); 
+    html += `</tbody></table>`;
+
+    // P1: 보스 HP 시스템 & 근접 보너스 안내
+    const dungeonExtra = {
+        ko: { boss_title: '👹 보스 HP 시스템', boss_desc: '던전에 보스 HP 바가 도입되었습니다. 참여자들이 레이드 액션으로 데미지를 입혀 보스를 처치합니다. 인원이 많을수록 클리어가 쉬워집니다.',
+            open_title: '🌐 GPS 제한 해제', open_desc: '누구나 위치에 관계없이 던전에 참여할 수 있습니다. 해당 역 반경 2km 이내 접속 시 근접 보너스 +50P가 추가 지급됩니다.',
+            rush_title: '🔥 주말 보스 러시', rush_desc: '토·일요일에는 보스 HP가 2배, 클리어 보상도 2배로 적용됩니다!' },
+        en: { boss_title: '👹 Boss HP System', boss_desc: 'Dungeons now feature a Boss HP bar. Participants deal damage together via raid actions to defeat the boss. More allies = easier clear.',
+            open_title: '🌐 GPS Lock Removed', open_desc: 'Anyone can join dungeons regardless of location. +50P proximity bonus for being within 2km of the station.',
+            rush_title: '🔥 Weekend Boss Rush', rush_desc: 'On weekends, boss HP is doubled and clear rewards are doubled!' },
+        ja: { boss_title: '👹 ボスHPシステム', boss_desc: 'ダンジョンにボスHPバーが導入されました。参加者がレイドアクションでダメージを与えてボスを撃破します。人数が多いほどクリアが楽になります。',
+            open_title: '🌐 GPS制限解除', open_desc: '場所に関係なく誰でもダンジョンに参加できます。駅から半径2km以内で接続すると近接ボーナス+50Pが追加されます。',
+            rush_title: '🔥 週末ボスラッシュ', rush_desc: '土日はボスHP2倍、クリア報酬も2倍です！' }
+    };
+    const de = dungeonExtra[AppState.currentLang] || dungeonExtra.ko;
+    html += `<div style="margin-top:14px; background:rgba(255,60,60,0.06); border:1px solid rgba(255,60,60,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-red); margin-bottom:6px;">${de.boss_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${de.boss_desc}</p>
+    </div>
+    <div style="margin-top:8px; background:rgba(0,217,255,0.06); border:1px solid rgba(0,217,255,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:var(--neon-blue); margin-bottom:6px;">${de.open_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${de.open_desc}</p>
+    </div>
+    <div style="margin-top:8px; background:rgba(255,100,0,0.06); border:1px solid rgba(255,100,0,0.3); padding:10px; border-radius:6px;">
+        <div style="font-weight:bold; color:#ff6a00; margin-bottom:6px;">${de.rush_title}</div>
+        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${de.rush_desc}</p>
+    </div>`;
+
+    body.innerHTML = timeInfoHtml + html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
     m.classList.add('d-flex');
 }
 
@@ -1661,15 +1748,272 @@ window.openLegalModal = function(type) {
     modal.classList.add('d-flex');
 };
 
+// --- ★ P3: 주간 도전과제 시스템 ★ ---
+const weeklyChallengeTemplates = [
+    { id: 'quest_count', target: 30, reward: { points: 300, stat: 'random', statVal: 2.0 },
+      name: { ko: '퀘스트 마스터', en: 'Quest Master', ja: 'クエストマスター' },
+      desc: { ko: '이번 주 퀘스트 30개 완료', en: 'Complete 30 quests this week', ja: '今週クエスト30個完了' } },
+    { id: 'streak_days', target: 5, reward: { points: 200, stat: 'random', statVal: 1.5 },
+      name: { ko: '연속 접속 달인', en: 'Streak Champion', ja: 'ストリーク達人' },
+      desc: { ko: '이번 주 5일 연속 접속', en: 'Login 5 days in a row this week', ja: '今週5日連続ログイン' } },
+    { id: 'dungeon_clear', target: 3, reward: { points: 250, stat: 'random', statVal: 1.5 },
+      name: { ko: '던전 헌터', en: 'Dungeon Hunter', ja: 'ダンジョンハンター' },
+      desc: { ko: '이번 주 던전 3회 클리어', en: 'Clear dungeons 3 times this week', ja: '今週ダンジョン3回クリア' } },
+    { id: 'planner_use', target: 4, reward: { points: 150, stat: 'agi', statVal: 1.0 },
+      name: { ko: '계획의 달인', en: 'Planner Pro', ja: '計画の達人' },
+      desc: { ko: '이번 주 플래너 4회 저장', en: 'Save planner 4 times this week', ja: '今週プランナー4回保存' } },
+    { id: 'all_clear_days', target: 2, reward: { points: 400, stat: 'random', statVal: 3.0 },
+      name: { ko: '올클리어 챔피언', en: 'All-Clear Champion', ja: 'オールクリアチャンピオン' },
+      desc: { ko: '이번 주 일일 올클리어 2회', en: '2 daily all-clears this week', ja: '今週デイリーオールクリア2回' } },
+    { id: 'critical_hits', target: 3, reward: { points: 200, stat: 'random', statVal: 1.0 },
+      name: { ko: '행운아', en: 'Lucky Strike', ja: 'ラッキーストライク' },
+      desc: { ko: '이번 주 크리티컬 히트 3회', en: '3 critical hits this week', ja: '今週クリティカルヒット3回' } }
+];
+
+function getWeeklyChallenges() {
+    const weekStart = getWeekStartDate();
+    const storageKey = 'weekly_challenges';
+    let data;
+    try { data = JSON.parse(localStorage.getItem(storageKey)); } catch(e) { data = null; }
+
+    if (!data || data.weekStart !== weekStart) {
+        // 새 주: 6개 중 랜덤 3개 선택
+        const shuffled = [...weeklyChallengeTemplates].sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 3);
+        data = {
+            weekStart,
+            challenges: selected.map(c => ({ ...c, progress: 0, claimed: false }))
+        };
+        localStorage.setItem(storageKey, JSON.stringify(data));
+    }
+    return data;
+}
+
+function updateChallengeProgress(challengeId, increment = 1) {
+    const data = getWeeklyChallenges();
+    const ch = data.challenges.find(c => c.id === challengeId);
+    if (ch && !ch.claimed) {
+        ch.progress = Math.min(ch.target, ch.progress + increment);
+        localStorage.setItem('weekly_challenges', JSON.stringify(data));
+    }
+}
+
+function renderWeeklyChallenges() {
+    const container = document.getElementById('challenge-list');
+    if (!container) return;
+
+    const lang = AppState.currentLang;
+    const data = getWeeklyChallenges();
+
+    container.innerHTML = data.challenges.map((ch, idx) => {
+        const pct = Math.min(100, Math.round((ch.progress / ch.target) * 100));
+        const done = ch.progress >= ch.target;
+        const name = ch.name[lang] || ch.name.ko;
+        const desc = ch.desc[lang] || ch.desc.ko;
+
+        return `<div class="challenge-item ${done ? 'done' : ''}">
+            <div class="challenge-info">
+                <div class="challenge-name">${name}</div>
+                <div class="challenge-desc">${desc}</div>
+                <div class="challenge-bar-bg">
+                    <div class="challenge-bar-fill" style="width:${pct}%"></div>
+                </div>
+                <div class="challenge-progress-text">${ch.progress}/${ch.target}</div>
+            </div>
+            <div class="challenge-action">
+                ${done && !ch.claimed ? `<button class="challenge-claim-btn" onclick="window.claimChallenge(${idx})">${i18n[lang].challenge_reward}</button>` : ''}
+                ${ch.claimed ? `<span class="challenge-claimed">${i18n[lang].challenge_claimed}</span>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+window.claimChallenge = function(idx) {
+    const data = getWeeklyChallenges();
+    const ch = data.challenges[idx];
+    if (!ch || ch.claimed || ch.progress < ch.target) return;
+
+    ch.claimed = true;
+    localStorage.setItem('weekly_challenges', JSON.stringify(data));
+
+    AppState.user.points += ch.reward.points;
+    const stat = ch.reward.stat === 'random' ? statKeys[Math.floor(Math.random() * statKeys.length)] : ch.reward.stat;
+    AppState.user.pendingStats[stat] += ch.reward.statVal;
+
+    saveUserData();
+    updatePointUI();
+    renderWeeklyChallenges();
+
+    const lang = AppState.currentLang;
+    alert(`${ch.name[lang] || ch.name.ko} ${i18n[lang].challenge_complete}\n+${ch.reward.points}P, ${stat.toUpperCase()} +${ch.reward.statVal}`);
+};
+
+// --- ★ P4: 일일 보너스 룰렛 ★ ---
+const rouletteSlots = [
+    { label: { ko: '+30P', en: '+30P', ja: '+30P' }, reward: { type: 'points', value: 30 }, color: '#444' },
+    { label: { ko: '+80P', en: '+80P', ja: '+80P' }, reward: { type: 'points', value: 80 }, color: '#0088ff' },
+    { label: { ko: '+150P', en: '+150P', ja: '+150P' }, reward: { type: 'points', value: 150 }, color: '#ff6a00' },
+    { label: { ko: 'STR+1', en: 'STR+1', ja: 'STR+1' }, reward: { type: 'stat', stat: 'str', value: 1.0 }, color: '#ff3c3c' },
+    { label: { ko: 'INT+1', en: 'INT+1', ja: 'INT+1' }, reward: { type: 'stat', stat: 'int', value: 1.0 }, color: '#00d9ff' },
+    { label: { ko: '+50P', en: '+50P', ja: '+50P' }, reward: { type: 'points', value: 50 }, color: '#555' },
+    { label: { ko: 'ALL+0.5', en: 'ALL+0.5', ja: 'ALL+0.5' }, reward: { type: 'stat', stat: 'all', value: 0.5 }, color: '#ffcc00' },
+    { label: { ko: '+200P', en: '+200P', ja: '+200P' }, reward: { type: 'points', value: 200 }, color: '#ff00ff' },
+];
+
+function canSpinRoulette() {
+    const today = getTodayStr();
+    if (localStorage.getItem('roulette_' + today)) return 'used';
+    // 오늘 퀘스트 1개 이상 완료했는지 확인
+    const day = AppState.quest.currentDayOfWeek;
+    const anyDone = AppState.quest.completedState[day].some(v => v);
+    return anyDone ? 'ready' : 'locked';
+}
+
+function renderRoulette() {
+    const container = document.getElementById('roulette-container');
+    if (!container) return;
+
+    const lang = AppState.currentLang;
+    const status = canSpinRoulette();
+    const canvas = document.getElementById('roulette-canvas');
+
+    // 캔버스에 룰렛 그리기
+    if (canvas) drawRouletteWheel(canvas);
+
+    const btn = document.getElementById('btn-roulette-spin');
+    const statusText = document.getElementById('roulette-status');
+    if (btn && statusText) {
+        if (status === 'ready') {
+            btn.disabled = false;
+            btn.textContent = i18n[lang].roulette_spin;
+            btn.style.opacity = '1';
+            statusText.textContent = i18n[lang].roulette_desc;
+            statusText.style.color = 'var(--neon-gold)';
+        } else if (status === 'used') {
+            btn.disabled = true;
+            btn.textContent = i18n[lang].roulette_used;
+            btn.style.opacity = '0.4';
+            statusText.textContent = i18n[lang].roulette_used;
+            statusText.style.color = 'var(--text-sub)';
+        } else {
+            btn.disabled = true;
+            btn.textContent = i18n[lang].roulette_spin;
+            btn.style.opacity = '0.4';
+            statusText.textContent = i18n[lang].roulette_locked;
+            statusText.style.color = 'var(--text-sub)';
+        }
+    }
+}
+
+function drawRouletteWheel(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = Math.min(cx, cy) - 4;
+    const slotCount = rouletteSlots.length;
+    const arc = (2 * Math.PI) / slotCount;
+    const lang = AppState.currentLang;
+
+    ctx.clearRect(0, 0, w, h);
+
+    for (let i = 0; i < slotCount; i++) {
+        const angle = i * arc - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, angle, angle + arc);
+        ctx.closePath();
+        ctx.fillStyle = rouletteSlots[i].color;
+        ctx.fill();
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 텍스트
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(angle + arc / 2);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(rouletteSlots[i].label[lang] || rouletteSlots[i].label.ko, r * 0.6, 4);
+        ctx.restore();
+    }
+
+    // 중심 원
+    ctx.beginPath();
+    ctx.arc(cx, cy, 12, 0, 2 * Math.PI);
+    ctx.fillStyle = '#111';
+    ctx.fill();
+    ctx.strokeStyle = 'var(--neon-gold)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+window.spinRoulette = function() {
+    if (canSpinRoulette() !== 'ready') return;
+
+    const today = getTodayStr();
+    localStorage.setItem('roulette_' + today, '1');
+
+    const canvas = document.getElementById('roulette-canvas');
+    if (!canvas) return;
+
+    // 결과 결정 (가중치 기반)
+    const weights = [20, 15, 5, 12, 12, 18, 3, 5]; // 각 슬롯 확률
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let roll = Math.random() * totalWeight;
+    let resultIdx = 0;
+    for (let i = 0; i < weights.length; i++) {
+        roll -= weights[i];
+        if (roll <= 0) { resultIdx = i; break; }
+    }
+
+    // 스핀 애니메이션
+    const slotCount = rouletteSlots.length;
+    const arc = 360 / slotCount;
+    // 결과 슬롯 중앙을 가리키도록 회전 (상단 화살표 기준)
+    const targetAngle = 360 - (resultIdx * arc + arc / 2);
+    const totalRotation = 360 * 5 + targetAngle; // 5바퀴 + 결과 위치
+
+    const btn = document.getElementById('btn-roulette-spin');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+    canvas.style.transition = 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+    canvas.style.transform = `rotate(${totalRotation}deg)`;
+
+    setTimeout(() => {
+        // 보상 적용
+        const slot = rouletteSlots[resultIdx];
+        if (slot.reward.type === 'points') {
+            AppState.user.points += slot.reward.value;
+        } else if (slot.reward.type === 'stat') {
+            if (slot.reward.stat === 'all') {
+                statKeys.forEach(k => { AppState.user.pendingStats[k] += slot.reward.value; });
+            } else {
+                AppState.user.pendingStats[slot.reward.stat] += slot.reward.value;
+            }
+        }
+
+        saveUserData();
+        updatePointUI();
+        renderRoulette();
+
+        const lang = AppState.currentLang;
+        const rewardText = slot.label[lang] || slot.label.ko;
+        alert(`${i18n[lang].roulette_result} ${rewardText}`);
+
+        // 캔버스 리셋 (애니메이션 후 각도 유지)
+        canvas.style.transition = 'none';
+        canvas.style.transform = `rotate(${targetAngle}deg)`;
+    }, 3200);
+};
+
 // --- ★ 플래너 기능 (일론 머스크 타임박스 스타일) ★ ---
 let diarySelectedDate = getTodayStr();
 // plannerTasks: [{text, ranked, rankOrder}, ...] (기본 6개 슬롯)
 let plannerTasks = Array(6).fill(null).map(() => ({ text: '', ranked: false, rankOrder: 0 }));
-
-function getTodayStr() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
 
 function dateToStr(d) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1993,6 +2337,7 @@ async function savePlannerEntry() {
             AppState.user.pendingStats.agi += 0.5;
             updatePointUI();
             drawRadarChart();
+            updateChallengeProgress('planner_use');
             AppLogger.info('[Planner] 보상 지급: +20P, AGI +0.5');
         }
 
