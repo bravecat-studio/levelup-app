@@ -192,9 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
             _initializedUid = null;
             document.getElementById('login-screen').classList.remove('d-none');
             document.getElementById('app-container').classList.add('d-none');
-            // 로그아웃 시 로그 패널 숨김 (개발자 외 접근 차단)
+            // 로그아웃 시 로그 패널 표시 (로그인 화면에서 로그 확인 가능)
             const loginPanel = document.getElementById('login-log-panel');
-            if (loginPanel) loginPanel.style.display = 'none';
+            if (loginPanel) loginPanel.style.display = 'flex';
         }
     });
 
