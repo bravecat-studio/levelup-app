@@ -308,8 +308,7 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 .timebox-col-header { flex: 1; text-align: center; font-size: 0.78rem; color: var(--neon-blue); font-weight: bold; letter-spacing: 1px; }
 
 /* 플래너 타임박스 그리드 - 두 열 레이아웃 */
-.planner-timebox-grid { display: flex; flex-direction: column; gap: 2px; max-height: 360px; overflow-y: auto; scrollbar-width: none; padding-right: 2px; }
-.planner-timebox-grid::-webkit-scrollbar { display: none; }
+.planner-timebox-grid { display: flex; flex-direction: column; gap: 2px; padding-right: 2px; }
 .timebox-row { display: flex; align-items: center; gap: 4px; }
 .timebox-label { font-size: 0.8rem; color: var(--neon-blue); font-family: monospace; width: 48px; flex-shrink: 0; font-weight: bold; text-align: right; }
 .timebox-select {
