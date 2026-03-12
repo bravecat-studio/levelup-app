@@ -2643,6 +2643,7 @@ async function postToReels() {
 
     alert(i18n[lang].reels_posted);
     renderReelsFeed();
+    updateReelsResetTimer();
 }
 
 // 릴스 피드 렌더링
