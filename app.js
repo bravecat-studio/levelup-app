@@ -2730,15 +2730,15 @@ function updateReelsResetTimer() {
         if (myPost) {
             // 업로드 타임스탬프 + 1일 = 다음 업로드 가능 일시 (KST 기준)
             const uploadTs = myPost.timestamp || Date.now();
-            const nextAvail = new Date(uploadTs + (24 * 60 * 60 * 1000));
-            // KST로 변환
-            const kstNext = new Date(nextAvail.getTime() + (9 * 60 * 60 * 1000) - (nextAvail.getTimezoneOffset() * 60 * 1000));
+            const nextAvailMs = uploadTs + (24 * 60 * 60 * 1000);
+            // KST = UTC+9 → UTC 밀리초에 9시간 더한 뒤 UTC 메서드로 읽기
+            const kstNext = new Date(nextAvailMs + 9 * 60 * 60 * 1000);
             const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            const m = kstNext.getMonth() + 1;
-            const d = kstNext.getDate();
-            const dy = dayNames[kstNext.getDay()];
-            const h = String(kstNext.getHours()).padStart(2, '0');
-            const mi = String(kstNext.getMinutes()).padStart(2, '0');
+            const m = kstNext.getUTCMonth() + 1;
+            const d = kstNext.getUTCDate();
+            const dy = dayNames[kstNext.getUTCDay()];
+            const h = String(kstNext.getUTCHours()).padStart(2, '0');
+            const mi = String(kstNext.getUTCMinutes()).padStart(2, '0');
             timerEl.innerText = `다음 업로드: ${m}/${d} (${dy}) ${h}:${mi}`;
         } else {
             timerEl.innerText = `업로드 가능`;
