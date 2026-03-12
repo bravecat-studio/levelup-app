@@ -2761,10 +2761,13 @@ function updateReelsResetTimer() {
             const h = String(kstNext.getUTCHours()).padStart(2, '0');
             const mi = String(kstNext.getUTCMinutes()).padStart(2, '0');
             timerEl.innerText = `다음 업로드: ${m}/${d} (${dy}) ${h}:${mi}`;
-            // 버튼 비활성화
+            // 버튼 비활성화 (룰렛 스타일)
             if (postBtn) {
                 postBtn.disabled = true;
-                postBtn.style.opacity = '0.4';
+                postBtn.textContent = '포스팅 완료';
+                postBtn.style.background = '#333';
+                postBtn.style.color = '#666';
+                postBtn.style.opacity = '0.6';
                 postBtn.style.cursor = 'not-allowed';
             }
         } else {
@@ -2772,6 +2775,9 @@ function updateReelsResetTimer() {
             // 버튼 활성화
             if (postBtn) {
                 postBtn.disabled = false;
+                postBtn.textContent = i18n[AppState.currentLang]?.reels_post_btn || 'Day1 포스팅';
+                postBtn.style.background = 'var(--neon-gold)';
+                postBtn.style.color = '#000';
                 postBtn.style.opacity = '1';
                 postBtn.style.cursor = 'pointer';
             }
