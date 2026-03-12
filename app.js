@@ -2564,12 +2564,15 @@ async function postToReels() {
     const lang = AppState.currentLang;
     const todayKST = getTodayKST();
 
-    // 이미 오늘 포스팅했는지 체크
+    // 이미 오늘 포스팅했는지 체크 (로컬 + 타임스탬프 검증)
     const reelsData = getReelsData();
     const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
     if (myPost) {
-        alert(i18n[lang].reels_already_posted);
-        return;
+        // 타임스탬프로 실제 오늘 포스팅인지 재확인
+        if (myPost.dateKST === todayKST) {
+            alert(i18n[lang].reels_already_posted);
+            return;
+        }
     }
 
     // 오늘 타임테이블이 있는지 체크
@@ -2727,18 +2730,29 @@ function updateReelsResetTimer() {
         kstMidnight.setDate(kstMidnight.getDate() + 1);
         kstMidnight.setHours(0, 0, 0, 0);
 
-        const diff = kstMidnight - kstNow;
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        // 오늘 이미 포스팅했는지 체크
+        const reelsData = getReelsData();
+        const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
 
-        // 다음 업로드 가능 시간 (내일 00:00 KST)
-        const nextKST = new Date(kstMidnight);
-        const nextMonth = nextKST.getMonth() + 1;
-        const nextDate = nextKST.getDate();
-        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-        const nextDay = dayNames[nextKST.getDay()];
-        timerEl.innerText = `다음 업로드: ${nextMonth}/${nextDate} (${nextDay}) 00:00 | ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        if (myPost) {
+            // 이미 포스팅함 → 다음 업로드 가능 시간 표시
+            const diff = kstMidnight - kstNow;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            // 실제 로컬 시간으로 다음 업로드 시간 계산
+            const nextUploadLocal = new Date(now.getTime() + diff);
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            const m = nextUploadLocal.getMonth() + 1;
+            const d = nextUploadLocal.getDate();
+            const dy = dayNames[nextUploadLocal.getDay()];
+            const h = String(nextUploadLocal.getHours()).padStart(2, '0');
+            const mi = String(nextUploadLocal.getMinutes()).padStart(2, '0');
+            timerEl.innerText = `다음 업로드: ${m}/${d} (${dy}) ${h}:${mi} | ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+        } else {
+            timerEl.innerText = `업로드 가능`;
+        }
     }
     update();
     // 릴스 탭 활성시 1초마다 업데이트
