@@ -318,7 +318,8 @@ async function saveUserData() {
             instaId: AppState.user.instaId || "",
             streakStr: JSON.stringify(AppState.user.streak),
             diaryStr: localStorage.getItem('diary_entries') || '{}',
-            lastRouletteDate: localStorage.getItem('roulette_date') || ''
+            lastRouletteDate: localStorage.getItem('roulette_date') || '',
+            lastReelsPostTs: parseInt(localStorage.getItem('reels_last_post_ts') || '0', 10)
         }, { merge: true });
     } catch(e) { console.error("DB 저장 실패:", e); AppLogger.error('[DB] 저장 실패', e.stack || e.message); }
 }
@@ -379,18 +380,29 @@ async function loadUserDataFromDB(user) {
             if (data.lastRouletteDate) {
                 localStorage.setItem('roulette_date', data.lastRouletteDate);
             }
-            // 릴스 포스트 데이터 복원 (Firestore → localStorage)
+            // 릴스 포스팅 타임스탬프 복원 (로그아웃 후에도 비활성화 유지)
+            if (data.lastReelsPostTs) {
+                const elapsed = Date.now() - data.lastReelsPostTs;
+                if (elapsed < 24 * 60 * 60 * 1000) {
+                    localStorage.setItem('reels_last_post_ts', String(data.lastReelsPostTs));
+                    localStorage.setItem('reels_reward_ts', String(data.lastReelsPostTs));
+                } else {
+                    localStorage.removeItem('reels_last_post_ts');
+                    localStorage.removeItem('reels_reward_ts');
+                }
+            }
+            // 릴스 포스트 데이터 복원 (Firestore → localStorage) — 24시간 이내 포스트만
             if (data.reelsStr) {
                 try {
-                    const todayKST = getTodayKST();
+                    const now = Date.now();
                     const userPosts = JSON.parse(data.reelsStr);
-                    const todayPosts = userPosts.filter(p => p.dateKST === todayKST);
-                    if (todayPosts.length > 0) {
+                    const activePosts = userPosts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
+                    if (activePosts.length > 0) {
                         const reelsLocal = JSON.parse(localStorage.getItem('reels_posts') || '{}');
                         if (!reelsLocal.posts) reelsLocal.posts = [];
-                        reelsLocal._lastDate = todayKST;
-                        todayPosts.forEach(fp => {
-                            if (!reelsLocal.posts.find(lp => lp.uid === fp.uid && lp.dateKST === fp.dateKST)) {
+                        reelsLocal._lastDate = getTodayKST();
+                        activePosts.forEach(fp => {
+                            if (!reelsLocal.posts.find(lp => lp.uid === fp.uid && lp.timestamp === fp.timestamp)) {
                                 reelsLocal.posts.push(fp);
                             }
                         });
@@ -2512,19 +2524,21 @@ function getTodayKST() {
     return `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
 }
 
-// 릴스 데이터 로드 (localStorage)
+// 릴스 데이터 로드 (localStorage) — 업로드 후 24시간 경과 포스트 자동 삭제
 function getReelsData() {
     try {
         const data = JSON.parse(localStorage.getItem('reels_posts') || '{}');
-        // KST 자정 리셋 체크
         const todayKST = getTodayKST();
-        if (data._lastDate && data._lastDate !== todayKST) {
-            // 날짜가 바뀌었으면 리셋
-            localStorage.setItem('reels_posts', JSON.stringify({ _lastDate: todayKST, posts: [] }));
-            return { _lastDate: todayKST, posts: [] };
-        }
         if (!data._lastDate) data._lastDate = todayKST;
         if (!data.posts) data.posts = [];
+        // 24시간 경과 포스트 자동 삭제
+        const now = Date.now();
+        const before = data.posts.length;
+        data.posts = data.posts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
+        if (data.posts.length !== before) {
+            data._lastDate = todayKST;
+            localStorage.setItem('reels_posts', JSON.stringify(data));
+        }
         return data;
     } catch { return { _lastDate: getTodayKST(), posts: [] }; }
 }
@@ -2542,9 +2556,9 @@ async function saveReelsToFirestore(post) {
         if (userDoc.exists() && userDoc.data().reelsStr) {
             try { existingPosts = JSON.parse(userDoc.data().reelsStr); } catch(e) {}
         }
-        // 오늘 KST 기준 포스트만 유지
-        const todayKST = getTodayKST();
-        existingPosts = existingPosts.filter(p => p.dateKST === todayKST);
+        // 24시간 이내 포스트만 유지
+        const now = Date.now();
+        existingPosts = existingPosts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
         existingPosts.push(post);
         await updateDoc(doc(db, "users", auth.currentUser.uid), {
             reelsStr: JSON.stringify(existingPosts)
@@ -2553,7 +2567,7 @@ async function saveReelsToFirestore(post) {
 }
 
 async function fetchAllReelsPosts() {
-    const todayKST = getTodayKST();
+    const now = Date.now();
     const posts = [];
     try {
         const snap = await getDocs(collection(db, "users"));
@@ -2563,7 +2577,8 @@ async function fetchAllReelsPosts() {
                 try {
                     const userPosts = JSON.parse(data.reelsStr);
                     userPosts.forEach(p => {
-                        if (p.dateKST === todayKST) {
+                        // 업로드 후 24시간 이내 포스트만 표시
+                        if ((now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000) {
                             posts.push({
                                 ...p,
                                 uid: d.id,
@@ -2588,14 +2603,13 @@ async function postToReels() {
     const lang = AppState.currentLang;
     const todayKST = getTodayKST();
 
-    // 이미 오늘 포스팅했는지 체크 (로컬 + 타임스탬프 검증)
-    const reelsData = getReelsData();
-    const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
-    if (myPost && myPost.dateKST === todayKST) {
+    // 이미 포스팅 후 24시간 이내인지 체크 (로컬 타임스탬프 검증)
+    const lastPostTs = parseInt(localStorage.getItem('reels_last_post_ts') || '0', 10);
+    if (lastPostTs && (Date.now() - lastPostTs) < 24 * 60 * 60 * 1000) {
         return; // 버튼이 비활성화되어 있으므로 조용히 리턴
     }
 
-    // 오늘 타임테이블이 있는지 체크
+    // 오늘 타임테이블(시간표)이 있는지 체크
     const todayStr = getTodayStr();
     const entry = getDiaryEntry(todayStr);
     if (!entry || !entry.blocks || Object.keys(entry.blocks).length === 0) {
@@ -2613,10 +2627,11 @@ async function postToReels() {
 
     // 포스트 생성
     const caption = (entry.caption || '').trim();
+    const postTimestamp = Date.now();
     const post = {
         uid: auth.currentUser.uid,
         dateKST: todayKST,
-        timestamp: Date.now(),
+        timestamp: postTimestamp,
         photo: photoData,
         caption: caption,
         blocks: entry.blocks,
@@ -2628,19 +2643,29 @@ async function postToReels() {
     };
 
     // 로컬 저장
+    const reelsData = getReelsData();
     reelsData.posts.push(post);
     saveReelsData(reelsData);
+
+    // 포스팅 타임스탬프 저장 (로그아웃 후에도 비활성화 유지용)
+    localStorage.setItem('reels_last_post_ts', String(postTimestamp));
 
     // Firestore 저장
     await saveReelsToFirestore(post);
 
-    // 포스팅 보상: +20P & CHA +0.5
-    AppState.user.points += 20;
-    AppState.user.pendingStats.cha = (AppState.user.pendingStats.cha || 0) + 0.5;
-    updatePointUI();
-    drawRadarChart();
-    AppLogger.info('[Reels] 포스팅 보상 지급: +20P, CHA +0.5');
+    // 포스팅 보상: +20P & CHA +0.5 (24시간 내 중복 지급 방지)
+    const lastRewardTs = parseInt(localStorage.getItem('reels_reward_ts') || '0', 10);
+    const alreadyRewarded = lastRewardTs && (Date.now() - lastRewardTs) < 24 * 60 * 60 * 1000;
+    if (!alreadyRewarded) {
+        AppState.user.points += 20;
+        AppState.user.pendingStats.cha = (AppState.user.pendingStats.cha || 0) + 0.5;
+        localStorage.setItem('reels_reward_ts', String(postTimestamp));
+        updatePointUI();
+        drawRadarChart();
+        AppLogger.info('[Reels] 포스팅 보상 지급: +20P, CHA +0.5');
+    }
 
+    await saveUserData();
     alert(i18n[lang].reels_posted);
     renderReelsFeed();
     updateReelsResetTimer();
@@ -2738,21 +2763,21 @@ function formatReelsTime(ts) {
     return `${month}/${date} (${day}) ${hours}:${minutes}`;
 }
 
-// 릴스 리셋 타이머 (다음 00:00 KST까지)
+// 릴스 리셋 타이머 (업로드 후 24시간 기준)
 function updateReelsResetTimer() {
     const timerEl = document.getElementById('reels-reset-timer');
     if (!timerEl) return;
 
     function update() {
-        // 오늘 이미 포스팅했는지 체크
-        const reelsData = getReelsData();
-        const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
+        // 저장된 포스팅 타임스탬프 기반 체크 (로그아웃 후에도 유지)
+        const lastPostTs = parseInt(localStorage.getItem('reels_last_post_ts') || '0', 10);
+        const now = Date.now();
+        const stillCooldown = lastPostTs && (now - lastPostTs) < 24 * 60 * 60 * 1000;
         const postBtn = document.getElementById('btn-reels-post');
 
-        if (myPost) {
+        if (stillCooldown) {
             // 업로드 타임스탬프 + 1일 = 다음 업로드 가능 일시 (KST 기준)
-            const uploadTs = myPost.timestamp || Date.now();
-            const nextAvailMs = uploadTs + (24 * 60 * 60 * 1000);
+            const nextAvailMs = lastPostTs + (24 * 60 * 60 * 1000);
             // KST = UTC+9 → UTC 밀리초에 9시간 더한 뒤 UTC 메서드로 읽기
             const kstNext = new Date(nextAvailMs + 9 * 60 * 60 * 1000);
             const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
@@ -2772,6 +2797,11 @@ function updateReelsResetTimer() {
                 postBtn.style.cursor = 'not-allowed';
             }
         } else {
+            // 쿨다운 만료 → 타임스탬프 정리
+            if (lastPostTs) {
+                localStorage.removeItem('reels_last_post_ts');
+                localStorage.removeItem('reels_reward_ts');
+            }
             timerEl.innerText = `업로드 가능`;
             // 버튼 활성화
             if (postBtn) {
@@ -2790,19 +2820,18 @@ function updateReelsResetTimer() {
     window._reelsTimerInterval = setInterval(() => {
         if (document.getElementById('reels').classList.contains('active')) {
             update();
-            // 자정 체크 - 날짜 넘어가면 자동 리셋
+            // 24시간 경과 포스트 자동 삭제 체크
             checkReelsReset();
         }
     }, 1000);
 }
 
-// 00:00 KST 데이터 리셋 체크
+// 24시간 경과 포스트 자동 삭제 체크 (getReelsData에서 필터링됨)
 function checkReelsReset() {
-    const todayKST = getTodayKST();
-    const reelsData = getReelsData();
-    if (reelsData._lastDate !== todayKST) {
-        // 날짜가 바뀜 → 리셋
-        localStorage.setItem('reels_posts', JSON.stringify({ _lastDate: todayKST, posts: [] }));
+    const reelsData = getReelsData(); // 24h 지난 포스트 자동 필터링
+    const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
+    if (!myPost) {
+        // 내 포스트가 삭제됐으면 피드 갱신
         renderReelsFeed();
     }
 }
