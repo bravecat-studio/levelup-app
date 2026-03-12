@@ -317,7 +317,8 @@ async function saveUserData() {
             stepData: AppState.user.stepData,
             instaId: AppState.user.instaId || "",
             streakStr: JSON.stringify(AppState.user.streak),
-            diaryStr: localStorage.getItem('diary_entries') || '{}'
+            diaryStr: localStorage.getItem('diary_entries') || '{}',
+            lastRouletteDate: localStorage.getItem('roulette_date') || ''
         }, { merge: true });
     } catch(e) { console.error("DB 저장 실패:", e); AppLogger.error('[DB] 저장 실패', e.stack || e.message); }
 }
@@ -372,6 +373,29 @@ async function loadUserDataFromDB(user) {
                         }
                     });
                     localStorage.setItem('diary_entries', JSON.stringify(merged));
+                } catch(e) {}
+            }
+            // 룰렛 스핀 날짜 복원 (로그아웃 시 localStorage.clear() 대응)
+            if (data.lastRouletteDate) {
+                localStorage.setItem('roulette_date', data.lastRouletteDate);
+            }
+            // 릴스 포스트 데이터 복원 (Firestore → localStorage)
+            if (data.reelsStr) {
+                try {
+                    const todayKST = getTodayKST();
+                    const userPosts = JSON.parse(data.reelsStr);
+                    const todayPosts = userPosts.filter(p => p.dateKST === todayKST);
+                    if (todayPosts.length > 0) {
+                        const reelsLocal = JSON.parse(localStorage.getItem('reels_posts') || '{}');
+                        if (!reelsLocal.posts) reelsLocal.posts = [];
+                        reelsLocal._lastDate = todayKST;
+                        todayPosts.forEach(fp => {
+                            if (!reelsLocal.posts.find(lp => lp.uid === fp.uid && lp.dateKST === fp.dateKST)) {
+                                reelsLocal.posts.push(fp);
+                            }
+                        });
+                        localStorage.setItem('reels_posts', JSON.stringify(reelsLocal));
+                    }
                 } catch(e) {}
             }
             document.getElementById('sync-toggle').checked = AppState.user.syncEnabled;
@@ -1873,8 +1897,8 @@ const rouletteSlots = [
 ];
 
 function canSpinRoulette() {
-    const today = getTodayStr();
-    if (localStorage.getItem('roulette_' + today)) return 'used';
+    const today = getTodayKST();
+    if (localStorage.getItem('roulette_date') === today) return 'used';
     // 오늘 퀘스트 1개 이상 완료했는지 확인
     const day = AppState.quest.currentDayOfWeek;
     const anyDone = AppState.quest.completedState[day].some(v => v);
@@ -1966,8 +1990,8 @@ function drawRouletteWheel(canvas) {
 window.spinRoulette = function() {
     if (canSpinRoulette() !== 'ready') return;
 
-    const today = getTodayStr();
-    localStorage.setItem('roulette_' + today, '1');
+    const today = getTodayKST();
+    localStorage.setItem('roulette_date', today);
 
     const canvas = document.getElementById('roulette-canvas');
     if (!canvas) return;
@@ -2567,12 +2591,8 @@ async function postToReels() {
     // 이미 오늘 포스팅했는지 체크 (로컬 + 타임스탬프 검증)
     const reelsData = getReelsData();
     const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
-    if (myPost) {
-        // 타임스탬프로 실제 오늘 포스팅인지 재확인
-        if (myPost.dateKST === todayKST) {
-            alert(i18n[lang].reels_already_posted);
-            return;
-        }
+    if (myPost && myPost.dateKST === todayKST) {
+        return; // 버튼이 비활성화되어 있으므로 조용히 리턴
     }
 
     // 오늘 타임테이블이 있는지 체크
@@ -2726,6 +2746,7 @@ function updateReelsResetTimer() {
         // 오늘 이미 포스팅했는지 체크
         const reelsData = getReelsData();
         const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
+        const postBtn = document.getElementById('btn-reels-post');
 
         if (myPost) {
             // 업로드 타임스탬프 + 1일 = 다음 업로드 가능 일시 (KST 기준)
@@ -2740,8 +2761,20 @@ function updateReelsResetTimer() {
             const h = String(kstNext.getUTCHours()).padStart(2, '0');
             const mi = String(kstNext.getUTCMinutes()).padStart(2, '0');
             timerEl.innerText = `다음 업로드: ${m}/${d} (${dy}) ${h}:${mi}`;
+            // 버튼 비활성화
+            if (postBtn) {
+                postBtn.disabled = true;
+                postBtn.style.opacity = '0.4';
+                postBtn.style.cursor = 'not-allowed';
+            }
         } else {
             timerEl.innerText = `업로드 가능`;
+            // 버튼 활성화
+            if (postBtn) {
+                postBtn.disabled = false;
+                postBtn.style.opacity = '1';
+                postBtn.style.cursor = 'pointer';
+            }
         }
     }
     update();
