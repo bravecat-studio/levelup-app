@@ -2573,9 +2573,10 @@ async function postToReels() {
         return;
     }
 
-    // 사진이 있는지 체크 (저장된 것 또는 현재 업로드)
+    // 사진 + 텍스트 모두 있는지 체크
     const photoData = plannerPhotoData || (entry.photo || null);
-    if (!photoData) {
+    const captionText = (entry.caption || document.getElementById('planner-caption')?.value || '').trim();
+    if (!photoData || !captionText) {
         alert(i18n[lang].reels_no_photo);
         return;
     }

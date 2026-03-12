@@ -330,11 +330,15 @@
                         </div>
                     </div>
 
-                    <!-- 저장 버튼 -->
+                    <!-- 저장 버튼 + Day1 포스팅 버튼 -->
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
                         <span style="font-size:0.7rem; color:var(--text-sub);" data-i18n="planner_reward">저장 시 +20P & AGI +0.5 (하루 1회)</span>
-                        <button class="btn-primary" id="btn-planner-save" style="width:auto; padding:8px 20px;" data-i18n="diary_save">저장</button>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="btn-primary" id="btn-planner-save" style="width:auto; padding:8px 20px;" data-i18n="diary_save">저장</button>
+                            <button class="btn-primary" id="btn-reels-post" style="width:auto; padding:8px 20px; background:var(--neon-gold); color:#000;" data-i18n="reels_post_btn">Day1 포스팅</button>
+                        </div>
                     </div>
+                    <div style="font-size:0.65rem; color:var(--text-sub); margin-top:4px; text-align:right;" data-i18n="reels_post_hint">업로드 1일 후 자동 삭제</div>
                 </div>
 
                 <!-- 주간 플래너 캘린더 (퀘스트 탭 주간 진척도 형태) -->
@@ -353,13 +357,7 @@
                     <span id="reels-reset-timer" style="font-size:0.65rem; color:var(--text-sub);"></span>
                 </div>
 
-                <!-- 포스팅 버튼 -->
-                <div class="system-card" style="text-align:center; padding:12px;">
-                    <button class="btn-primary" id="btn-reels-post" style="width:auto; padding:8px 24px;" data-i18n="reels_post_btn">타임테이블 포스팅</button>
-                    <div style="font-size:0.65rem; color:var(--text-sub); margin-top:6px;" data-i18n="reels_post_hint">오늘의 시간표를 완성하고 사진을 추가하면 포스팅할 수 있습니다</div>
-                </div>
-
-                <!-- 릴스 피드 -->
+                <!-- Day1 피드 -->
                 <div id="reels-feed" class="reels-feed-container"></div>
             </section>
 
