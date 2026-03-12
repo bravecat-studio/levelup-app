@@ -67,7 +67,7 @@ function getInitialAppState() {
 let _initializedUid = null;
 
 // --- 탭 순서 관리 ---
-const DEFAULT_NAV_ORDER = ['status', 'diary', 'quests', 'dungeon', 'reels', 'social', 'settings'];
+const DEFAULT_NAV_ORDER = ['status', 'diary', 'quests', 'dungeon', 'social', 'settings'];
 
 function loadNavOrder() {
     const saved = localStorage.getItem('navTabOrder');
@@ -288,8 +288,6 @@ function bindEvents() {
     });
     document.getElementById('btn-raid-complete').addEventListener('click', window.completeDungeon);
 
-    // Reels tab
-    document.getElementById('btn-reels-post').addEventListener('click', postToReels);
     // 우선순위 탭 저장 버튼도 같은 저장 함수 연결
     const prioritySaveBtn = document.getElementById('btn-planner-save-priority');
     if (prioritySaveBtn) prioritySaveBtn.addEventListener('click', savePlannerEntry);
@@ -321,8 +319,7 @@ async function saveUserData() {
             instaId: AppState.user.instaId || "",
             streakStr: JSON.stringify(AppState.user.streak),
             diaryStr: localStorage.getItem('diary_entries') || '{}',
-            lastRouletteDate: localStorage.getItem('roulette_date') || '',
-            lastReelsPostTs: parseInt(localStorage.getItem('reels_last_post_ts') || '0', 10)
+            lastRouletteDate: localStorage.getItem('roulette_date') || ''
         }, { merge: true });
     } catch(e) { console.error("DB 저장 실패:", e); AppLogger.error('[DB] 저장 실패', e.stack || e.message); }
 }
@@ -382,36 +379,6 @@ async function loadUserDataFromDB(user) {
             // 룰렛 스핀 날짜 복원 (로그아웃 시 localStorage.clear() 대응)
             if (data.lastRouletteDate) {
                 localStorage.setItem('roulette_date', data.lastRouletteDate);
-            }
-            // 릴스 포스팅 타임스탬프 복원 (로그아웃 후에도 비활성화 유지)
-            if (data.lastReelsPostTs) {
-                const elapsed = Date.now() - data.lastReelsPostTs;
-                if (elapsed < 24 * 60 * 60 * 1000) {
-                    localStorage.setItem('reels_last_post_ts', String(data.lastReelsPostTs));
-                    localStorage.setItem('reels_reward_ts', String(data.lastReelsPostTs));
-                } else {
-                    localStorage.removeItem('reels_last_post_ts');
-                    localStorage.removeItem('reels_reward_ts');
-                }
-            }
-            // 릴스 포스트 데이터 복원 (Firestore → localStorage) — 24시간 이내 포스트만
-            if (data.reelsStr) {
-                try {
-                    const now = Date.now();
-                    const userPosts = JSON.parse(data.reelsStr);
-                    const activePosts = userPosts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
-                    if (activePosts.length > 0) {
-                        const reelsLocal = JSON.parse(localStorage.getItem('reels_posts') || '{}');
-                        if (!reelsLocal.posts) reelsLocal.posts = [];
-                        reelsLocal._lastDate = getTodayKST();
-                        activePosts.forEach(fp => {
-                            if (!reelsLocal.posts.find(lp => lp.uid === fp.uid && lp.timestamp === fp.timestamp)) {
-                                reelsLocal.posts.push(fp);
-                            }
-                        });
-                        localStorage.setItem('reels_posts', JSON.stringify(reelsLocal));
-                    }
-                } catch(e) {}
             }
             document.getElementById('sync-toggle').checked = AppState.user.syncEnabled;
             document.getElementById('gps-toggle').checked = AppState.user.gpsEnabled;
@@ -1170,7 +1137,6 @@ function switchTab(tabId, el) {
     if(tabId === 'social') fetchSocialData();
     if(tabId === 'quests') { renderQuestList(); renderCalendar(); renderWeeklyChallenges(); renderRoulette(); }
     if(tabId === 'diary') { renderPlannerCalendar(); loadPlannerForDate(diarySelectedDate); }
-    if(tabId === 'reels') { renderReelsFeed(); updateReelsResetTimer(); }
     if(tabId === 'dungeon') {
         updateDungeonStatus();
         window.syncGlobalDungeon(); 
@@ -1897,7 +1863,7 @@ window.sharePlannerAsImage = async function() {
 
     let y = pad;
 
-    // --- 프로필 헤더 (reels-header 스타일) ---
+    // --- 프로필 헤더 ---
     // 아바타 원형
     const avatarSize = 38;
     const avatarX = pad + 6;
@@ -1947,7 +1913,8 @@ window.sharePlannerAsImage = async function() {
     // 날짜 (우측)
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '11px Pretendard, sans-serif';
-    const dateDisplay = formatReelsTime(Date.now());
+    const _d = new Date(); const _dn = ['일','월','화','수','목','금','토'];
+    const dateDisplay = `${_d.getMonth()+1}/${_d.getDate()} (${_dn[_d.getDay()]}) ${String(_d.getHours()).padStart(2,'0')}:${String(_d.getMinutes()).padStart(2,'0')}`;
     ctx.fillText(dateDisplay, W - pad - ctx.measureText(dateDisplay).width - 6, avatarCenterY + 2);
 
     y += headerH;
@@ -1976,7 +1943,7 @@ window.sharePlannerAsImage = async function() {
         y += 40;
     }
 
-    // --- 시간표 블록 (reels-timetable 스타일) ---
+    // --- 시간표 블록 ---
     if (displayBlocks.length > 0) {
         // 시간표 배경 박스
         const ttX = pad + 4, ttY = y;
@@ -2765,6 +2732,26 @@ function loadPlannerForDate(dateStr) {
         if (fileInput) fileInput.value = '';
     }
 
+    // GPS 태그 복원
+    if (saved && saved.gps) {
+        plannerGpsData = saved.gps;
+        const gpsBtn = document.getElementById('btn-gps-tag');
+        const gpsResult = document.getElementById('gps-tag-result');
+        const gpsLocation = document.getElementById('gps-tag-location');
+        if (gpsBtn && gpsResult && gpsLocation) {
+            const displayText = saved.gps.stationName || `${saved.gps.latitude.toFixed(4)}, ${saved.gps.longitude.toFixed(4)}`;
+            gpsLocation.textContent = `📍 ${displayText}`;
+            gpsBtn.classList.add('d-none');
+            gpsResult.classList.remove('d-none');
+        }
+    } else {
+        plannerGpsData = null;
+        const gpsBtn = document.getElementById('btn-gps-tag');
+        const gpsResult = document.getElementById('gps-tag-result');
+        if (gpsBtn) gpsBtn.classList.remove('d-none');
+        if (gpsResult) gpsResult.classList.add('d-none');
+    }
+
     // 태스크 목록 렌더링 (이 안에서 updateTimeboxDropdownOptions도 호출됨)
     renderPlannerTasks();
 
@@ -2827,7 +2814,8 @@ async function savePlannerEntry() {
             priorities: rankedByOrder,
             brainDump,
             photo: plannerPhotoData || (diaries[dateStr]?.photo || null),
-            caption: (document.getElementById('planner-caption')?.value || '').trim()
+            caption: (document.getElementById('planner-caption')?.value || '').trim(),
+            gps: plannerGpsData || (diaries[dateStr]?.gps || null)
         };
 
         try {
@@ -2954,527 +2942,106 @@ function getTodayKST() {
     return `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
 }
 
-// 릴스 데이터 로드 (localStorage) — 업로드 후 24시간 경과 포스트 자동 삭제
-function getReelsData() {
-    try {
-        const data = JSON.parse(localStorage.getItem('reels_posts') || '{}');
-        const todayKST = getTodayKST();
-        if (!data._lastDate) data._lastDate = todayKST;
-        if (!data.posts) data.posts = [];
-        // 24시간 경과 포스트 자동 삭제
-        const now = Date.now();
-        const before = data.posts.length;
-        data.posts = data.posts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
-        if (data.posts.length !== before) {
-            data._lastDate = todayKST;
-            localStorage.setItem('reels_posts', JSON.stringify(data));
-        }
-        return data;
-    } catch { return { _lastDate: getTodayKST(), posts: [] }; }
-}
 
-function saveReelsData(data) {
-    localStorage.setItem('reels_posts', JSON.stringify(data));
-}
+// --- GPS 태그 기능 ---
+let plannerGpsData = null; // { latitude, longitude, stationName }
 
-// Firestore에 릴스 포스트 저장/로드
-async function saveReelsToFirestore(post) {
-    if (!auth.currentUser) return;
-    try {
-        const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-        let existingPosts = [];
-        if (userDoc.exists() && userDoc.data().reelsStr) {
-            try { existingPosts = JSON.parse(userDoc.data().reelsStr); } catch(e) {}
-        }
-        // 24시간 이내 포스트만 유지
-        const now = Date.now();
-        existingPosts = existingPosts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
-        existingPosts.push(post);
-        await updateDoc(doc(db, "users", auth.currentUser.uid), {
-            reelsStr: JSON.stringify(existingPosts)
-        });
-    } catch(e) { AppLogger.error('[Reels] Firestore 저장 실패: ' + (e.message || e)); }
-}
-
-async function fetchAllReelsPosts() {
-    const now = Date.now();
-    const posts = [];
-    try {
-        const snap = await getDocs(collection(db, "users"));
-        snap.docs.forEach(d => {
-            const data = d.data();
-            if (data.reelsStr) {
-                try {
-                    const userPosts = JSON.parse(data.reelsStr);
-                    userPosts.forEach(p => {
-                        // 업로드 후 24시간 이내 포스트만 표시
-                        if ((now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000) {
-                            posts.push({
-                                ...p,
-                                uid: d.id,
-                                userName: data.name || '헌터',
-                                userPhoto: data.photoURL || null,
-                                userLevel: data.level || 1,
-                                userInstaId: data.instaId || ''
-                            });
-                        }
-                    });
-                } catch(e) {}
-            }
-        });
-    } catch(e) { AppLogger.error('[Reels] 피드 로드 실패: ' + (e.message || e)); }
-    // 최신순 정렬
-    posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    return posts;
-}
-
-// 릴스 포스팅
-async function postToReels() {
+function findNearestStation(lat, lng) {
+    let minDist = Infinity;
+    let nearest = null;
     const lang = AppState.currentLang;
-    const todayKST = getTodayKST();
-
-    // 이미 포스팅 후 24시간 이내인지 체크 (로컬 타임스탬프 검증)
-    const lastPostTs = parseInt(localStorage.getItem('reels_last_post_ts') || '0', 10);
-    if (lastPostTs && (Date.now() - lastPostTs) < 24 * 60 * 60 * 1000) {
-        return; // 버튼이 비활성화되어 있으므로 조용히 리턴
+    seoulStations.forEach(s => {
+        const dist = getDistanceKm(lat, lng, s.lat, s.lng);
+        if (dist < minDist) {
+            minDist = dist;
+            nearest = s;
+        }
+    });
+    if (nearest && minDist <= 3) {
+        return nearest.name[lang] || nearest.name.ko;
     }
-
-    // 오늘 타임테이블(시간표)이 있는지 체크
-    const todayStr = getTodayStr();
-    const entry = getDiaryEntry(todayStr);
-    if (!entry || !entry.blocks || Object.keys(entry.blocks).length === 0) {
-        alert(i18n[lang].reels_no_timetable);
-        return;
-    }
-
-    // 사진 + 텍스트 모두 있는지 체크
-    const photoData = plannerPhotoData || (entry.photo || null);
-    const captionText = (entry.caption || document.getElementById('planner-caption')?.value || '').trim();
-    if (!photoData || !captionText) {
-        alert(i18n[lang].reels_no_photo);
-        return;
-    }
-
-    // 포스트 생성
-    const caption = (entry.caption || '').trim();
-    const postTimestamp = Date.now();
-    const post = {
-        uid: auth.currentUser.uid,
-        dateKST: todayKST,
-        timestamp: postTimestamp,
-        photo: photoData,
-        caption: caption,
-        blocks: entry.blocks,
-        tasks: entry.tasks || [],
-        mood: entry.mood || '',
-        userName: AppState.user.name,
-        userPhoto: AppState.user.photoURL || null,
-        userLevel: AppState.user.level
-    };
-
-    // 로컬 저장
-    const reelsData = getReelsData();
-    reelsData.posts.push(post);
-    saveReelsData(reelsData);
-
-    // 포스팅 타임스탬프 저장 (로그아웃 후에도 비활성화 유지용)
-    localStorage.setItem('reels_last_post_ts', String(postTimestamp));
-
-    // Firestore 저장
-    await saveReelsToFirestore(post);
-
-    // 포스팅 보상: +20P & CHA +0.5 (24시간 내 중복 지급 방지)
-    const lastRewardTs = parseInt(localStorage.getItem('reels_reward_ts') || '0', 10);
-    const alreadyRewarded = lastRewardTs && (Date.now() - lastRewardTs) < 24 * 60 * 60 * 1000;
-    if (!alreadyRewarded) {
-        AppState.user.points += 20;
-        AppState.user.pendingStats.cha = (AppState.user.pendingStats.cha || 0) + 0.5;
-        localStorage.setItem('reels_reward_ts', String(postTimestamp));
-        updatePointUI();
-        drawRadarChart();
-        AppLogger.info('[Reels] 포스팅 보상 지급: +20P, CHA +0.5');
-    }
-
-    await saveUserData();
-    alert(i18n[lang].reels_posted);
-    renderReelsFeed();
-    updateReelsResetTimer();
+    return null;
 }
 
-// 릴스 피드 렌더링
-async function renderReelsFeed() {
-    const container = document.getElementById('reels-feed');
-    if (!container) return;
+window.captureGpsTag = async function() {
+    const btn = document.getElementById('btn-gps-tag');
+    const resultEl = document.getElementById('gps-tag-result');
+    const locationEl = document.getElementById('gps-tag-location');
     const lang = AppState.currentLang;
 
-    // 로컬 캐시 먼저 표시
-    const localData = getReelsData();
-    const localPosts = (localData.posts || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    if (localPosts.length > 0) {
-        container.innerHTML = renderReelsCards(localPosts, lang);
-    } else {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">로딩 중...</div>';
-    }
+    btn.classList.add('loading');
+    btn.disabled = true;
 
-    // Firestore에서 최신 데이터 로드 (5초 타임아웃)
-    try {
-        const posts = await Promise.race([
-            fetchAllReelsPosts(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
-        ]);
-        if (posts.length === 0) {
-            container.innerHTML = `<div class="system-card" style="text-align:center; padding:30px; color:var(--text-sub);">
-                <div style="font-size:2rem; margin-bottom:10px;">🎬</div>
-                <div>${i18n[lang].reels_empty}</div>
-            </div>`;
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+
+    if (!isNative || !window.Capacitor.Plugins || !window.Capacitor.Plugins.Geolocation) {
+        // 웹 환경: navigator.geolocation 폴백
+        if (!navigator.geolocation) {
+            alert(i18n[lang]?.gps_tag_no_support || 'GPS를 지원하지 않는 환경입니다.');
+            btn.classList.remove('loading');
+            btn.disabled = false;
             return;
         }
-        container.innerHTML = renderReelsCards(posts, lang);
-    } catch(e) {
-        // 타임아웃 또는 네트워크 오류 시 로컬 데이터 유지
-        if (localPosts.length === 0) {
-            container.innerHTML = `<div class="system-card" style="text-align:center; padding:30px; color:var(--text-sub);">
-                <div style="font-size:2rem; margin-bottom:10px;">🎬</div>
-                <div>${i18n[lang].reels_empty}</div>
-            </div>`;
+        try {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, {
+                    enableHighAccuracy: true, timeout: 10000, maximumAge: 60000
+                });
+            });
+            applyGpsTag(position.coords.latitude, position.coords.longitude);
+        } catch (e) {
+            alert(i18n[lang]?.gps_tag_error || '위치를 가져올 수 없습니다. 권한을 확인해주세요.');
+            AppLogger.warn('[GPS Tag] Web geolocation error: ' + (e.message || e));
         }
-    }
-}
-
-function renderReelsCards(posts, lang) {
-    const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="color:#ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
-
-    return posts.map(post => {
-        const profileSrc = post.userPhoto || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
-        const isMe = post.uid === auth.currentUser?.uid;
-        const instaLink = post.userInstaId ? `<button onclick="window.open('https://instagram.com/${post.userInstaId}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex; vertical-align:middle;">${instaSvg}</button>` : '';
-
-        // 시간표 블록 요약 (최대 6개)
-        const blockEntries = Object.entries(post.blocks || {}).sort(([a],[b]) => a.localeCompare(b));
-        const blockSummary = blockEntries.slice(0, 6).map(([time, task]) =>
-            `<div class="reels-block-item"><span class="reels-block-time">${time}</span><span class="reels-block-task">${task.replace(/</g,'&lt;')}</span></div>`
-        ).join('');
-        const moreCount = blockEntries.length > 6 ? blockEntries.length - 6 : 0;
-
-        const repostBanner = post.isRepost ? `<div class="reels-repost-banner">🔄 ${post.repostByName || '헌터'} ${i18n[lang]?.reels_reposted_by || '리포스트'}</div>` : '';
-
-        return `<div class="system-card reels-card">
-            ${repostBanner}
-            <div class="reels-header">
-                <img class="reels-avatar" src="${profileSrc}" alt="">
-                <div class="reels-user-info">
-                    <div class="reels-username">${(post.userName || '헌터').replace(/</g,'&lt;')}${instaLink}${isMe ? ' <span style="color:var(--neon-gold); font-size:0.65rem;">(나)</span>' : ''}</div>
-                    <div class="reels-user-meta">Lv.${post.userLevel} ${post.mood ? getMoodEmoji(post.mood) : ''}</div>
-                </div>
-                <div class="reels-time">${formatReelsTime(post.isRepost ? post.repostTimestamp : post.timestamp)}</div>
-            </div>
-            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${post.photo}" alt="Timetable"></div>` : ''}
-            ${post.caption ? `<div class="reels-caption">${post.caption.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>` : ''}
-            <div class="reels-timetable">
-                <div class="reels-timetable-title">📋 ${i18n[lang]?.planner_tab_schedule || '시간표'}</div>
-                ${blockSummary}
-                ${moreCount > 0 ? `<div style="font-size:0.65rem; color:var(--text-sub); text-align:right;">+${moreCount} more</div>` : ''}
-            </div>
-            ${renderReelsSocialBar(post, lang)}
-        </div>`;
-    }).join('');
-}
-
-function getMoodEmoji(mood) {
-    const map = { great: '😄', good: '🙂', neutral: '😐', bad: '😞', terrible: '😫' };
-    return map[mood] || '';
-}
-
-function formatReelsTime(ts) {
-    if (!ts) return '';
-    const d = new Date(ts);
-    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const month = d.getMonth() + 1;
-    const date = d.getDate();
-    const day = dayNames[d.getDay()];
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${month}/${date} (${day}) ${hours}:${minutes}`;
-}
-
-// ===== 소셜 기능: 좋아요, 댓글, 리포스트 =====
-
-function renderReelsSocialBar(post, lang) {
-    const currentUid = auth.currentUser?.uid;
-    if (!currentUid) return '';
-
-    const likes = post.likes || [];
-    const comments = post.comments || [];
-    const reposts = post.reposts || [];
-    const isLiked = likes.includes(currentUid);
-    const isReposted = reposts.includes(currentUid);
-    const postId = `${post.uid}_${post.timestamp}`;
-
-    const commentsHtml = comments.map(c => {
-        const cName = (c.userName || '헌터').replace(/</g, '&lt;');
-        const cText = (c.text || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
-        const cTime = formatReelsTime(c.timestamp);
-        return `<div class="reels-comment-item">
-            <span class="reels-comment-author">${cName}</span>
-            <span class="reels-comment-text">${cText}</span>
-            <span class="reels-comment-time">${cTime}</span>
-        </div>`;
-    }).join('');
-
-    return `<div class="reels-social-bar">
-        <div class="reels-social-actions">
-            <button class="reels-social-btn ${isLiked ? 'reels-liked' : ''}" onclick="toggleReelsLike('${post.uid}', ${post.timestamp})">
-                <span class="reels-social-icon">${isLiked ? '❤️' : '🤍'}</span>
-                <span class="reels-social-count">${likes.length > 0 ? likes.length : ''}</span>
-            </button>
-            <button class="reels-social-btn" onclick="toggleReelsComments('${postId}')">
-                <span class="reels-social-icon">💬</span>
-                <span class="reels-social-count">${comments.length > 0 ? comments.length : ''}</span>
-            </button>
-            <button class="reels-social-btn ${isReposted ? 'reels-reposted' : ''}" onclick="repostReels('${post.uid}', ${post.timestamp})">
-                <span class="reels-social-icon">🔄</span>
-                <span class="reels-social-count">${reposts.length > 0 ? reposts.length : ''}</span>
-            </button>
-        </div>
-        <div class="reels-comments-section" id="comments-${postId}" style="display:none;">
-            ${commentsHtml ? `<div class="reels-comments-list">${commentsHtml}</div>` : ''}
-            <div class="reels-comment-input-row">
-                <input type="text" class="reels-comment-input" id="comment-input-${postId}"
-                    placeholder="${i18n[lang]?.reels_comment_placeholder || '댓글을 입력하세요...'}" maxlength="200">
-                <button class="reels-comment-submit-btn" onclick="addReelsComment('${post.uid}', ${post.timestamp})">
-                    ${i18n[lang]?.reels_comment_submit || '등록'}
-                </button>
-            </div>
-        </div>
-    </div>`;
-}
-
-function toggleReelsComments(postId) {
-    const section = document.getElementById('comments-' + postId);
-    if (section) {
-        section.style.display = section.style.display === 'none' ? 'block' : 'none';
-    }
-}
-
-async function toggleReelsLike(postOwnerUid, postTimestamp) {
-    const currentUid = auth.currentUser?.uid;
-    if (!currentUid) return;
-
-    try {
-        const userDoc = await getDoc(doc(db, "users", postOwnerUid));
-        if (!userDoc.exists() || !userDoc.data().reelsStr) return;
-
-        let posts = JSON.parse(userDoc.data().reelsStr);
-        const postIndex = posts.findIndex(p => p.timestamp === postTimestamp);
-        if (postIndex === -1) return;
-
-        if (!posts[postIndex].likes) posts[postIndex].likes = [];
-        const likeIndex = posts[postIndex].likes.indexOf(currentUid);
-
-        if (likeIndex === -1) {
-            posts[postIndex].likes.push(currentUid);
-        } else {
-            posts[postIndex].likes.splice(likeIndex, 1);
-        }
-
-        await updateDoc(doc(db, "users", postOwnerUid), {
-            reelsStr: JSON.stringify(posts)
-        });
-
-        renderReelsFeed();
-    } catch (e) {
-        AppLogger.error('[Reels] 좋아요 처리 실패: ' + (e.message || e));
-    }
-}
-
-async function addReelsComment(postOwnerUid, postTimestamp) {
-    const currentUid = auth.currentUser?.uid;
-    if (!currentUid) return;
-
-    const lang = AppState.currentLang;
-    const postId = `${postOwnerUid}_${postTimestamp}`;
-    const inputEl = document.getElementById('comment-input-' + postId);
-    if (!inputEl) return;
-
-    const text = inputEl.value.trim();
-    if (!text) {
-        alert(i18n[lang]?.reels_comment_empty || '댓글을 입력해주세요.');
+        btn.classList.remove('loading');
+        btn.disabled = false;
         return;
     }
 
+    // 네이티브 Capacitor
     try {
-        const userDoc = await getDoc(doc(db, "users", postOwnerUid));
-        if (!userDoc.exists() || !userDoc.data().reelsStr) return;
-
-        let posts = JSON.parse(userDoc.data().reelsStr);
-        const postIndex = posts.findIndex(p => p.timestamp === postTimestamp);
-        if (postIndex === -1) return;
-
-        if (!posts[postIndex].comments) posts[postIndex].comments = [];
-        posts[postIndex].comments.push({
-            uid: currentUid,
-            userName: AppState.user.name || '헌터',
-            text: text,
-            timestamp: Date.now()
-        });
-
-        await updateDoc(doc(db, "users", postOwnerUid), {
-            reelsStr: JSON.stringify(posts)
-        });
-
-        inputEl.value = '';
-        renderReelsFeed();
-    } catch (e) {
-        AppLogger.error('[Reels] 댓글 등록 실패: ' + (e.message || e));
-    }
-}
-
-async function repostReels(postOwnerUid, postTimestamp) {
-    const currentUid = auth.currentUser?.uid;
-    if (!currentUid) return;
-
-    const lang = AppState.currentLang;
-
-    if (postOwnerUid === currentUid) {
-        alert(i18n[lang]?.reels_repost_own || '자신의 포스트는 리포스트할 수 없습니다.');
-        return;
-    }
-
-    if (!confirm(i18n[lang]?.reels_repost_confirm || '이 포스트를 리포스트하시겠습니까?')) return;
-
-    try {
-        const userDoc = await getDoc(doc(db, "users", postOwnerUid));
-        if (!userDoc.exists() || !userDoc.data().reelsStr) return;
-
-        let posts = JSON.parse(userDoc.data().reelsStr);
-        const postIndex = posts.findIndex(p => p.timestamp === postTimestamp);
-        if (postIndex === -1) return;
-
-        if (!posts[postIndex].reposts) posts[postIndex].reposts = [];
-
-        if (posts[postIndex].reposts.includes(currentUid)) {
-            alert(i18n[lang]?.reels_already_reposted || '이미 리포스트했습니다.');
+        const { Geolocation } = window.Capacitor.Plugins;
+        const permResult = await Geolocation.requestPermissions();
+        if (permResult.location === 'denied') {
+            alert(i18n[lang]?.gps_tag_denied || '위치 권한이 거부되었습니다.');
+            btn.classList.remove('loading');
+            btn.disabled = false;
             return;
         }
-
-        posts[postIndex].reposts.push(currentUid);
-
-        // 리포스트한 사용자의 피드에도 포스트 복사 저장
-        const originalPost = posts[postIndex];
-        const repost = {
-            ...originalPost,
-            isRepost: true,
-            repostBy: currentUid,
-            repostByName: AppState.user.name || '헌터',
-            repostTimestamp: Date.now(),
-            originalUid: postOwnerUid,
-            // 리포스트 자체에는 소셜 데이터 복사하지 않음 (원본에서 관리)
-            likes: originalPost.likes || [],
-            comments: originalPost.comments || [],
-            reposts: originalPost.reposts || []
-        };
-
-        // 원본 포스트 업데이트
-        await updateDoc(doc(db, "users", postOwnerUid), {
-            reelsStr: JSON.stringify(posts)
+        const position = await Geolocation.getCurrentPosition({
+            enableHighAccuracy: true, timeout: 10000, maximumAge: 60000
         });
-
-        // 리포스터의 reelsStr에 추가
-        const myDoc = await getDoc(doc(db, "users", currentUid));
-        let myPosts = [];
-        if (myDoc.exists() && myDoc.data().reelsStr) {
-            try { myPosts = JSON.parse(myDoc.data().reelsStr); } catch(e) {}
-        }
-        myPosts.push(repost);
-        await updateDoc(doc(db, "users", currentUid), {
-            reelsStr: JSON.stringify(myPosts)
-        });
-
-        alert(i18n[lang]?.reels_reposted || '리포스트 완료!');
-        renderReelsFeed();
+        applyGpsTag(position.coords.latitude, position.coords.longitude);
     } catch (e) {
-        AppLogger.error('[Reels] 리포스트 실패: ' + (e.message || e));
+        alert(i18n[lang]?.gps_tag_error || '위치를 가져올 수 없습니다.');
+        AppLogger.warn('[GPS Tag] Native geolocation error: ' + (e.message || e));
     }
+    btn.classList.remove('loading');
+    btn.disabled = false;
+};
+
+function applyGpsTag(lat, lng) {
+    const stationName = findNearestStation(lat, lng);
+    plannerGpsData = { latitude: lat, longitude: lng, stationName: stationName || null };
+
+    const btn = document.getElementById('btn-gps-tag');
+    const resultEl = document.getElementById('gps-tag-result');
+    const locationEl = document.getElementById('gps-tag-location');
+
+    const displayText = stationName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    locationEl.textContent = `📍 ${displayText}`;
+    btn.classList.add('d-none');
+    resultEl.classList.remove('d-none');
+    AppLogger.info(`[GPS Tag] 위치 태그: ${displayText} (${lat}, ${lng})`);
 }
 
-// 소셜 기능 전역 등록
-window.toggleReelsLike = toggleReelsLike;
-window.addReelsComment = addReelsComment;
-window.repostReels = repostReels;
-window.toggleReelsComments = toggleReelsComments;
-
-// 릴스 리셋 타이머 (업로드 후 24시간 기준)
-function updateReelsResetTimer() {
-    const timerEl = document.getElementById('reels-reset-timer');
-    if (!timerEl) return;
-
-    function update() {
-        // 저장된 포스팅 타임스탬프 기반 체크 (로그아웃 후에도 유지)
-        const lastPostTs = parseInt(localStorage.getItem('reels_last_post_ts') || '0', 10);
-        const now = Date.now();
-        const stillCooldown = lastPostTs && (now - lastPostTs) < 24 * 60 * 60 * 1000;
-        const postBtn = document.getElementById('btn-reels-post');
-
-        if (stillCooldown) {
-            // 업로드 타임스탬프 + 1일 = 다음 업로드 가능 일시 (KST 기준)
-            const nextAvailMs = lastPostTs + (24 * 60 * 60 * 1000);
-            // KST = UTC+9 → UTC 밀리초에 9시간 더한 뒤 UTC 메서드로 읽기
-            const kstNext = new Date(nextAvailMs + 9 * 60 * 60 * 1000);
-            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-            const m = kstNext.getUTCMonth() + 1;
-            const d = kstNext.getUTCDate();
-            const dy = dayNames[kstNext.getUTCDay()];
-            const h = String(kstNext.getUTCHours()).padStart(2, '0');
-            const mi = String(kstNext.getUTCMinutes()).padStart(2, '0');
-            timerEl.innerText = `다음 업로드: ${m}/${d} (${dy}) ${h}:${mi}`;
-            // 버튼 비활성화 (룰렛 스타일)
-            if (postBtn) {
-                postBtn.disabled = true;
-                postBtn.textContent = '포스팅 완료';
-                postBtn.style.background = '#333';
-                postBtn.style.color = '#666';
-                postBtn.style.opacity = '0.6';
-                postBtn.style.cursor = 'not-allowed';
-            }
-        } else {
-            // 쿨다운 만료 → 타임스탬프 정리
-            if (lastPostTs) {
-                localStorage.removeItem('reels_last_post_ts');
-                localStorage.removeItem('reels_reward_ts');
-            }
-            timerEl.innerText = `업로드 가능`;
-            // 버튼 활성화
-            if (postBtn) {
-                postBtn.disabled = false;
-                postBtn.textContent = i18n[AppState.currentLang]?.reels_post_btn || 'Day1 포스팅';
-                postBtn.style.background = 'var(--neon-gold)';
-                postBtn.style.color = '#000';
-                postBtn.style.opacity = '1';
-                postBtn.style.cursor = 'pointer';
-            }
-        }
-    }
-    update();
-    // 릴스 탭 활성시 1초마다 업데이트
-    if (window._reelsTimerInterval) clearInterval(window._reelsTimerInterval);
-    window._reelsTimerInterval = setInterval(() => {
-        if (document.getElementById('reels').classList.contains('active')) {
-            update();
-            // 24시간 경과 포스트 자동 삭제 체크
-            checkReelsReset();
-        }
-    }, 1000);
-}
-
-// 24시간 경과 포스트 자동 삭제 체크 (getReelsData에서 필터링됨)
-function checkReelsReset() {
-    const reelsData = getReelsData(); // 24h 지난 포스트 자동 필터링
-    const myPost = reelsData.posts.find(p => p.uid === (auth.currentUser?.uid));
-    if (!myPost) {
-        // 내 포스트가 삭제됐으면 피드 갱신
-        renderReelsFeed();
-    }
-}
+window.removeGpsTag = function() {
+    plannerGpsData = null;
+    const btn = document.getElementById('btn-gps-tag');
+    const resultEl = document.getElementById('gps-tag-result');
+    btn.classList.remove('d-none');
+    resultEl.classList.add('d-none');
+};
 
 function changeTheme() {
     const light = document.getElementById('theme-toggle').checked;

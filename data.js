@@ -64,33 +64,19 @@ const i18n = {
         roulette_title: "일일 보너스 룰렛", roulette_spin: "스핀!", roulette_desc: "퀘스트 1개 이상 완료 후 하루 1회 스핀 가능",
         roulette_locked: "퀘스트를 완료하면 스핀 가능", roulette_used: "오늘 스핀 완료", roulette_result: "보상 획득!",
 
-        // 릴스 탭
-        nav_reels: "Day1", reels_title: "🎬 Day1", reels_post_btn: "Day1 포스팅",
-        reels_post_hint: "업로드 1일 후 자동 삭제",
-        reels_empty: "아직 포스팅이 없습니다. 타임테이블을 완성하고 포스팅해보세요!",
-        reels_no_timetable: "먼저 플래너에서 오늘의 시간표를 작성하고 저장해주세요.",
-        reels_no_photo: "사진과 텍스트를 모두 입력해야 포스팅할 수 있습니다.",
-        reels_posted: "Day1에 포스팅되었습니다!",
-        reels_already_posted: "오늘은 이미 포스팅했습니다.",
-        reels_reset_info: "매일 00:00(KST) 초기화",
         planner_photo_required: "사진 추가",
         planner_caption_placeholder: "오늘의 한마디를 남겨보세요...",
         planner_caption_limit_ko: "한글 140자 / 영문 280자",
         btn_planner_info: "가이드",
+        gps_tag_btn: "위치 태그",
+        gps_tag_no_support: "GPS를 지원하지 않는 환경입니다.",
+        gps_tag_denied: "위치 권한이 거부되었습니다.",
+        gps_tag_error: "위치를 가져올 수 없습니다. 권한을 확인해주세요.",
         share_save_local: "이미지 로컬 저장",
         share_save_local_desc: "플래너를 이미지로 저장합니다",
         share_link: "링크 공유",
         share_link_desc: "플래너 요약을 클립보드에 복사합니다",
 
-        // 소셜 기능 (좋아요, 댓글, 리포스트)
-        reels_like: "좋아요", reels_unlike: "좋아요 취소",
-        reels_comment: "댓글", reels_repost: "리포스트",
-        reels_comment_placeholder: "댓글을 입력하세요...",
-        reels_comment_submit: "등록", reels_comment_empty: "댓글을 입력해주세요.",
-        reels_reposted: "리포스트 완료!", reels_already_reposted: "이미 리포스트했습니다.",
-        reels_repost_own: "자신의 포스트는 리포스트할 수 없습니다.",
-        reels_repost_confirm: "이 포스트를 리포스트하시겠습니까?",
-        reels_reposted_by: "리포스트"
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -153,33 +139,19 @@ const i18n = {
         roulette_title: "Daily Bonus Roulette", roulette_spin: "SPIN!", roulette_desc: "Complete 1+ quest to unlock daily spin",
         roulette_locked: "Complete a quest to spin", roulette_used: "Spin used today", roulette_result: "Reward!",
 
-        // Reels tab
-        nav_reels: "Reels", reels_title: "🎬 Reels", reels_post_btn: "Post Timetable",
-        reels_post_hint: "Complete your timetable and add a photo to post",
-        reels_empty: "No posts yet. Complete your timetable and share it!",
-        reels_no_timetable: "Please create and save today's timetable in the Planner first.",
-        reels_no_photo: "You must add a photo to your timetable before posting.",
-        reels_posted: "Posted to Reels!",
-        reels_already_posted: "You have already posted today.",
-        reels_reset_info: "Resets daily at 00:00 (KST)",
         planner_photo_required: "Add Photo (Required)",
         planner_caption_placeholder: "Write a short caption...",
         planner_caption_limit_ko: "280 chars (English) / 140 chars (Korean)",
         btn_planner_info: "Guide",
+        gps_tag_btn: "Location Tag",
+        gps_tag_no_support: "GPS is not supported in this environment.",
+        gps_tag_denied: "Location permission denied.",
+        gps_tag_error: "Unable to get location. Please check permissions.",
         share_save_local: "Save as Image",
         share_save_local_desc: "Save your planner as an image",
         share_link: "Copy to Clipboard",
         share_link_desc: "Copy planner summary text to clipboard",
 
-        // Social features (like, comment, repost)
-        reels_like: "Like", reels_unlike: "Unlike",
-        reels_comment: "Comment", reels_repost: "Repost",
-        reels_comment_placeholder: "Write a comment...",
-        reels_comment_submit: "Post", reels_comment_empty: "Please enter a comment.",
-        reels_reposted: "Reposted!", reels_already_reposted: "Already reposted.",
-        reels_repost_own: "You cannot repost your own post.",
-        reels_repost_confirm: "Repost this post?",
-        reels_reposted_by: "Reposted"
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -242,33 +214,20 @@ const i18n = {
         roulette_title: "デイリーボーナスルーレット", roulette_spin: "スピン！", roulette_desc: "クエスト1つ以上完了で1日1回スピン可能",
         roulette_locked: "クエストを完了するとスピン可能", roulette_used: "本日スピン済", roulette_result: "報酬獲得！",
 
-        // リールタブ
-        nav_reels: "リール", reels_title: "🎬 リール", reels_post_btn: "タイムテーブル投稿",
-        reels_post_hint: "タイムテーブルを完成し、写真を追加すると投稿できます",
-        reels_empty: "まだ投稿がありません。タイムテーブルを完成して共有しましょう！",
-        reels_no_timetable: "まずプランナーで今日のタイムテーブルを作成・保存してください。",
-        reels_no_photo: "投稿するにはタイムテーブルに写真を追加してください。",
-        reels_posted: "リールに投稿されました！",
-        reels_already_posted: "今日はすでに投稿済みです。",
-        reels_reset_info: "毎日00:00(KST)にリセット",
         planner_photo_required: "写真追加（必須）",
         planner_caption_placeholder: "今日の一言を残しましょう...",
         planner_caption_limit_ko: "全角140字 / 半角280字",
         btn_planner_info: "ガイド",
+        gps_tag_btn: "位置タグ",
+        gps_tag_no_support: "GPS非対応の環境です。",
+        gps_tag_denied: "位置情報の権限が拒否されました。",
+        gps_tag_error: "位置情報を取得できません。権限を確認してください。",
         share_save_local: "画像として保存",
         share_save_local_desc: "プランナーを画像として保存します",
         share_link: "クリップボードにコピー",
         share_link_desc: "プランナーの要約テキストをコピーします",
 
         // ソーシャル機能（いいね、コメント、リポスト）
-        reels_like: "いいね", reels_unlike: "いいね取消",
-        reels_comment: "コメント", reels_repost: "リポスト",
-        reels_comment_placeholder: "コメントを入力...",
-        reels_comment_submit: "投稿", reels_comment_empty: "コメントを入力してください。",
-        reels_reposted: "リポスト完了！", reels_already_reposted: "すでにリポスト済みです。",
-        reels_repost_own: "自分の投稿はリポストできません。",
-        reels_repost_confirm: "この投稿をリポストしますか？",
-        reels_reposted_by: "リポスト"
     }
 };
 

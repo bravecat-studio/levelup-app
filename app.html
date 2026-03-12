@@ -332,11 +332,22 @@
                             <div class="planner-caption-counter" id="planner-caption-counter">0 / 140</div>
                         </div>
 
-                        <!-- 저장 버튼 + Day1 포스팅 버튼 (시간표 탭 전용) -->
+                        <!-- GPS 태그 -->
+                        <div class="planner-gps-tag-box" id="planner-gps-tag-box">
+                            <button type="button" class="btn-gps-tag" id="btn-gps-tag" onclick="window.captureGpsTag()">
+                                <span class="gps-tag-icon">📍</span>
+                                <span class="gps-tag-text" id="gps-tag-text" data-i18n="gps_tag_btn">위치 태그</span>
+                            </button>
+                            <div class="gps-tag-result d-none" id="gps-tag-result">
+                                <span class="gps-tag-location" id="gps-tag-location"></span>
+                                <button type="button" class="gps-tag-remove" id="gps-tag-remove" onclick="window.removeGpsTag()">✕</button>
+                            </div>
+                        </div>
+
+                        <!-- 저장 버튼 (시간표 탭 전용) -->
                         <div style="display:flex; justify-content:flex-end; align-items:center; margin-top:10px;">
                             <div style="display:flex; gap:8px; align-items:center;">
                                 <button class="btn-primary" id="btn-planner-save" style="width:auto; padding:8px 20px;" data-i18n="diary_save">저장</button>
-                                <button class="btn-primary" id="btn-reels-post" style="width:auto; padding:8px 20px; background:var(--neon-gold); color:#000;" data-i18n="reels_post_btn">Day1 포스팅</button>
                                 <button class="btn-planner-share" id="btn-planner-share" title="공유">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                         <path d="M11 2.5a2.5 2.5 0 1 1 .603 1.628l-6.718 3.12a2.499 2.499 0 0 1 0 1.504l6.718 3.12a2.5 2.5 0 1 1-.488.876l-6.718-3.12a2.5 2.5 0 1 1 0-3.256l6.718-3.12A2.5 2.5 0 0 1 11 2.5z"/>
@@ -344,7 +355,6 @@
                                 </button>
                             </div>
                         </div>
-                        <div style="font-size:0.65rem; color:var(--neon-gold); margin-top:4px; text-align:right;" id="reels-reset-timer"></div>
                     </div>
 
                     <!-- 우선순위 탭 저장 버튼 -->
@@ -365,14 +375,6 @@
                 </div>
             </section>
 
-            <section id="reels" class="view-section">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h2 data-i18n="reels_title" style="margin:0;">🎬 Day1</h2>
-                </div>
-
-                <!-- Day1 피드 -->
-                <div id="reels-feed" class="reels-feed-container"></div>
-            </section>
 
             <section id="settings" class="view-section">
                 <h2 data-i18n="set_title">System Settings</h2>
@@ -425,7 +427,6 @@
             <div class="nav-item" data-tab="diary"><span class="nav-icon">🗓️</span><span data-i18n="nav_diary">플래너</span></div>
             <div class="nav-item" data-tab="quests"><span class="nav-icon">📜</span><span data-i18n="nav_quest">퀘스트</span></div>
             <div class="nav-item" data-tab="dungeon"><span class="nav-icon">⚔️</span><span data-i18n="nav_dungeon">던전</span></div>
-            <div class="nav-item" data-tab="reels"><span class="nav-icon">🎬</span><span data-i18n="nav_reels">Day1</span></div>
             <div class="nav-item" data-tab="social"><span class="nav-icon">🏆</span><span data-i18n="nav_social">소셜</span></div>
             <div class="nav-item" data-tab="settings"><span class="nav-icon">⚙️</span><span data-i18n="nav_settings">설정</span></div>
         </nav>
