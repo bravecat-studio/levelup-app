@@ -1873,10 +1873,11 @@ const rouletteSlots = [
 ];
 
 function canSpinRoulette() {
-    const today = getTodayStr();
+    const today = getTodayKST();
     if (localStorage.getItem('roulette_' + today)) return 'used';
-    // 오늘 퀘스트 1개 이상 완료했는지 확인
-    const day = AppState.quest.currentDayOfWeek;
+    // 오늘(KST) 퀘스트 1개 이상 완료했는지 확인
+    const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const day = kstNow.getUTCDay();
     const anyDone = AppState.quest.completedState[day].some(v => v);
     return anyDone ? 'ready' : 'locked';
 }
@@ -1966,7 +1967,7 @@ function drawRouletteWheel(canvas) {
 window.spinRoulette = function() {
     if (canSpinRoulette() !== 'ready') return;
 
-    const today = getTodayStr();
+    const today = getTodayKST();
     localStorage.setItem('roulette_' + today, '1');
 
     const canvas = document.getElementById('roulette-canvas');
@@ -2484,8 +2485,8 @@ window.updateCaptionCounter = function() {
 // KST 기준 오늘 날짜 문자열
 function getTodayKST() {
     const now = new Date();
-    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
-    return `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
+    const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth()+1).padStart(2,'0')}-${String(kst.getUTCDate()).padStart(2,'0')}`;
 }
 
 // 릴스 데이터 로드 (localStorage)
@@ -2725,10 +2726,10 @@ function updateReelsResetTimer() {
     function update() {
         const now = new Date();
         // KST = UTC + 9
-        const kstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
-        const kstMidnight = new Date(kstNow);
-        kstMidnight.setDate(kstMidnight.getDate() + 1);
-        kstMidnight.setHours(0, 0, 0, 0);
+        const kstMs = now.getTime() + 9 * 60 * 60 * 1000;
+        const kstNow = new Date(kstMs);
+        // 다음 KST 자정까지 남은 시간 계산 (UTC 기준)
+        const kstMidnight = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth(), kstNow.getUTCDate() + 1, 0, 0, 0));
 
         // 오늘 이미 포스팅했는지 체크
         const reelsData = getReelsData();
