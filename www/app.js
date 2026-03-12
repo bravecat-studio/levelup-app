@@ -280,12 +280,18 @@ function bindEvents() {
             const tab = btn.getAttribute('data-planner-tab');
             const target = document.getElementById('planner-tab-' + tab);
             if (target) target.classList.add('active');
+            // 탭에 따라 저장 영역 표시/숨김
+            const prioritySave = document.getElementById('priority-save-area');
+            if (prioritySave) prioritySave.style.display = tab === 'priority' ? 'block' : 'none';
         });
     });
     document.getElementById('btn-raid-complete').addEventListener('click', window.completeDungeon);
 
     // Reels tab
     document.getElementById('btn-reels-post').addEventListener('click', postToReels);
+    // 우선순위 탭 저장 버튼도 같은 저장 함수 연결
+    const prioritySaveBtn = document.getElementById('btn-planner-save-priority');
+    if (prioritySaveBtn) prioritySaveBtn.addEventListener('click', savePlannerEntry);
     // Planner photo upload
     document.getElementById('plannerPhotoUpload').addEventListener('change', loadPlannerPhoto);
 }
@@ -2604,6 +2610,13 @@ async function postToReels() {
     // Firestore 저장
     await saveReelsToFirestore(post);
 
+    // 포스팅 보상: +20P & CHA +0.5
+    AppState.user.points += 20;
+    AppState.user.pendingStats.cha = (AppState.user.pendingStats.cha || 0) + 0.5;
+    updatePointUI();
+    drawRadarChart();
+    AppLogger.info('[Reels] 포스팅 보상 지급: +20P, CHA +0.5');
+
     alert(i18n[lang].reels_posted);
     renderReelsFeed();
 }
@@ -2614,19 +2627,42 @@ async function renderReelsFeed() {
     if (!container) return;
     const lang = AppState.currentLang;
 
-    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">로딩 중...</div>';
-
-    const posts = await fetchAllReelsPosts();
-
-    if (posts.length === 0) {
-        container.innerHTML = `<div class="system-card" style="text-align:center; padding:30px; color:var(--text-sub);">
-            <div style="font-size:2rem; margin-bottom:10px;">🎬</div>
-            <div>${i18n[lang].reels_empty}</div>
-        </div>`;
-        return;
+    // 로컬 캐시 먼저 표시
+    const localData = getReelsData();
+    const localPosts = (localData.posts || []).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (localPosts.length > 0) {
+        container.innerHTML = renderReelsCards(localPosts, lang);
+    } else {
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">로딩 중...</div>';
     }
 
-    container.innerHTML = posts.map(post => {
+    // Firestore에서 최신 데이터 로드 (5초 타임아웃)
+    try {
+        const posts = await Promise.race([
+            fetchAllReelsPosts(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+        ]);
+        if (posts.length === 0) {
+            container.innerHTML = `<div class="system-card" style="text-align:center; padding:30px; color:var(--text-sub);">
+                <div style="font-size:2rem; margin-bottom:10px;">🎬</div>
+                <div>${i18n[lang].reels_empty}</div>
+            </div>`;
+            return;
+        }
+        container.innerHTML = renderReelsCards(posts, lang);
+    } catch(e) {
+        // 타임아웃 또는 네트워크 오류 시 로컬 데이터 유지
+        if (localPosts.length === 0) {
+            container.innerHTML = `<div class="system-card" style="text-align:center; padding:30px; color:var(--text-sub);">
+                <div style="font-size:2rem; margin-bottom:10px;">🎬</div>
+                <div>${i18n[lang].reels_empty}</div>
+            </div>`;
+        }
+    }
+}
+
+function renderReelsCards(posts, lang) {
+    return posts.map(post => {
         const profileSrc = post.userPhoto || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
         const isMe = post.uid === auth.currentUser?.uid;
 
