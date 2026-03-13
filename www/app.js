@@ -2056,18 +2056,61 @@ window.sharePlannerAsImage = async function() {
     const failMsgs = { ko: '이미지 저장에 실패했습니다.', en: 'Failed to save image.', ja: '画像の保存に失敗しました。' };
 
     try {
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+
+        // 방법 1: Capacitor Filesystem API (네이티브 앱에서 직접 로컬 저장)
+        if (isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+            const Filesystem = window.Capacitor.Plugins.Filesystem;
+            const base64Data = canvas.toDataURL('image/png').split(',')[1];
+
+            // Documents 디렉토리에 저장 시도
+            try {
+                await Filesystem.writeFile({
+                    path: fileName,
+                    data: base64Data,
+                    directory: 'DOCUMENTS',
+                    recursive: true
+                });
+                alert(msgs[lang] || msgs.ko);
+                const m = document.getElementById('shareModal');
+                m.classList.add('d-none');
+                m.classList.remove('d-flex');
+                return;
+            } catch(fsErr) {
+                // 권한 요청 후 재시도
+                try {
+                    await Filesystem.requestPermissions();
+                    await Filesystem.writeFile({
+                        path: fileName,
+                        data: base64Data,
+                        directory: 'DOCUMENTS',
+                        recursive: true
+                    });
+                    alert(msgs[lang] || msgs.ko);
+                    const m = document.getElementById('shareModal');
+                    m.classList.add('d-none');
+                    m.classList.remove('d-flex');
+                    return;
+                } catch(fsErr2) {
+                    console.warn('Filesystem save failed, trying share fallback:', fsErr2);
+                }
+            }
+        }
+
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         if (!blob) throw new Error('toBlob failed');
 
-        const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
-
-        // 방법 1: Web Share API (네이티브 앱에서 가장 잘 동작)
-        if (navigator.share && navigator.canShare) {
+        // 방법 2: Web Share API (네이티브 앱 폴백 - 공유 시트에서 저장 선택)
+        if (isNative && navigator.share && navigator.canShare) {
             const file = new File([blob], fileName, { type: 'image/png' });
             const shareData = { files: [file] };
             if (navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-                // 모달 닫기
+                try {
+                    await navigator.share(shareData);
+                } catch(shareErr) {
+                    // 사용자가 공유 시트를 취소한 경우 무시
+                    if (shareErr.name !== 'AbortError') throw shareErr;
+                }
                 const m = document.getElementById('shareModal');
                 m.classList.add('d-none');
                 m.classList.remove('d-flex');
@@ -2075,7 +2118,7 @@ window.sharePlannerAsImage = async function() {
             }
         }
 
-        // 방법 2: Blob URL + <a> 다운로드 (웹 브라우저)
+        // 방법 3: Blob URL + <a> 다운로드 (웹 브라우저)
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -2091,24 +2134,19 @@ window.sharePlannerAsImage = async function() {
 
         alert(msgs[lang] || msgs.ko);
     } catch(e) {
-        // 방법 3: 최종 폴백 - 새 탭에서 이미지 열기 (사용자가 길게 눌러 저장)
+        // 방법 4: 최종 폴백 - 인앱 이미지 뷰어 (사용자가 길게 눌러 저장)
         try {
             const dataUrl = canvas.toDataURL('image/png');
-            const w = window.open();
-            if (w) {
-                w.document.write(`<html><head><title>${fileName}</title></head><body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh;"><img src="${dataUrl}" style="max-width:100%;height:auto;"></body></html>`);
-                w.document.close();
-            } else {
-                // 팝업 차단 시 직접 이미지 표시
-                const imgWindow = document.createElement('div');
-                imgWindow.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
-                imgWindow.innerHTML = `
-                    <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">이미지를 길게 눌러 저장하세요</p>
-                    <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
-                    <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">닫기</button>
-                `;
-                document.body.appendChild(imgWindow);
-            }
+            const fallbackMsgs = { ko: '이미지를 길게 눌러 저장하세요', en: 'Long-press the image to save', ja: '画像を長押しして保存してください' };
+            const closeMsgs = { ko: '닫기', en: 'Close', ja: '閉じる' };
+            const imgWindow = document.createElement('div');
+            imgWindow.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+            imgWindow.innerHTML = `
+                <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">${fallbackMsgs[lang] || fallbackMsgs.ko}</p>
+                <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
+                <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">${closeMsgs[lang] || closeMsgs.ko}</button>
+            `;
+            document.body.appendChild(imgWindow);
         } catch(e2) {
             alert(failMsgs[lang] || failMsgs.ko);
         }
