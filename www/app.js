@@ -1718,15 +1718,17 @@ function openDungeonInfoModal() {
     html += `</tbody></table>`;
 
     // P1: 보스 HP 시스템 & 근접 보너스 안내
+    const dungeonSt = seoulStations[AppState.dungeon.stationIdx];
+    const stName = dungeonSt ? dungeonSt.name[AppState.currentLang] || dungeonSt.name.ko : '';
     const dungeonExtra = {
         ko: { boss_title: '👹 보스 HP 시스템', boss_desc: '던전에 보스 HP 바가 도입되었습니다. 참여자들이 레이드 액션으로 데미지를 입혀 보스를 처치합니다. 인원이 많을수록 클리어가 쉬워집니다.',
-            open_title: '🌐 GPS 제한 해제', open_desc: '누구나 위치에 관계없이 던전에 참여할 수 있습니다. 해당 역 반경 2km 이내 접속 시 근접 보너스 +50P가 추가 지급됩니다.',
+            open_title: '📍 던전 주변 보상 증가', open_desc: `오늘의 던전 출현 지역: ${stName}. 해당 역 반경 ${DUNGEON_RADIUS_KM}km 이내 접속 시 근접 보너스 +50P가 추가 지급됩니다.`,
             rush_title: '🔥 주말 보스 러시', rush_desc: '토·일요일에는 보스 HP가 2배, 클리어 보상도 2배로 적용됩니다!' },
         en: { boss_title: '👹 Boss HP System', boss_desc: 'Dungeons now feature a Boss HP bar. Participants deal damage together via raid actions to defeat the boss. More allies = easier clear.',
-            open_title: '🌐 GPS Lock Removed', open_desc: 'Anyone can join dungeons regardless of location. +50P proximity bonus for being within 2km of the station.',
+            open_title: '📍 Increased Rewards Near Dungeon', open_desc: `Today's dungeon location: ${stName}. +50P proximity bonus for being within ${DUNGEON_RADIUS_KM}km of the station.`,
             rush_title: '🔥 Weekend Boss Rush', rush_desc: 'On weekends, boss HP is doubled and clear rewards are doubled!' },
         ja: { boss_title: '👹 ボスHPシステム', boss_desc: 'ダンジョンにボスHPバーが導入されました。参加者がレイドアクションでダメージを与えてボスを撃破します。人数が多いほどクリアが楽になります。',
-            open_title: '🌐 GPS制限解除', open_desc: '場所に関係なく誰でもダンジョンに参加できます。駅から半径2km以内で接続すると近接ボーナス+50Pが追加されます。',
+            open_title: '📍 ダンジョン周辺報酬増加', open_desc: `本日のダンジョン出現地域: ${stName}。駅から半径${DUNGEON_RADIUS_KM}km以内で接続すると近接ボーナス+50Pが追加されます。`,
             rush_title: '🔥 週末ボスラッシュ', rush_desc: '土日はボスHP2倍、クリア報酬も2倍です！' }
     };
     const de = dungeonExtra[AppState.currentLang] || dungeonExtra.ko;
