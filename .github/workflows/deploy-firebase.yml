@@ -25,6 +25,11 @@ jobs:
         with:
           node-version: 20
 
+      - name: Google 서비스 계정 인증
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Functions 의존성 설치
         run: cd functions && npm ci
 
@@ -33,13 +38,9 @@ jobs:
 
       - name: Firebase Functions 배포
         run: firebase deploy --only functions --force
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Firestore Rules & Indexes 배포
         run: firebase deploy --only firestore
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
       - name: 배포 결과 요약
         if: success()
