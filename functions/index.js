@@ -1,5 +1,5 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -217,12 +217,12 @@ exports.sendAnnouncement = onCall({
     // 관리자 인증 확인
     const callerEmail = request.auth?.token?.email;
     if (callerEmail !== "nazi2k@gmail.com") {
-        throw new Error("권한이 없습니다.");
+        throw new HttpsError("permission-denied", "권한이 없습니다.");
     }
 
     const { title, body, targetTab } = request.data;
     if (!title || !body) {
-        throw new Error("title과 body는 필수입니다.");
+        throw new HttpsError("invalid-argument", "title과 body는 필수입니다.");
     }
 
     const message = {
@@ -247,7 +247,7 @@ exports.sendAnnouncement = onCall({
         return { success: true, messageId: response };
     } catch (e) {
         console.error("[공지사항] 발송 실패:", e);
-        throw new Error("공지사항 발송 실패: " + e.message);
+        throw new HttpsError("internal", "공지사항 발송 실패: " + e.message);
     }
 });
 
@@ -301,17 +301,17 @@ exports.sendTestNotification = onCall({
 }, async (request) => {
     const callerEmail = request.auth?.token?.email;
     if (callerEmail !== "nazi2k@gmail.com") {
-        throw new Error("권한이 없습니다.");
+        throw new HttpsError("permission-denied", "권한이 없습니다.");
     }
 
     const { token, topic, type, lang, customTitle, customBody } = request.data;
     if (!token && !topic) {
-        throw new Error("token 또는 topic은 필수입니다.");
+        throw new HttpsError("invalid-argument", "token 또는 topic은 필수입니다.");
     }
 
     let notification;
     if (type === "custom") {
-        if (!customTitle || !customBody) throw new Error("커스텀 알림은 제목과 본문이 필수입니다.");
+        if (!customTitle || !customBody) throw new HttpsError("invalid-argument", "커스텀 알림은 제목과 본문이 필수입니다.");
         notification = { title: customTitle, body: customBody };
     } else {
         notification = getLocalizedMessage(type || "raid_start", lang || "ko");
@@ -364,7 +364,7 @@ exports.sendTestNotification = onCall({
         });
 
         console.error("[테스트 발송] 실패:", e);
-        throw new Error("발송 실패: " + (e.code || e.message));
+        throw new HttpsError("internal", "발송 실패: " + (e.code || e.message));
     }
 });
 
@@ -375,36 +375,42 @@ exports.getTestUsers = onCall({
 }, async (request) => {
     const callerEmail = request.auth?.token?.email;
     if (callerEmail !== "nazi2k@gmail.com") {
-        throw new Error("권한이 없습니다.");
+        throw new HttpsError("permission-denied", "권한이 없습니다.");
     }
 
-    const usersSnap = await db.collection("users")
-        .where("pushEnabled", "==", true)
-        .limit(100)
-        .get();
+    try {
+        const usersSnap = await db.collection("users")
+            .where("pushEnabled", "==", true)
+            .limit(100)
+            .get();
 
-    const now = new Date();
-    return usersSnap.docs.map(doc => {
-        const data = doc.data();
-        let lastActiveDate = null;
-        let diffDays = null;
-        try {
-            const streak = JSON.parse(data.streakStr || "{}");
-            if (streak.lastActiveDate) {
-                lastActiveDate = streak.lastActiveDate;
-                diffDays = Math.floor((now - new Date(streak.lastActiveDate)) / (1000 * 60 * 60 * 24));
-            }
-        } catch { /* ignore */ }
+        const now = new Date();
+        const users = usersSnap.docs.map(doc => {
+            const data = doc.data();
+            let lastActiveDate = null;
+            let diffDays = null;
+            try {
+                const streak = JSON.parse(data.streakStr || "{}");
+                if (streak.lastActiveDate) {
+                    lastActiveDate = streak.lastActiveDate;
+                    diffDays = Math.floor((now - new Date(streak.lastActiveDate)) / (1000 * 60 * 60 * 24));
+                }
+            } catch { /* ignore */ }
 
-        return {
-            uid: doc.id,
-            displayName: data.displayName || data.nickname || doc.id.substring(0, 8),
-            lang: data.lang || "ko",
-            fcmToken: data.fcmToken || null,
-            lastActiveDate,
-            diffDays
-        };
-    });
+            return {
+                uid: doc.id,
+                displayName: data.displayName || data.nickname || doc.id.substring(0, 8),
+                lang: data.lang || "ko",
+                fcmToken: data.fcmToken || null,
+                lastActiveDate,
+                diffDays
+            };
+        });
+        return { users };
+    } catch (e) {
+        console.error("[getTestUsers] Error:", e);
+        throw new HttpsError("internal", "유저 목록 조회 실패: " + e.message);
+    }
 });
 
 // ─── 8. 발송 이력 조회 (Callable — 관리자 전용) ───
@@ -414,25 +420,31 @@ exports.getPushLogs = onCall({
 }, async (request) => {
     const callerEmail = request.auth?.token?.email;
     if (callerEmail !== "nazi2k@gmail.com") {
-        throw new Error("권한이 없습니다.");
+        throw new HttpsError("permission-denied", "권한이 없습니다.");
     }
 
-    const logsSnap = await db.collection("push_logs")
-        .orderBy("timestamp", "desc")
-        .limit(50)
-        .get();
+    try {
+        const logsSnap = await db.collection("push_logs")
+            .orderBy("timestamp", "desc")
+            .limit(50)
+            .get();
 
-    return logsSnap.docs.map(doc => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            timestamp: data.timestamp?.toDate?.() ? data.timestamp.toDate().toISOString() : String(data.timestamp),
-            type: data.type,
-            target: data.target,
-            success: data.success,
-            messageId: data.messageId || null,
-            error: data.error || null,
-            sender: data.sender
-        };
-    });
+        const logs = logsSnap.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                timestamp: data.timestamp?.toDate?.() ? data.timestamp.toDate().toISOString() : String(data.timestamp),
+                type: data.type,
+                target: data.target,
+                success: data.success,
+                messageId: data.messageId || null,
+                error: data.error || null,
+                sender: data.sender
+            };
+        });
+        return { logs };
+    } catch (e) {
+        console.error("[getPushLogs] Error:", e);
+        throw new HttpsError("internal", "로그 조회 실패: " + e.message);
+    }
 });

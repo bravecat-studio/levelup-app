@@ -513,7 +513,7 @@ window.loadUsers = async function() {
     try {
         const fn = httpsCallable(functions, "getTestUsers");
         const result = await fn({});
-        usersCache = result.data;
+        usersCache = result.data.users || [];
 
         if (!usersCache.length) {
             container.innerHTML = '<p class="loading">No push-enabled users found.</p>';
@@ -556,7 +556,7 @@ window.loadLogs = async function() {
     try {
         const fn = httpsCallable(functions, "getPushLogs");
         const result = await fn({});
-        const logs = result.data;
+        const logs = result.data.logs || [];
 
         if (!logs.length) {
             container.innerHTML = '<p class="loading">No send history yet.</p>';
