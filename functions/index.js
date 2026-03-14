@@ -63,11 +63,7 @@ function getLocalizedMessage(type, lang) {
 
 // ─── 1. 레이드 알림 (매일 05:55, 11:25, 18:55 KST — 레이드 시작 5분 전) ───
 
-exports.sendRaidAlerts = onSchedule({
-    schedule: "55 5,25 11,55 18 * * *",
-    timeZone: "Asia/Seoul",
-    region: "asia-northeast3"
-}, async () => {
+async function handleRaidAlert() {
     const kstHour = new Date(Date.now() + 9 * 60 * 60 * 1000).getHours();
 
     let slotLabel;
@@ -103,7 +99,13 @@ exports.sendRaidAlerts = onSchedule({
     } catch (e) {
         console.error("[레이드 알림] 발송 실패:", e);
     }
-});
+}
+
+const raidScheduleOpts = { timeZone: "Asia/Seoul", region: "asia-northeast3" };
+
+exports.sendRaidAlert0555 = onSchedule({ schedule: "55 5 * * *", ...raidScheduleOpts }, handleRaidAlert);
+exports.sendRaidAlert1125 = onSchedule({ schedule: "25 11 * * *", ...raidScheduleOpts }, handleRaidAlert);
+exports.sendRaidAlert1855 = onSchedule({ schedule: "55 18 * * *", ...raidScheduleOpts }, handleRaidAlert);
 
 // ─── 2. 일일 리마인더 (매일 09:00 KST) ───
 
