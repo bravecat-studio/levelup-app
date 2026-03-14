@@ -202,6 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderWeeklyChallenges();
             renderRoulette();
+            updateReelsResetTimer();
 
             if (AppState.user.syncEnabled) { syncHealthData(false); }
             initPushNotifications();
@@ -217,11 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     setInterval(() => {
+        // updateDungeonStatus() 내부에서 syncGlobalDungeon()을 이미 호출하므로 별도 호출 불필요
         updateDungeonStatus();
-        if(document.getElementById('dungeon').classList.contains('active')) {
-            window.syncGlobalDungeon();
-        }
-    }, 30000); 
+    }, 30000);
 });
 
 function initTheme() {
@@ -961,6 +960,17 @@ window.syncGlobalDungeon = async () => {
     }
 };
 
+function getKSTDate(now) {
+    // KST(UTC+9) 기준 Date 객체 생성
+    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
+    return kst;
+}
+
+function getKSTDateStr(now) {
+    const kst = getKSTDate(now);
+    return `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
+}
+
 function updateDungeonStatus() {
     const now = new Date();
 
@@ -973,7 +983,8 @@ function updateDungeonStatus() {
     // 06:00~24:00 → kstHour 6~23 (24:00은 다음날 00:00이므로 23시까지)
     const currentSlot = (kstHour >= 6) ? 1 : 0;
 
-    const dateStr = now.toDateString();
+    // KST 기준 날짜 문자열 사용 (로컬 타임존 의존 제거)
+    const dateStr = getKSTDateStr(now);
     if (AppState.dungeon.lastGeneratedDate !== dateStr || AppState.dungeon.slot !== currentSlot) {
         AppState.dungeon.lastGeneratedDate = dateStr;
         AppState.dungeon.slot = currentSlot;
@@ -1156,6 +1167,10 @@ window.joinDungeon = async () => {
         AppState.dungeon.bossMaxHP = isBossRush() ? 10 : 5;
         AppState.dungeon.bossDamageDealt = 0;
     }
+    // 로컬 상태 즉시 반영 (서버 sync 전 UI 업데이트)
+    AppState.dungeon.globalParticipants = (AppState.dungeon.globalParticipants || 0) + 1;
+    renderDungeon();
+
     await saveUserData();
     await window.syncGlobalDungeon();
 
@@ -1168,14 +1183,20 @@ window.joinDungeon = async () => {
 
 window.simulateRaidAction = async () => {
     if (AppState.dungeon.hasContributed || AppState.dungeon.globalProgress >= 100) return;
-    
+
     const btn = document.getElementById('btn-raid-action');
     btn.innerText = `데이터 전송 중...`;
     btn.disabled = true;
 
     AppState.dungeon.hasContributed = true;
-    await saveUserData(); 
-    await window.syncGlobalDungeon(); 
+    // 로컬 상태 즉시 반영 (서버 sync 전 UI 업데이트)
+    AppState.dungeon.bossDamageDealt = (AppState.dungeon.bossDamageDealt || 0) + 1;
+    const bossMaxHP = AppState.dungeon.bossMaxHP || 5;
+    AppState.dungeon.globalProgress = Math.min(100, (AppState.dungeon.bossDamageDealt / bossMaxHP) * 100);
+    renderDungeon();
+
+    await saveUserData();
+    await window.syncGlobalDungeon();
 };
 
 window.completeDungeon = () => {
@@ -1215,11 +1236,11 @@ function switchTab(tabId, el) {
     
     if(tabId === 'social') fetchSocialData();
     if(tabId === 'quests') { renderQuestList(); renderCalendar(); renderWeeklyChallenges(); renderRoulette(); }
-    if(tabId === 'diary') { renderPlannerCalendar(); loadPlannerForDate(diarySelectedDate); }
+    if(tabId === 'diary') { renderPlannerCalendar(); loadPlannerForDate(diarySelectedDate); updateReelsResetTimer(); }
     if(tabId === 'reels') { renderReelsFeed(); updateReelsResetTimer(); }
     if(tabId === 'dungeon') {
         updateDungeonStatus();
-        window.syncGlobalDungeon(); 
+        // syncGlobalDungeon()은 updateDungeonStatus() 내부에서 이미 호출됨
     }
 }
 
@@ -1329,6 +1350,10 @@ async function renderQuote() {
 
 // --- 소셜 탭 ---
 async function fetchSocialData() {
+    const container = document.getElementById('user-list-container');
+    if (container && AppState.social.users.length === 0) {
+        container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-sub); font-size:0.85rem;">데이터 로딩 중...</div>';
+    }
     try {
         const snap = await getDocs(collection(db, "users"));
         AppState.social.users = snap.docs.map(d => {
@@ -1341,10 +1366,16 @@ async function fetchSocialData() {
                     title = typeof last === 'object' ? last[AppState.currentLang] || last.ko : last;
                 } catch(e) {}
             }
-            return { id: d.id, ...data, title, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, isFriend: AppState.user.friends.includes(d.id), isMe: auth.currentUser?.uid === d.id };
+            return { id: d.id, ...data, title, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, isFriend: (AppState.user.friends || []).includes(d.id), isMe: auth.currentUser?.uid === d.id };
         });
         renderUsers(AppState.social.sortCriteria);
-    } catch(e) { console.error("소셜 로드 에러", e); }
+    } catch(e) {
+        console.error("소셜 로드 에러", e);
+        AppLogger.error('[Social] 데이터 로드 실패', e.stack || e.message);
+        if (container) {
+            container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--neon-red); font-size:0.85rem;">랭킹 데이터를 불러올 수 없습니다.<br><button onclick="fetchSocialData()" style="margin-top:10px; padding:6px 16px; background:var(--neon-blue); color:#000; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">다시 시도</button></div>';
+        }
+    }
 }
 
 function renderUsers(criteria, btn = null) {
@@ -1383,6 +1414,8 @@ function renderUsers(criteria, btn = null) {
         </div>
     `).join('');
 }
+
+window.fetchSocialData = fetchSocialData;
 
 window.toggleFriend = async (id) => {
     const isFriend = AppState.user.friends.includes(id);
@@ -3324,10 +3357,14 @@ function updateReelsResetTimer() {
     // 릴스 탭 활성시 1초마다 업데이트
     if (window._reelsTimerInterval) clearInterval(window._reelsTimerInterval);
     window._reelsTimerInterval = setInterval(() => {
-        if (document.getElementById('reels').classList.contains('active')) {
+        const reelsActive = document.getElementById('reels').classList.contains('active');
+        const diaryActive = document.getElementById('diary').classList.contains('active');
+        if (reelsActive || diaryActive) {
             update();
-            // 24시간 경과 포스트 자동 삭제 체크
-            checkReelsReset();
+            if (reelsActive) {
+                // 24시간 경과 포스트 자동 삭제 체크
+                checkReelsReset();
+            }
         }
     }, 1000);
 }
