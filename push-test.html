@@ -58,6 +58,63 @@ h2 { font-size: 1rem; color: var(--accent); margin-bottom: 12px; }
 
 #admin-section { display: none; }
 
+/* Tab Navigation */
+.tab-nav {
+    display: flex;
+    gap: 2px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    padding: 4px 4px 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 18px;
+    background: transparent;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    color: var(--text-sub);
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    position: relative;
+}
+.tab-btn:hover { color: var(--text); background: var(--bg-input); }
+.tab-btn.active {
+    color: var(--accent);
+    background: var(--bg-deep);
+    font-weight: 700;
+}
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 2px 2px 0 0;
+}
+.tab-btn .tab-icon { font-size: 1rem; }
+.tab-btn .tab-badge {
+    background: var(--error);
+    color: #fff;
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 700;
+    min-width: 16px;
+    text-align: center;
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
 /* Dashboard */
 .stats-grid {
     display: grid;
@@ -139,92 +196,9 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
 }
 .feedback-item .meta { color: var(--text-sub); font-size: 0.75rem; }
 
-/* Responsive */
-@media (max-width: 600px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .feedback-form { grid-template-columns: 1fr; }
-    table { font-size: 0.7rem; }
-}
-
 .loading { color: var(--text-sub); font-style: italic; }
-.header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 10px; }
 .header-bar .user-info { font-size: 0.85rem; color: var(--text-sub); }
-
-/* Log Panel */
-#log-panel {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    max-height: 45vh;
-    background: #0d0d14;
-    border-top: 2px solid var(--accent);
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.3s ease;
-}
-#log-panel.collapsed { transform: translateY(calc(100% - 36px)); }
-#log-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 14px;
-    background: #101018;
-    cursor: pointer;
-    user-select: none;
-    flex-shrink: 0;
-}
-#log-panel-header h3 {
-    font-size: 0.8rem;
-    color: var(--accent);
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-#log-panel-header .controls { display: flex; gap: 8px; }
-#log-panel-header .controls button {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--text-sub);
-    font-size: 0.7rem;
-    padding: 2px 8px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-#log-panel-header .controls button:hover { border-color: var(--accent); color: var(--text); }
-#log-entries {
-    overflow-y: auto;
-    padding: 8px 14px;
-    font-family: 'Cascadia Code', 'Fira Code', 'SF Mono', monospace;
-    font-size: 0.75rem;
-    line-height: 1.6;
-    flex: 1;
-}
-.log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a2e; display: flex; gap: 8px; }
-.log-entry .log-time { color: #555; white-space: nowrap; flex-shrink: 0; }
-.log-entry .log-level {
-    font-weight: 700;
-    white-space: nowrap;
-    flex-shrink: 0;
-    min-width: 42px;
-}
-.log-entry .log-msg { word-break: break-all; }
-.log-entry.log-info .log-level { color: var(--accent); }
-.log-entry.log-ok .log-level { color: var(--success); }
-.log-entry.log-warn .log-level { color: var(--warning); }
-.log-entry.log-error .log-level { color: var(--error); }
-.log-entry.log-error .log-msg { color: var(--error); }
-#log-count {
-    background: var(--error);
-    color: #fff;
-    font-size: 0.65rem;
-    padding: 1px 6px;
-    border-radius: 8px;
-    display: none;
-}
-.log-panel-spacer { height: 200px; }
 
 /* Conditions Panel */
 .conditions-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
@@ -246,9 +220,7 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
     font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.75rem;
     color: var(--accent); border: 1px solid var(--accent-dim);
 }
-.cond-condition {
-    font-size: 0.78rem; line-height: 1.5;
-}
+.cond-condition { font-size: 0.78rem; line-height: 1.5; }
 .cond-condition code {
     background: var(--bg-input); padding: 1px 6px; border-radius: 4px;
     font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.72rem;
@@ -287,13 +259,67 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
 .cond-legend-dot.individual { background: #ff8a65; }
 .cond-legend-dot.internal { background: #90a4ae; }
 
-.cond-trigger-result {
-    font-size: 0.72rem; margin-top: 4px; padding: 2px 6px; border-radius: 4px;
-}
+.cond-trigger-result { font-size: 0.72rem; margin-top: 4px; padding: 2px 6px; border-radius: 4px; }
 .cond-trigger-result.ok { color: var(--success); }
 .cond-trigger-result.fail { color: var(--error); }
 
+/* Log Panel */
+#log-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    max-height: 45vh;
+    background: #0d0d14;
+    border-top: 2px solid var(--accent);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+#log-panel.collapsed { transform: translateY(calc(100% - 36px)); }
+#log-panel-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 14px; background: #101018;
+    cursor: pointer; user-select: none; flex-shrink: 0;
+}
+#log-panel-header h3 {
+    font-size: 0.8rem; color: var(--accent); margin: 0;
+    display: flex; align-items: center; gap: 8px;
+}
+#log-panel-header .controls { display: flex; gap: 8px; }
+#log-panel-header .controls button {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-sub); font-size: 0.7rem;
+    padding: 2px 8px; border-radius: 4px; cursor: pointer;
+}
+#log-panel-header .controls button:hover { border-color: var(--accent); color: var(--text); }
+#log-entries {
+    overflow-y: auto; padding: 8px 14px;
+    font-family: 'Cascadia Code', 'Fira Code', 'SF Mono', monospace;
+    font-size: 0.75rem; line-height: 1.6; flex: 1;
+}
+.log-entry { padding: 2px 0; border-bottom: 1px solid #1a1a2e; display: flex; gap: 8px; }
+.log-entry .log-time { color: #555; white-space: nowrap; flex-shrink: 0; }
+.log-entry .log-level { font-weight: 700; white-space: nowrap; flex-shrink: 0; min-width: 42px; }
+.log-entry .log-msg { word-break: break-all; }
+.log-entry.log-info .log-level { color: var(--accent); }
+.log-entry.log-ok .log-level { color: var(--success); }
+.log-entry.log-warn .log-level { color: var(--warning); }
+.log-entry.log-error .log-level { color: var(--error); }
+.log-entry.log-error .log-msg { color: var(--error); }
+#log-count {
+    background: var(--error); color: #fff; font-size: 0.65rem;
+    padding: 1px 6px; border-radius: 8px; display: none;
+}
+.log-panel-spacer { height: 200px; }
+
+/* Responsive */
 @media (max-width: 600px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .feedback-form { grid-template-columns: 1fr; }
+    table { font-size: 0.7rem; }
+    .tab-btn { padding: 8px 12px; font-size: 0.75rem; }
+    .tab-btn .tab-label { display: none; }
+    .tab-btn .tab-icon { font-size: 1.1rem; }
     .conditions-table { font-size: 0.7rem; }
     .conditions-table th:nth-child(4), .conditions-table td:nth-child(4) { display: none; }
     .cond-schedule { font-size: 0.68rem; padding: 2px 6px; }
@@ -323,329 +349,367 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
         </div>
     </div>
 
-    <!-- Dashboard -->
-    <div class="card">
-        <h2>Dashboard</h2>
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card"><div class="number" id="stat-total">-</div><div class="label">Total Users</div></div>
-            <div class="stat-card"><div class="number" id="stat-push">-</div><div class="label">Push ON</div></div>
-            <div class="stat-card"><div class="number" id="stat-token">-</div><div class="label">Active Tokens</div></div>
-            <div class="stat-card"><div class="number" id="stat-warn">-</div><div class="label">Streak Risk</div></div>
+    <!-- Tab Navigation -->
+    <nav class="tab-nav" id="tab-nav">
+        <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">Dashboard</span>
+        </button>
+        <button class="tab-btn" data-tab="conditions" onclick="switchTab('conditions')">
+            <span class="tab-icon">⚙️</span>
+            <span class="tab-label">Conditions</span>
+        </button>
+        <button class="tab-btn" data-tab="send" onclick="switchTab('send')">
+            <span class="tab-icon">📤</span>
+            <span class="tab-label">Test Send</span>
+        </button>
+        <button class="tab-btn" data-tab="users" onclick="switchTab('users')">
+            <span class="tab-icon">👥</span>
+            <span class="tab-label">Users</span>
+        </button>
+        <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+            <span class="tab-icon">📋</span>
+            <span class="tab-label">History</span>
+        </button>
+        <button class="tab-btn" data-tab="feedback" onclick="switchTab('feedback')">
+            <span class="tab-icon">💬</span>
+            <span class="tab-label">Feedback</span>
+        </button>
+    </nav>
+
+    <!-- ══════════════ Tab: Dashboard ══════════════ -->
+    <div class="tab-content active" id="tab-dashboard">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <h2>Overview</h2>
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-card"><div class="number" id="stat-total">-</div><div class="label">Total Users</div></div>
+                <div class="stat-card"><div class="number" id="stat-push">-</div><div class="label">Push ON</div></div>
+                <div class="stat-card"><div class="number" id="stat-token">-</div><div class="label">Active Tokens</div></div>
+                <div class="stat-card"><div class="number" id="stat-warn">-</div><div class="label">Streak Risk</div></div>
+            </div>
         </div>
     </div>
 
-    <!-- Push Conditions Control Panel -->
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h2 style="margin:0;">Push Notification Conditions</h2>
-            <button class="btn btn-ghost btn-sm" onclick="refreshConditionsStatus()">Refresh Status</button>
-        </div>
-
-        <table class="conditions-table">
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Schedule</th>
-                    <th>Condition</th>
-                    <th>Target</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Scheduled Auto -->
-                <tr><td colspan="5" class="cond-section-label">Scheduled — Auto</td></tr>
-
-                <tr id="cond-raid1">
-                    <td>
-                        <span class="cond-type-icon">⚔️</span>
-                        <span class="cond-type-label">Raid Alert #1</span>
-                        <span class="cond-type-sub">sendRaidAlert0555</span>
-                    </td>
-                    <td><span class="cond-schedule">05:55 KST</span></td>
-                    <td class="cond-condition">Every day (unconditional)</td>
-                    <td><span class="cond-target-badge cond-target-topic">Topic: raid_alerts</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('raid_start', 'raid_alerts', this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-raid1"></div>
-                    </td>
-                </tr>
-
-                <tr id="cond-raid2">
-                    <td>
-                        <span class="cond-type-icon">⚔️</span>
-                        <span class="cond-type-label">Raid Alert #2</span>
-                        <span class="cond-type-sub">sendRaidAlert1125</span>
-                    </td>
-                    <td><span class="cond-schedule">11:25 KST</span></td>
-                    <td class="cond-condition">Every day (unconditional)</td>
-                    <td><span class="cond-target-badge cond-target-topic">Topic: raid_alerts</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('raid_start', 'raid_alerts', this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-raid2"></div>
-                    </td>
-                </tr>
-
-                <tr id="cond-raid3">
-                    <td>
-                        <span class="cond-type-icon">⚔️</span>
-                        <span class="cond-type-label">Raid Alert #3</span>
-                        <span class="cond-type-sub">sendRaidAlert1855</span>
-                    </td>
-                    <td><span class="cond-schedule">18:55 KST</span></td>
-                    <td class="cond-condition">Every day (unconditional)</td>
-                    <td><span class="cond-target-badge cond-target-topic">Topic: raid_alerts</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('raid_start', 'raid_alerts', this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-raid3"></div>
-                    </td>
-                </tr>
-
-                <tr id="cond-daily">
-                    <td>
-                        <span class="cond-type-icon">🎯</span>
-                        <span class="cond-type-label">Daily Reminder</span>
-                        <span class="cond-type-sub">sendDailyReminder</span>
-                    </td>
-                    <td><span class="cond-schedule">09:00 KST</span></td>
-                    <td class="cond-condition">Every day (unconditional)</td>
-                    <td><span class="cond-target-badge cond-target-topic">Topic: daily_reminder</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('daily_reminder', 'daily_reminder', this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-daily"></div>
-                    </td>
-                </tr>
-
-                <tr id="cond-streak-warn">
-                    <td>
-                        <span class="cond-type-icon">🔥</span>
-                        <span class="cond-type-label">Streak Warning</span>
-                        <span class="cond-type-sub">sendStreakWarnings</span>
-                    </td>
-                    <td><span class="cond-schedule">21:00 KST</span></td>
-                    <td class="cond-condition">
-                        <code>lastActiveDate >= 2d</code><br>
-                        <code>pushEnabled == true</code><br>
-                        <code>fcmToken</code> exists
-                    </td>
-                    <td><span class="cond-target-badge cond-target-individual">Individual Token</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('streak_warning', null, this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-streak-warn"></div>
-                    </td>
-                </tr>
-
-                <tr id="cond-streak-broken">
-                    <td>
-                        <span class="cond-type-icon">💔</span>
-                        <span class="cond-type-label">Streak Broken</span>
-                        <span class="cond-type-sub">sendStreakWarnings</span>
-                    </td>
-                    <td><span class="cond-schedule">21:00 KST</span></td>
-                    <td class="cond-condition">
-                        <code>lastActiveDate >= 3d</code><br>
-                        <code>pushEnabled == true</code><br>
-                        <code>fcmToken</code> exists
-                    </td>
-                    <td><span class="cond-target-badge cond-target-individual">Individual Token</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('streak_broken', null, this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-streak-broken"></div>
-                    </td>
-                </tr>
-
-                <!-- Manual / Admin -->
-                <tr><td colspan="5" class="cond-section-label">Manual — Admin</td></tr>
-
-                <tr id="cond-announce">
-                    <td>
-                        <span class="cond-type-icon">📢</span>
-                        <span class="cond-type-label">Announcement</span>
-                        <span class="cond-type-sub">sendAnnouncement</span>
-                    </td>
-                    <td><span class="cond-schedule">On-demand</span></td>
-                    <td class="cond-condition">Admin triggers manually</td>
-                    <td><span class="cond-target-badge cond-target-topic">Topic: announcements</span></td>
-                    <td>
-                        <button class="btn-trigger" onclick="triggerCondition('custom', 'announcements', this)">Trigger</button>
-                        <div class="cond-trigger-result" id="cond-result-announce"></div>
-                    </td>
-                </tr>
-
-                <!-- Maintenance -->
-                <tr><td colspan="5" class="cond-section-label">Maintenance</td></tr>
-
-                <tr id="cond-cleanup">
-                    <td>
-                        <span class="cond-type-icon">🧹</span>
-                        <span class="cond-type-label">Token Cleanup</span>
-                        <span class="cond-type-sub">cleanupInactiveTokens</span>
-                    </td>
-                    <td><span class="cond-schedule">Sun 03:00 KST</span></td>
-                    <td class="cond-condition">
-                        <code>lastActiveDate >= 30d</code><br>
-                        Removes <code>fcmToken</code>, sets <code>pushEnabled = false</code>
-                    </td>
-                    <td><span class="cond-target-badge cond-target-internal">Internal Cleanup</span></td>
-                    <td>
-                        <span style="font-size:0.72rem; color:var(--text-sub);">Auto only</span>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- Live Stats -->
-        <div style="margin-top:16px; padding:12px; background:var(--bg-input); border-radius:8px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span style="font-size:0.8rem; font-weight:600; color:var(--accent);">Condition Match Preview</span>
-                <span style="font-size:0.7rem; color:var(--text-sub);" id="cond-match-time"></span>
+    <!-- ══════════════ Tab: Conditions ══════════════ -->
+    <div class="tab-content" id="tab-conditions">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h2 style="margin:0;">Push Notification Conditions</h2>
+                <button class="btn btn-ghost btn-sm" onclick="refreshConditionsStatus()">Refresh Status</button>
             </div>
-            <div class="stats-grid" id="cond-match-stats">
-                <div class="stat-card"><div class="number" id="cond-stat-raid">-</div><div class="label">Raid Subscribers</div></div>
-                <div class="stat-card"><div class="number" id="cond-stat-daily">-</div><div class="label">Daily Subscribers</div></div>
-                <div class="stat-card"><div class="number" id="cond-stat-warn">-</div><div class="label">Streak Warning (2d)</div></div>
-                <div class="stat-card"><div class="number" id="cond-stat-broken">-</div><div class="label">Streak Broken (3d+)</div></div>
-                <div class="stat-card"><div class="number" id="cond-stat-cleanup">-</div><div class="label">Cleanup Target (30d+)</div></div>
-            </div>
-        </div>
 
-        <div class="cond-legend">
-            <div class="cond-legend-item"><span class="cond-legend-dot topic"></span>Topic-based</div>
-            <div class="cond-legend-item"><span class="cond-legend-dot individual"></span>Individual Token</div>
-            <div class="cond-legend-item"><span class="cond-legend-dot internal"></span>Internal</div>
+            <table class="conditions-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Schedule</th>
+                        <th>Condition</th>
+                        <th>Target</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="cond-section-label">Scheduled — Auto</td></tr>
+
+                    <tr id="cond-raid1">
+                        <td>
+                            <span class="cond-type-icon">⚔️</span>
+                            <span class="cond-type-label">Raid Alert #1</span>
+                            <span class="cond-type-sub">sendRaidAlert0555</span>
+                        </td>
+                        <td><span class="cond-schedule">05:55 KST</span></td>
+                        <td class="cond-condition">Every day (unconditional)</td>
+                        <td><span class="cond-target-badge cond-target-topic">Topic: raid_alerts</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('raid_start', 'raid_alerts', this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-raid1"></div>
+                        </td>
+                    </tr>
+
+                    <tr id="cond-raid2">
+                        <td>
+                            <span class="cond-type-icon">⚔️</span>
+                            <span class="cond-type-label">Raid Alert #2</span>
+                            <span class="cond-type-sub">sendRaidAlert1125</span>
+                        </td>
+                        <td><span class="cond-schedule">11:25 KST</span></td>
+                        <td class="cond-condition">Every day (unconditional)</td>
+                        <td><span class="cond-target-badge cond-target-topic">Topic: raid_alerts</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('raid_start', 'raid_alerts', this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-raid2"></div>
+                        </td>
+                    </tr>
+
+                    <tr id="cond-raid3">
+                        <td>
+                            <span class="cond-type-icon">⚔️</span>
+                            <span class="cond-type-label">Raid Alert #3</span>
+                            <span class="cond-type-sub">sendRaidAlert1855</span>
+                        </td>
+                        <td><span class="cond-schedule">18:55 KST</span></td>
+                        <td class="cond-condition">Every day (unconditional)</td>
+                        <td><span class="cond-target-badge cond-target-topic">Topic: raid_alerts</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('raid_start', 'raid_alerts', this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-raid3"></div>
+                        </td>
+                    </tr>
+
+                    <tr id="cond-daily">
+                        <td>
+                            <span class="cond-type-icon">🎯</span>
+                            <span class="cond-type-label">Daily Reminder</span>
+                            <span class="cond-type-sub">sendDailyReminder</span>
+                        </td>
+                        <td><span class="cond-schedule">09:00 KST</span></td>
+                        <td class="cond-condition">Every day (unconditional)</td>
+                        <td><span class="cond-target-badge cond-target-topic">Topic: daily_reminder</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('daily_reminder', 'daily_reminder', this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-daily"></div>
+                        </td>
+                    </tr>
+
+                    <tr id="cond-streak-warn">
+                        <td>
+                            <span class="cond-type-icon">🔥</span>
+                            <span class="cond-type-label">Streak Warning</span>
+                            <span class="cond-type-sub">sendStreakWarnings</span>
+                        </td>
+                        <td><span class="cond-schedule">21:00 KST</span></td>
+                        <td class="cond-condition">
+                            <code>lastActiveDate >= 2d</code><br>
+                            <code>pushEnabled == true</code><br>
+                            <code>fcmToken</code> exists
+                        </td>
+                        <td><span class="cond-target-badge cond-target-individual">Individual Token</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('streak_warning', null, this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-streak-warn"></div>
+                        </td>
+                    </tr>
+
+                    <tr id="cond-streak-broken">
+                        <td>
+                            <span class="cond-type-icon">💔</span>
+                            <span class="cond-type-label">Streak Broken</span>
+                            <span class="cond-type-sub">sendStreakWarnings</span>
+                        </td>
+                        <td><span class="cond-schedule">21:00 KST</span></td>
+                        <td class="cond-condition">
+                            <code>lastActiveDate >= 3d</code><br>
+                            <code>pushEnabled == true</code><br>
+                            <code>fcmToken</code> exists
+                        </td>
+                        <td><span class="cond-target-badge cond-target-individual">Individual Token</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('streak_broken', null, this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-streak-broken"></div>
+                        </td>
+                    </tr>
+
+                    <tr><td colspan="5" class="cond-section-label">Manual — Admin</td></tr>
+
+                    <tr id="cond-announce">
+                        <td>
+                            <span class="cond-type-icon">📢</span>
+                            <span class="cond-type-label">Announcement</span>
+                            <span class="cond-type-sub">sendAnnouncement</span>
+                        </td>
+                        <td><span class="cond-schedule">On-demand</span></td>
+                        <td class="cond-condition">Admin triggers manually</td>
+                        <td><span class="cond-target-badge cond-target-topic">Topic: announcements</span></td>
+                        <td>
+                            <button class="btn-trigger" onclick="triggerCondition('custom', 'announcements', this)">Trigger</button>
+                            <div class="cond-trigger-result" id="cond-result-announce"></div>
+                        </td>
+                    </tr>
+
+                    <tr><td colspan="5" class="cond-section-label">Maintenance</td></tr>
+
+                    <tr id="cond-cleanup">
+                        <td>
+                            <span class="cond-type-icon">🧹</span>
+                            <span class="cond-type-label">Token Cleanup</span>
+                            <span class="cond-type-sub">cleanupInactiveTokens</span>
+                        </td>
+                        <td><span class="cond-schedule">Sun 03:00 KST</span></td>
+                        <td class="cond-condition">
+                            <code>lastActiveDate >= 30d</code><br>
+                            Removes <code>fcmToken</code>, sets <code>pushEnabled = false</code>
+                        </td>
+                        <td><span class="cond-target-badge cond-target-internal">Internal Cleanup</span></td>
+                        <td>
+                            <span style="font-size:0.72rem; color:var(--text-sub);">Auto only</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Condition Match Preview -->
+            <div style="margin-top:16px; padding:12px; background:var(--bg-input); border-radius:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:0.8rem; font-weight:600; color:var(--accent);">Condition Match Preview</span>
+                    <span style="font-size:0.7rem; color:var(--text-sub);" id="cond-match-time"></span>
+                </div>
+                <div class="stats-grid" id="cond-match-stats">
+                    <div class="stat-card"><div class="number" id="cond-stat-raid">-</div><div class="label">Raid Subscribers</div></div>
+                    <div class="stat-card"><div class="number" id="cond-stat-daily">-</div><div class="label">Daily Subscribers</div></div>
+                    <div class="stat-card"><div class="number" id="cond-stat-warn">-</div><div class="label">Streak Warning (2d)</div></div>
+                    <div class="stat-card"><div class="number" id="cond-stat-broken">-</div><div class="label">Streak Broken (3d+)</div></div>
+                    <div class="stat-card"><div class="number" id="cond-stat-cleanup">-</div><div class="label">Cleanup Target (30d+)</div></div>
+                </div>
+            </div>
+
+            <div class="cond-legend">
+                <div class="cond-legend-item"><span class="cond-legend-dot topic"></span>Topic-based</div>
+                <div class="cond-legend-item"><span class="cond-legend-dot individual"></span>Individual Token</div>
+                <div class="cond-legend-item"><span class="cond-legend-dot internal"></span>Internal</div>
+            </div>
         </div>
     </div>
 
-    <!-- Test Send -->
-    <div class="card">
-        <h2>Test Send</h2>
-        <div class="form-group">
-            <label>Notification Type</label>
-            <select id="send-type" onchange="updatePreview()">
-                <option value="raid_start">Raid Alert</option>
-                <option value="daily_reminder">Daily Reminder</option>
-                <option value="streak_warning">Streak Warning</option>
-                <option value="streak_broken">Streak Broken</option>
-                <option value="custom">Custom Message</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>Target</label>
-            <div class="radio-group">
-                <label><input type="radio" name="target" value="topic" checked onchange="toggleTarget()"> Topic</label>
-                <label><input type="radio" name="target" value="user" onchange="toggleTarget()"> Individual User</label>
-            </div>
-        </div>
-
-        <div id="topic-section" class="form-group">
-            <label>Topic</label>
-            <select id="send-topic">
-                <option value="raid_alerts">raid_alerts</option>
-                <option value="daily_reminder">daily_reminder</option>
-                <option value="announcements">announcements</option>
-            </select>
-        </div>
-
-        <div id="user-section" class="form-group" style="display:none;">
-            <label>User (select from list below or paste token)</label>
-            <input type="text" id="send-token" placeholder="FCM Token or select from user list">
-        </div>
-
-        <div class="form-group">
-            <label>Language</label>
-            <select id="send-lang" onchange="updatePreview()">
-                <option value="ko">Korean</option>
-                <option value="en">English</option>
-                <option value="ja">Japanese</option>
-            </select>
-        </div>
-
-        <div id="custom-fields" style="display:none;">
+    <!-- ══════════════ Tab: Test Send ══════════════ -->
+    <div class="tab-content" id="tab-send">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <h2>Test Send</h2>
             <div class="form-group">
-                <label>Custom Title</label>
-                <input type="text" id="custom-title" placeholder="Notification title">
-            </div>
-            <div class="form-group">
-                <label>Custom Body</label>
-                <textarea id="custom-body" placeholder="Notification body"></textarea>
-            </div>
-        </div>
-
-        <div class="preview-box" id="preview-box">
-            <div class="title" id="preview-title"></div>
-            <div class="body" id="preview-body"></div>
-        </div>
-
-        <button class="btn btn-primary" id="send-btn" onclick="doSendTest()">Send Test Notification</button>
-        <div class="result-box" id="send-result"></div>
-    </div>
-
-    <!-- Users List -->
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h2 style="margin:0;">Push-Enabled Users</h2>
-            <button class="btn btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
-        </div>
-        <div id="users-table"><p class="loading">Loading...</p></div>
-    </div>
-
-    <!-- Push Logs -->
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h2 style="margin:0;">Send History</h2>
-            <button class="btn btn-ghost btn-sm" onclick="loadLogs()">Refresh</button>
-        </div>
-        <div id="logs-table"><p class="loading">Loading...</p></div>
-    </div>
-
-    <!-- Feedback -->
-    <div class="card">
-        <h2>Test Feedback</h2>
-        <div class="feedback-form">
-            <div class="form-group">
-                <label>Device Model</label>
-                <input type="text" id="fb-device" placeholder="e.g. Galaxy S23">
-            </div>
-            <div class="form-group">
-                <label>OS Version</label>
-                <input type="text" id="fb-os" placeholder="e.g. Android 14">
-            </div>
-            <div class="form-group">
-                <label>Notification Received?</label>
-                <select id="fb-received">
-                    <option value="yes">Yes - received</option>
-                    <option value="foreground">Yes - foreground only</option>
-                    <option value="background">Yes - background only</option>
-                    <option value="no">No - not received</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Notification Type Tested</label>
-                <select id="fb-type">
+                <label>Notification Type</label>
+                <select id="send-type" onchange="updatePreview()">
                     <option value="raid_start">Raid Alert</option>
                     <option value="daily_reminder">Daily Reminder</option>
                     <option value="streak_warning">Streak Warning</option>
                     <option value="streak_broken">Streak Broken</option>
-                    <option value="announcement">Announcement</option>
-                    <option value="custom">Custom</option>
+                    <option value="custom">Custom Message</option>
                 </select>
             </div>
-            <div class="form-group full-width">
-                <label>Memo</label>
-                <textarea id="fb-memo" placeholder="Additional notes..."></textarea>
-            </div>
-            <div class="full-width">
-                <button class="btn btn-primary btn-sm" onclick="submitFeedback()">Submit Feedback</button>
-            </div>
-        </div>
-        <div class="result-box" id="fb-result"></div>
-        <br>
-        <h2>Recent Feedback</h2>
-        <div id="feedback-list"><p class="loading">Loading...</p></div>
-    </div>
-</div>
 
-</div>
+            <div class="form-group">
+                <label>Target</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="target" value="topic" checked onchange="toggleTarget()"> Topic</label>
+                    <label><input type="radio" name="target" value="user" onchange="toggleTarget()"> Individual User</label>
+                </div>
+            </div>
+
+            <div id="topic-section" class="form-group">
+                <label>Topic</label>
+                <select id="send-topic">
+                    <option value="raid_alerts">raid_alerts</option>
+                    <option value="daily_reminder">daily_reminder</option>
+                    <option value="announcements">announcements</option>
+                </select>
+            </div>
+
+            <div id="user-section" class="form-group" style="display:none;">
+                <label>User (select from list below or paste token)</label>
+                <input type="text" id="send-token" placeholder="FCM Token or select from user list">
+            </div>
+
+            <div class="form-group">
+                <label>Language</label>
+                <select id="send-lang" onchange="updatePreview()">
+                    <option value="ko">Korean</option>
+                    <option value="en">English</option>
+                    <option value="ja">Japanese</option>
+                </select>
+            </div>
+
+            <div id="custom-fields" style="display:none;">
+                <div class="form-group">
+                    <label>Custom Title</label>
+                    <input type="text" id="custom-title" placeholder="Notification title">
+                </div>
+                <div class="form-group">
+                    <label>Custom Body</label>
+                    <textarea id="custom-body" placeholder="Notification body"></textarea>
+                </div>
+            </div>
+
+            <div class="preview-box" id="preview-box">
+                <div class="title" id="preview-title"></div>
+                <div class="body" id="preview-body"></div>
+            </div>
+
+            <button class="btn btn-primary" id="send-btn" onclick="doSendTest()">Send Test Notification</button>
+            <div class="result-box" id="send-result"></div>
+        </div>
+    </div>
+
+    <!-- ══════════════ Tab: Users ══════════════ -->
+    <div class="tab-content" id="tab-users">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h2 style="margin:0;">Push-Enabled Users</h2>
+                <button class="btn btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
+            </div>
+            <div id="users-table"><p class="loading">Loading...</p></div>
+        </div>
+    </div>
+
+    <!-- ══════════════ Tab: History ══════════════ -->
+    <div class="tab-content" id="tab-history">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h2 style="margin:0;">Send History</h2>
+                <button class="btn btn-ghost btn-sm" onclick="loadLogs()">Refresh</button>
+            </div>
+            <div id="logs-table"><p class="loading">Loading...</p></div>
+        </div>
+    </div>
+
+    <!-- ══════════════ Tab: Feedback ══════════════ -->
+    <div class="tab-content" id="tab-feedback">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <h2>Test Feedback</h2>
+            <div class="feedback-form">
+                <div class="form-group">
+                    <label>Device Model</label>
+                    <input type="text" id="fb-device" placeholder="e.g. Galaxy S23">
+                </div>
+                <div class="form-group">
+                    <label>OS Version</label>
+                    <input type="text" id="fb-os" placeholder="e.g. Android 14">
+                </div>
+                <div class="form-group">
+                    <label>Notification Received?</label>
+                    <select id="fb-received">
+                        <option value="yes">Yes - received</option>
+                        <option value="foreground">Yes - foreground only</option>
+                        <option value="background">Yes - background only</option>
+                        <option value="no">No - not received</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notification Type Tested</label>
+                    <select id="fb-type">
+                        <option value="raid_start">Raid Alert</option>
+                        <option value="daily_reminder">Daily Reminder</option>
+                        <option value="streak_warning">Streak Warning</option>
+                        <option value="streak_broken">Streak Broken</option>
+                        <option value="announcement">Announcement</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label>Memo</label>
+                    <textarea id="fb-memo" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="full-width">
+                    <button class="btn btn-primary btn-sm" onclick="submitFeedback()">Submit Feedback</button>
+                </div>
+            </div>
+            <div class="result-box" id="fb-result"></div>
+            <br>
+            <h2>Recent Feedback</h2>
+            <div id="feedback-list"><p class="loading">Loading...</p></div>
+        </div>
+    </div>
+
+</div><!-- /admin-section -->
+
+</div><!-- /container -->
 
 <!-- Log Panel -->
 <div id="log-panel" class="collapsed">
@@ -722,6 +786,14 @@ window.downloadLogs = function() {
     a.download = "push-admin-log-" + new Date().toISOString().slice(0, 10) + ".txt";
     a.click();
     URL.revokeObjectURL(a.href);
+};
+
+// ─── Tab Navigation ───
+window.switchTab = function(tabId) {
+    document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(tc => tc.classList.remove("active"));
+    document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add("active");
+    document.getElementById("tab-" + tabId).classList.add("active");
 };
 
 // ─── Firebase Init ───
@@ -820,7 +892,6 @@ async function pingFunctions() {
         (d.firestore && d.firestore.startsWith("ok")) ? tok("Ping", "Firestore: " + d.firestore) : terror("Ping", "Firestore: " + d.firestore);
         (d.fcm && d.fcm.startsWith("ok")) ? tok("Ping", "FCM: " + d.fcm) : terror("Ping", "FCM: " + d.fcm);
 
-        // 진단 결과 표시
         if (d.diag) {
             tlog("Ping", "--- Diagnostics ---");
             tlog("Ping", "Admin: " + d.diag.adminEmail + " (isAdmin=" + d.diag.isAdmin + ")");
@@ -1026,6 +1097,7 @@ window.loadUsers = async function() {
 };
 
 window.sendToUser = function(token) {
+    switchTab('send');
     document.querySelector('input[name="target"][value="user"]').checked = true;
     toggleTarget();
     document.getElementById("send-token").value = token;
@@ -1207,8 +1279,6 @@ window.refreshConditionsStatus = async function() {
             } catch {}
         });
 
-        // Topic subscriber counts are not directly queryable from client,
-        // so we show pushEnabled count as a proxy
         document.getElementById("cond-stat-raid").textContent = pushOnCount;
         document.getElementById("cond-stat-daily").textContent = pushOnCount;
         document.getElementById("cond-stat-warn").textContent = warnCount;
@@ -1232,17 +1302,15 @@ window.triggerCondition = async function(type, topic, btnEl) {
     resultEl.className = "cond-trigger-result";
 
     const lang = "ko";
-    const payload = { type, lang };
 
     if (type === "custom" && topic === "announcements") {
-        // Announcement: send via sendAnnouncement action
         tlog("Conditions", "Triggering announcement via sendAnnouncement...");
         try {
             const fn = httpsCallable(functions, "ping");
             const result = await fn({
                 action: "sendAnnouncement",
-                title: "📢 테스트 공지",
-                body: "관리자 컨트롤 패널에서 발송된 테스트 공지입니다.",
+                title: "\uD83D\uDCE2 \uD14C\uC2A4\uD2B8 \uACF5\uC9C0",
+                body: "\uAD00\uB9AC\uC790 \uCEE8\uD2B8\uB864 \uD328\uB110\uC5D0\uC11C \uBC1C\uC1A1\uB41C \uD14C\uC2A4\uD2B8 \uACF5\uC9C0\uC785\uB2C8\uB2E4.",
                 targetTab: ""
             });
             tok("Conditions", "Announcement sent: " + result.data.messageId);
@@ -1254,7 +1322,6 @@ window.triggerCondition = async function(type, topic, btnEl) {
             resultEl.className = "cond-trigger-result fail";
         }
     } else if (topic) {
-        // Topic-based: send via sendTestNotification with topic
         tlog("Conditions", `Triggering ${type} to topic:${topic}...`);
         try {
             const fn = httpsCallable(functions, "ping");
@@ -1268,10 +1335,8 @@ window.triggerCondition = async function(type, topic, btnEl) {
             resultEl.className = "cond-trigger-result fail";
         }
     } else {
-        // Individual token-based (streak): send to all matching users
         tlog("Conditions", `Triggering ${type} to matching users...`);
         try {
-            const now = new Date();
             const minDays = type === "streak_warning" ? 2 : 3;
             const matchUsers = usersCache.filter(u =>
                 u.fcmToken && u.diffDays !== null && u.diffDays >= minDays
