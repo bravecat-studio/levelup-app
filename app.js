@@ -3734,35 +3734,55 @@ async function showPermissionPrompts() {
     if (AppState.user.pushEnabled && AppState.user.gpsEnabled && AppState.user.syncEnabled) return;
 
     if (window.AppLogger) AppLogger.info('[PermPrompt] 네이티브 권한 순차 요청 시작');
+    const cap = window.Capacitor;
 
-    // 1) 푸시 알림 권한
+    // 1) 푸시 알림 권한 — 네이티브 API 직접 호출
     if (!AppState.user.pushEnabled) {
         try {
-            const pushToggle = document.getElementById('push-toggle');
-            pushToggle.checked = true;
-            await togglePushNotifications();
+            const token = await requestNativePushPermission();
+            if (token) {
+                AppState.user.pushEnabled = true;
+                AppState.user.fcmToken = token;
+                document.getElementById('push-toggle').checked = true;
+                const statusDiv = document.getElementById('push-status');
+                statusDiv.style.display = 'flex';
+                statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${i18n[AppState.currentLang].push_on || '푸시 알림 활성화됨'}</span>`;
+                await setupNativePushListeners();
+                saveUserData();
+            }
         } catch (e) {
             if (window.AppLogger) AppLogger.warn('[PermPrompt] Push permission error: ' + (e.message || JSON.stringify(e)));
         }
     }
 
-    // 2) GPS 위치 권한
-    if (!AppState.user.gpsEnabled) {
+    // 2) GPS 위치 권한 — 네이티브 API 직접 호출
+    if (!AppState.user.gpsEnabled && cap.Plugins && cap.Plugins.Geolocation) {
         try {
-            const gpsToggle = document.getElementById('gps-toggle');
-            gpsToggle.checked = true;
-            await toggleGPS();
+            const { Geolocation } = cap.Plugins;
+            const permResult = await Geolocation.requestPermissions();
+            if (permResult.location !== 'denied') {
+                AppState.user.gpsEnabled = true;
+                document.getElementById('gps-toggle').checked = true;
+                const statusDiv = document.getElementById('gps-status');
+                statusDiv.style.display = 'flex';
+                statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${i18n[AppState.currentLang].gps_on || '위치 권한 활성화됨'}</span>`;
+                saveUserData();
+            }
         } catch (e) {
             if (window.AppLogger) AppLogger.warn('[PermPrompt] GPS permission error: ' + (e.message || JSON.stringify(e)));
         }
     }
 
-    // 3) 건강 데이터(피트니스) 권한
+    // 3) 건강 데이터(피트니스) 권한 — 네이티브 API 직접 호출
     if (!AppState.user.syncEnabled) {
         try {
-            const syncToggle = document.getElementById('sync-toggle');
-            syncToggle.checked = true;
-            await toggleHealthSync();
+            const granted = await requestFitnessScope();
+            if (granted) {
+                AppState.user.syncEnabled = true;
+                document.getElementById('sync-toggle').checked = true;
+                saveUserData();
+                syncHealthData(true);
+            }
         } catch (e) {
             if (window.AppLogger) AppLogger.warn('[PermPrompt] Fitness permission error: ' + (e.message || JSON.stringify(e)));
         }
