@@ -4108,7 +4108,7 @@ async function syncHealthData(showMsg = false) {
 
 // --- 푸시 알림 (FCM) ---
 
-/** 앱 토글과 OS 권한 상태 동기화 — 설정 페이지 진입 시 호출 */
+/** 앱 토글과 OS 권한 상태 양방향 동기화 — 로그인 시 호출 */
 async function syncToggleWithOSPermissions() {
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
     if (!isNative) return;
@@ -4117,12 +4117,15 @@ async function syncToggleWithOSPermissions() {
     const lang = i18n[AppState.currentLang];
     let changed = false;
 
-    // 1) 푸시 알림: OS에서 차단됐으면 앱 토글도 off
-    if (AppState.user.pushEnabled && cap.Plugins && cap.Plugins.PushNotifications) {
+    // 1) 푸시 알림: OS 상태와 앱 토글 양방향 동기화
+    if (cap.Plugins && cap.Plugins.PushNotifications) {
         try {
             const { PushNotifications } = cap.Plugins;
             const status = await PushNotifications.checkPermissions();
-            if (status.receive !== 'granted') {
+            const osGranted = status.receive === 'granted';
+
+            if (AppState.user.pushEnabled && !osGranted) {
+                // OS 차단 → 앱 토글 off
                 AppState.user.pushEnabled = false;
                 AppState.user.fcmToken = null;
                 const pushToggle = document.getElementById('push-toggle');
@@ -4134,18 +4137,38 @@ async function syncToggleWithOSPermissions() {
                 }
                 changed = true;
                 if (window.AppLogger) AppLogger.info('[SyncPerm] Push disabled: OS permission not granted');
+            } else if (!AppState.user.pushEnabled && osGranted) {
+                // OS 허용 → 앱 토글 on + 리스너 설정
+                const token = await requestNativePushPermission();
+                if (token) {
+                    AppState.user.pushEnabled = true;
+                    AppState.user.fcmToken = token;
+                    const pushToggle = document.getElementById('push-toggle');
+                    if (pushToggle) pushToggle.checked = true;
+                    const statusDiv = document.getElementById('push-status');
+                    if (statusDiv) {
+                        statusDiv.style.display = 'flex';
+                        statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.push_on || '푸시 알림 활성화됨'}</span>`;
+                    }
+                    await setupNativePushListeners();
+                    changed = true;
+                    if (window.AppLogger) AppLogger.info('[SyncPerm] Push enabled: OS permission granted');
+                }
             }
         } catch (e) {
             if (window.AppLogger) AppLogger.warn('[SyncPerm] Push check error: ' + (e.message || JSON.stringify(e)));
         }
     }
 
-    // 2) GPS 위치: OS에서 거부됐으면 앱 토글도 off
-    if (AppState.user.gpsEnabled && cap.Plugins && cap.Plugins.Geolocation) {
+    // 2) GPS 위치: OS 상태와 앱 토글 양방향 동기화
+    if (cap.Plugins && cap.Plugins.Geolocation) {
         try {
             const { Geolocation } = cap.Plugins;
             const status = await Geolocation.checkPermissions();
-            if (status.location !== 'granted') {
+            const osGranted = status.location === 'granted';
+
+            if (AppState.user.gpsEnabled && !osGranted) {
+                // OS 거부 → 앱 토글 off
                 AppState.user.gpsEnabled = false;
                 const gpsToggle = document.getElementById('gps-toggle');
                 if (gpsToggle) gpsToggle.checked = false;
@@ -4156,14 +4179,26 @@ async function syncToggleWithOSPermissions() {
                 }
                 changed = true;
                 if (window.AppLogger) AppLogger.info('[SyncPerm] GPS disabled: OS permission not granted');
+            } else if (!AppState.user.gpsEnabled && osGranted) {
+                // OS 허용 → 앱 토글 on
+                AppState.user.gpsEnabled = true;
+                const gpsToggle = document.getElementById('gps-toggle');
+                if (gpsToggle) gpsToggle.checked = true;
+                const statusDiv = document.getElementById('gps-status');
+                if (statusDiv) {
+                    statusDiv.style.display = 'flex';
+                    statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.gps_on || '위치 권한 활성화됨'}</span>`;
+                }
+                changed = true;
+                if (window.AppLogger) AppLogger.info('[SyncPerm] GPS enabled: OS permission granted');
             }
         } catch (e) {
             if (window.AppLogger) AppLogger.warn('[SyncPerm] GPS check error: ' + (e.message || JSON.stringify(e)));
         }
     }
 
-    // 3) 건강 데이터: OS에서 권한 해제됐으면 앱 토글도 off
-    if (AppState.user.syncEnabled && cap.Plugins) {
+    // 3) 건강 데이터: OS 상태와 앱 토글 양방향 동기화
+    if (cap.Plugins) {
         try {
             let hasPermission = false;
             const { HealthConnect, GoogleFit } = cap.Plugins;
@@ -4181,7 +4216,8 @@ async function syncToggleWithOSPermissions() {
                 }
             }
 
-            if (!hasPermission) {
+            if (AppState.user.syncEnabled && !hasPermission) {
+                // OS 해제 → 앱 토글 off
                 AppState.user.syncEnabled = false;
                 const syncToggle = document.getElementById('sync-toggle');
                 if (syncToggle) syncToggle.checked = false;
@@ -4192,6 +4228,14 @@ async function syncToggleWithOSPermissions() {
                 }
                 changed = true;
                 if (window.AppLogger) AppLogger.info('[SyncPerm] Fitness disabled: OS permission not granted');
+            } else if (!AppState.user.syncEnabled && hasPermission) {
+                // OS 허용 → 앱 토글 on + 데이터 동기화
+                AppState.user.syncEnabled = true;
+                const syncToggle = document.getElementById('sync-toggle');
+                if (syncToggle) syncToggle.checked = true;
+                syncHealthData(true);
+                changed = true;
+                if (window.AppLogger) AppLogger.info('[SyncPerm] Fitness enabled: OS permission granted');
             }
         } catch (e) {
             if (window.AppLogger) AppLogger.warn('[SyncPerm] Fitness check error: ' + (e.message || JSON.stringify(e)));
