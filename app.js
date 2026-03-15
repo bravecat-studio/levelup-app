@@ -2127,42 +2127,92 @@ window.sharePlannerAsImage = async function() {
     const failMsgs = { ko: '이미지 저장에 실패했습니다.', en: 'Failed to save image.', ja: '画像の保存に失敗しました。' };
 
     try {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) throw new Error('toBlob failed');
-
         const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-        // 방법 1: Web Share API (네이티브 앱에서 가장 잘 동작)
-        if (navigator.share && navigator.canShare) {
-            const file = new File([blob], fileName, { type: 'image/png' });
-            const shareData = { files: [file] };
-            if (navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-                // 모달 닫기
-                const m = document.getElementById('shareModal');
-                m.classList.add('d-none');
-                m.classList.remove('d-flex');
-                return;
+        // 네이티브 앱: Capacitor Filesystem API로 직접 로컬 저장
+        if (isNative) {
+            const dataUrl = canvas.toDataURL('image/png');
+            const base64Data = dataUrl.split(',')[1];
+
+            try {
+                const { Filesystem, Directory } = await import('@capacitor/filesystem');
+
+                // Downloads 디렉토리에 저장 시도
+                let savedPath = null;
+                const dirs = [Directory.Documents, Directory.External, Directory.Cache];
+                for (const dir of dirs) {
+                    try {
+                        const result = await Filesystem.writeFile({
+                            path: fileName,
+                            data: base64Data,
+                            directory: dir,
+                            recursive: true
+                        });
+                        savedPath = result.uri;
+                        break;
+                    } catch(dirErr) {
+                        AppLogger.warn('[Planner] Filesystem write failed for dir: ' + dirErr.message);
+                    }
+                }
+
+                if (savedPath) {
+                    AppLogger.info('[Planner] Image saved: ' + savedPath);
+                    alert(msgs[lang] || msgs.ko);
+                } else {
+                    throw new Error('All directory write attempts failed');
+                }
+            } catch(fsErr) {
+                AppLogger.warn('[Planner] Filesystem save failed, trying Share API: ' + fsErr.message);
+                // Filesystem 실패 시 Share API 폴백
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if (blob && navigator.share && navigator.canShare) {
+                    const file = new File([blob], fileName, { type: 'image/png' });
+                    const shareData = { files: [file] };
+                    if (navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                    } else {
+                        throw new Error('canShare returned false');
+                    }
+                } else {
+                    throw new Error('Share API not available');
+                }
             }
+        } else {
+            // 웹 브라우저: Blob URL + <a> 다운로드
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            if (!blob) throw new Error('toBlob failed');
+
+            // Web Share API 시도 (모바일 브라우저)
+            if (navigator.share && navigator.canShare) {
+                const file = new File([blob], fileName, { type: 'image/png' });
+                const shareData = { files: [file] };
+                if (navigator.canShare(shareData)) {
+                    await navigator.share(shareData);
+                    const m = document.getElementById('shareModal');
+                    m.classList.add('d-none');
+                    m.classList.remove('d-flex');
+                    return;
+                }
+            }
+
+            // <a> 태그 다운로드
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 1000);
+
+            alert(msgs[lang] || msgs.ko);
         }
-
-        // 방법 2: Blob URL + <a> 다운로드 (웹 브라우저)
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        // 클린업
-        setTimeout(() => {
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }, 1000);
-
-        alert(msgs[lang] || msgs.ko);
     } catch(e) {
-        // 방법 3: 최종 폴백 - 새 탭에서 이미지 열기 (사용자가 길게 눌러 저장)
+        AppLogger.error('[Planner] Image save error: ' + e.message);
+        // 최종 폴백 - 새 탭에서 이미지 열기 (사용자가 길게 눌러 저장)
         try {
             const dataUrl = canvas.toDataURL('image/png');
             const w = window.open();
@@ -2170,7 +2220,6 @@ window.sharePlannerAsImage = async function() {
                 w.document.write(`<html><head><title>${fileName}</title></head><body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh;"><img src="${dataUrl}" style="max-width:100%;height:auto;"></body></html>`);
                 w.document.close();
             } else {
-                // 팝업 차단 시 직접 이미지 표시
                 const imgWindow = document.createElement('div');
                 imgWindow.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
                 imgWindow.innerHTML = `
