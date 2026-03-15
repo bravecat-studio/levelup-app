@@ -64,7 +64,6 @@ function getInitialAppState() {
             pushEnabled: false,
             fcmToken: null,
             stepData: { date: "", rewardedSteps: 0 },
-            permPromptDone: false,
             instaId: "",
             streak: { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 }
         },
@@ -349,7 +348,6 @@ async function saveUserData() {
             pushEnabled: AppState.user.pushEnabled,
             fcmToken: AppState.user.fcmToken || null,
             stepData: AppState.user.stepData,
-            permPromptDone: AppState.user.permPromptDone || false,
             instaId: AppState.user.instaId || "",
             streakStr: JSON.stringify(AppState.user.streak),
             diaryStr: localStorage.getItem('diary_entries') || '{}',
@@ -392,7 +390,6 @@ async function loadUserDataFromDB(user) {
             if(data.pushEnabled !== undefined) AppState.user.pushEnabled = data.pushEnabled;
             if(data.fcmToken) AppState.user.fcmToken = data.fcmToken;
             if(data.stepData) AppState.user.stepData = data.stepData;
-            if(data.permPromptDone) AppState.user.permPromptDone = true;
             if(data.instaId) AppState.user.instaId = data.instaId;
             if(data.streakStr) {
                 try { AppState.user.streak = JSON.parse(data.streakStr); } catch(e) { AppState.user.streak = { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 }; }
@@ -3715,12 +3712,17 @@ function openAppSettings() {
 }
 
 // --- 로그인 후 네이티브 권한 요청 (푸시 → GPS → 피트니스 순서, 모달 없이 직접 호출) ---
+let _permPromptRan = false;
 async function showPermissionPrompts() {
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
     if (!isNative) return;
 
-    // 이미 권한 프롬프트를 완료한 유저는 다시 요청하지 않음 (DB 기반)
-    if (AppState.user.permPromptDone) return;
+    // 앱 실행(로그인)당 1회만 실행
+    if (_permPromptRan) return;
+    _permPromptRan = true;
+
+    // off 상태인 권한이 없으면 스킵
+    if (AppState.user.pushEnabled && AppState.user.gpsEnabled && AppState.user.syncEnabled) return;
 
     if (window.AppLogger) AppLogger.info('[PermPrompt] 네이티브 권한 순차 요청 시작');
 
@@ -3756,10 +3758,6 @@ async function showPermissionPrompts() {
             if (window.AppLogger) AppLogger.warn('[PermPrompt] Fitness permission error: ' + (e.message || JSON.stringify(e)));
         }
     }
-
-    // 완료 플래그를 DB에 저장 (로그아웃/재로그인 후에도 유지)
-    AppState.user.permPromptDone = true;
-    saveUserData();
 
     if (window.AppLogger) AppLogger.info('[PermPrompt] 네이티브 권한 순차 요청 완료');
 }
