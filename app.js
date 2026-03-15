@@ -1888,21 +1888,58 @@ function openShareModal() {
     m.classList.add('d-flex');
 }
 
-// 인앱 이미지 오버레이 (외부 브라우저 열지 않고 앱 내에서 이미지 저장 안내)
+// 인앱 이미지 오버레이 (공유 버튼으로 네이티브 공유 시트 호출)
 function showImageOverlay(dataUrl, lang) {
-    const labels = {
-        ko: '이미지를 길게 눌러 저장하세요',
-        en: 'Long press the image to save',
-        ja: '画像を長押しして保存してください'
-    };
+    const saveLabels = { ko: '📤 공유하여 저장', en: '📤 Share to Save', ja: '📤 共有して保存' };
     const closeLabels = { ko: '닫기', en: 'Close', ja: '閉じる' };
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
-    overlay.innerHTML = `
-        <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">${labels[lang] || labels.ko}</p>
-        <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
-        <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">${closeLabels[lang] || closeLabels.ko}</button>
-    `;
+
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    img.style.cssText = 'max-width:100%;max-height:70vh;border-radius:8px;';
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:12px;margin-top:16px;';
+
+    // 공유 버튼 (네이티브 공유 시트 → 갤러리/파일에 저장 가능)
+    const shareBtn = document.createElement('button');
+    shareBtn.textContent = saveLabels[lang] || saveLabels.ko;
+    shareBtn.style.cssText = 'padding:12px 24px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;font-size:0.95rem;';
+    shareBtn.onclick = async () => {
+        try {
+            // dataUrl → Blob → File
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            const file = new File([blob], 'planner.png', { type: 'image/png' });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file] });
+            } else {
+                // Share API 미지원 시 Blob 다운로드 시도
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'planner.png';
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
+        } catch(e) {
+            if (e.name !== 'AbortError') {
+                AppLogger.error('[Planner] Overlay share failed: ' + e.message);
+            }
+        }
+    };
+
+    // 닫기 버튼
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = closeLabels[lang] || closeLabels.ko;
+    closeBtn.style.cssText = 'padding:12px 24px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid #555;border-radius:6px;font-weight:bold;cursor:pointer;font-size:0.95rem;';
+    closeBtn.onclick = () => overlay.remove();
+
+    btnRow.appendChild(shareBtn);
+    btnRow.appendChild(closeBtn);
+    overlay.appendChild(img);
+    overlay.appendChild(btnRow);
     document.body.appendChild(overlay);
 }
 
@@ -2147,65 +2184,60 @@ window.sharePlannerAsImage = async function() {
     try {
         const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
-        // 네이티브 앱: Capacitor Filesystem API로 직접 로컬 저장
+        // 네이티브 앱: Share API 우선 → Filesystem 보조 → 오버레이 폴백
         if (isNative) {
-            const dataUrl = canvas.toDataURL('image/png');
-            const base64Data = dataUrl.split(',')[1];
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            let saved = false;
 
-            try {
-                const { Filesystem, Directory } = await import('@capacitor/filesystem');
-
-                // Downloads 디렉토리에 저장 시도
-                let savedPath = null;
-                const dirs = [Directory.Documents, Directory.External, Directory.Cache];
-                for (const dir of dirs) {
-                    try {
-                        const result = await Filesystem.writeFile({
-                            path: fileName,
-                            data: base64Data,
-                            directory: dir,
-                            recursive: true
-                        });
-                        savedPath = result.uri;
-                        break;
-                    } catch(dirErr) {
-                        AppLogger.warn('[Planner] Filesystem write failed for dir: ' + dirErr.message);
-                    }
-                }
-
-                if (savedPath) {
-                    AppLogger.info('[Planner] Image saved: ' + savedPath);
-                    alert(msgs[lang] || msgs.ko);
-                } else {
-                    throw new Error('All directory write attempts failed');
-                }
-            } catch(fsErr) {
-                AppLogger.warn('[Planner] Filesystem save failed, trying Share API: ' + fsErr.message);
-                // Filesystem 실패 시 Share API 폴백 (인앱 공유만, 외부 브라우저 열지 않음)
-                let shared = false;
+            // 1순위: navigator.share() — WebView에서 플러그인 없이 동작
+            if (blob && navigator.share && navigator.canShare) {
                 try {
-                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                    if (blob && navigator.share && navigator.canShare) {
-                        const file = new File([blob], fileName, { type: 'image/png' });
-                        const shareData = { files: [file] };
-                        if (navigator.canShare(shareData)) {
-                            await navigator.share(shareData);
-                            shared = true;
-                        }
+                    const file = new File([blob], fileName, { type: 'image/png' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file] });
+                        saved = true;
                     }
                 } catch(shareErr) {
-                    // 사용자 취소(AbortError)는 정상 동작
                     if (shareErr.name === 'AbortError') {
-                        shared = true; // 취소해도 에러 아님
+                        saved = true; // 사용자 취소는 정상
                     } else {
                         AppLogger.warn('[Planner] Share API failed: ' + shareErr.message);
                     }
                 }
-                if (!shared) {
-                    // 외부 브라우저 열지 않고 인앱 오버레이로 저장 안내
-                    const overlayDataUrl = canvas.toDataURL('image/png');
-                    showImageOverlay(overlayDataUrl, lang);
+            }
+
+            // 2순위: Capacitor Filesystem API (cap sync 후 동작)
+            if (!saved) {
+                try {
+                    const { Filesystem, Directory } = await import('@capacitor/filesystem');
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const base64Data = dataUrl.split(',')[1];
+                    const dirs = [Directory.Documents, Directory.External, Directory.Cache];
+                    for (const dir of dirs) {
+                        try {
+                            const result = await Filesystem.writeFile({
+                                path: fileName,
+                                data: base64Data,
+                                directory: dir,
+                                recursive: true
+                            });
+                            AppLogger.info('[Planner] Image saved: ' + result.uri);
+                            alert(msgs[lang] || msgs.ko);
+                            saved = true;
+                            break;
+                        } catch(dirErr) {
+                            AppLogger.warn('[Planner] Filesystem write failed: ' + dirErr.message);
+                        }
+                    }
+                } catch(fsErr) {
+                    AppLogger.warn('[Planner] Filesystem unavailable: ' + fsErr.message);
                 }
+            }
+
+            // 3순위: 인앱 오버레이 (공유 버튼 포함)
+            if (!saved) {
+                const overlayDataUrl = canvas.toDataURL('image/png');
+                showImageOverlay(overlayDataUrl, lang);
             }
         } else {
             // 웹 브라우저: Blob URL + <a> 다운로드
