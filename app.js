@@ -3807,6 +3807,15 @@ async function toggleGPS() {
         AppState.user.gpsEnabled = false;
         saveUserData();
         statusDiv.innerHTML = `<span style="color:var(--text-sub);">${lang.gps_off || '위치 탐색 중지됨'}</span>`;
+
+        // 네이티브 앱: OS 권한 해제 안내
+        const isNativeOff = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+        if (isNativeOff) {
+            const msg = lang.gps_revoke_confirm || '위치 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
+            if (confirm(msg)) {
+                openAppSettings();
+            }
+        }
         return;
     }
 
@@ -3904,6 +3913,16 @@ async function toggleHealthSync() {
         saveUserData();
         statusDiv.style.display = 'flex';
         statusDiv.innerHTML = `<span style="color:var(--text-sub);">${i18n[AppState.currentLang].sync_off || '동기화 해제됨'}</span>`;
+
+        // 네이티브 앱: OS 권한 해제 안내
+        const isNativeOff = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+        if (isNativeOff) {
+            const lang = i18n[AppState.currentLang];
+            const msg = lang.sync_revoke_confirm || '건강 데이터 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
+            if (confirm(msg)) {
+                openAppSettings();
+            }
+        }
     }
 }
 
@@ -4128,10 +4147,14 @@ async function togglePushNotifications() {
         statusDiv.innerHTML = `<span style="color:var(--text-sub);">${lang.push_off || '푸시 알림 중지됨'}</span>`;
         if (window.AppLogger) AppLogger.info('[FCM] 푸시 알림 비활성화');
 
-        // 네이티브: 토픽 구독 해제
+        // 네이티브: 토픽 구독 해제 및 OS 권한 해제 안내
         const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
         if (isNative) {
             await unsubscribeNativeTopics();
+            const msg = lang.push_revoke_confirm || '알림 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
+            if (confirm(msg)) {
+                openAppSettings();
+            }
         }
         return;
     }
