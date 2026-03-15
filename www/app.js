@@ -207,6 +207,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (AppState.user.syncEnabled) { syncHealthData(false); }
             initPushNotifications();
+
+            // 최초 설치 시 권한 요청 온보딩 표시
+            if (shouldShowPermissionOnboarding()) {
+                setTimeout(() => showPermissionOnboarding(), 500);
+            }
         } else {
             AppLogger.info('[Auth] 로그아웃 상태');
             _initializedUid = null;
@@ -3671,6 +3676,112 @@ function openAppSettings() {
     } catch (e) {
         if (window.AppLogger) AppLogger.warn('[GPS] Failed to open native settings: ' + e.message);
     }
+}
+
+// --- 권한 요청 온보딩 (최초 설치 시 1회) ---
+let _permStep = 0; // 0=GPS, 1=Fitness
+
+function shouldShowPermissionOnboarding() {
+    if (localStorage.getItem('perm_onboarding_done')) return false;
+    const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    return isNative;
+}
+
+function showPermissionOnboarding() {
+    _permStep = 0;
+    const overlay = document.getElementById('permission-onboarding');
+    overlay.classList.remove('d-none');
+    updatePermissionUI();
+    // i18n 적용
+    const lang = i18n[AppState.currentLang];
+    overlay.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (lang[key]) el.innerHTML = lang[key];
+    });
+    if (window.AppLogger) AppLogger.info('[Onboarding] 권한 요청 온보딩 표시');
+}
+
+function updatePermissionUI() {
+    const gpsStep = document.getElementById('perm-step-gps');
+    const fitnessStep = document.getElementById('perm-step-fitness');
+    const gpsStatus = document.getElementById('perm-gps-status');
+    const fitnessStatus = document.getElementById('perm-fitness-status');
+    const allowBtn = document.getElementById('perm-allow-btn');
+    const lang = i18n[AppState.currentLang];
+
+    gpsStep.classList.remove('perm-active', 'perm-done', 'perm-skipped');
+    fitnessStep.classList.remove('perm-active', 'perm-done', 'perm-skipped');
+
+    if (_permStep === 0) {
+        gpsStep.classList.add('perm-active');
+        gpsStatus.innerHTML = '';
+        fitnessStatus.innerHTML = '';
+        allowBtn.querySelector('span').textContent = lang.perm_gps_allow || '위치 권한 허용';
+    } else if (_permStep === 1) {
+        gpsStep.classList.add(AppState.user.gpsEnabled ? 'perm-done' : 'perm-skipped');
+        gpsStatus.innerHTML = AppState.user.gpsEnabled
+            ? '<span style="color:#4caf50;">✓</span>'
+            : '<span style="color:var(--neon-gold);">-</span>';
+        fitnessStep.classList.add('perm-active');
+        fitnessStatus.innerHTML = '';
+        allowBtn.querySelector('span').textContent = lang.perm_fitness_allow || '피트니스 권한 허용';
+    }
+}
+
+async function handlePermissionStep() {
+    const lang = i18n[AppState.currentLang];
+
+    if (_permStep === 0) {
+        // GPS 권한 요청
+        try {
+            const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+            if (isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Geolocation) {
+                const { Geolocation } = window.Capacitor.Plugins;
+                const permResult = await Geolocation.requestPermissions();
+                if (window.AppLogger) AppLogger.info('[Onboarding] GPS permission result: ' + JSON.stringify(permResult));
+
+                if (permResult.location !== 'denied') {
+                    AppState.user.gpsEnabled = true;
+                    document.getElementById('gps-toggle').checked = true;
+                    saveUserData();
+                }
+            }
+        } catch (e) {
+            if (window.AppLogger) AppLogger.warn('[Onboarding] GPS permission error: ' + (e.message || ''));
+        }
+        _permStep = 1;
+        updatePermissionUI();
+    } else if (_permStep === 1) {
+        // 피트니스 권한 요청
+        try {
+            const granted = await requestFitnessScope();
+            if (granted) {
+                AppState.user.syncEnabled = true;
+                document.getElementById('sync-toggle').checked = true;
+                saveUserData();
+                syncHealthData(false);
+            }
+        } catch (e) {
+            if (window.AppLogger) AppLogger.warn('[Onboarding] Fitness permission error: ' + (e.message || ''));
+        }
+        finishPermissionOnboarding();
+    }
+}
+
+function skipPermissionOnboarding() {
+    if (_permStep === 0) {
+        _permStep = 1;
+        updatePermissionUI();
+    } else {
+        finishPermissionOnboarding();
+    }
+}
+
+function finishPermissionOnboarding() {
+    localStorage.setItem('perm_onboarding_done', '1');
+    const overlay = document.getElementById('permission-onboarding');
+    overlay.classList.add('d-none');
+    if (window.AppLogger) AppLogger.info('[Onboarding] 권한 요청 온보딩 완료 (GPS: ' + AppState.user.gpsEnabled + ', Sync: ' + AppState.user.syncEnabled + ')');
 }
 
 async function toggleGPS() {
