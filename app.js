@@ -409,6 +409,8 @@ function bindEvents() {
     document.getElementById('btn-qstats-next-month').addEventListener('click', () => { _qstatsMonth.setMonth(_qstatsMonth.getMonth() + 1); renderQuestStats(); });
     document.getElementById('btn-qstats-prev-year').addEventListener('click', () => { _qstatsYear--; renderQuestStats(); });
     document.getElementById('btn-qstats-next-year').addEventListener('click', () => { _qstatsYear++; renderQuestStats(); });
+    // DIY 전용 통계 필터
+    document.getElementById('qstats-diy-filter')?.addEventListener('change', (e) => { _qstatsDiyOnly = e.target.checked; renderQuestStats(); });
 
     document.getElementById('btn-raid-complete').addEventListener('click', window.completeDungeon);
 
@@ -893,7 +895,8 @@ function updateQuestHistory() {
     const regularCompleted = AppState.quest.completedState[day].filter(v => v).length;
     const diyCompleted = Object.values(AppState.diyQuests.completedToday).filter(v => v).length;
     const totalPossible = 12 + AppState.diyQuests.definitions.length;
-    AppState.questHistory[today] = { r: regularCompleted, d: diyCompleted, t: totalPossible };
+    const diyTotal = AppState.diyQuests.definitions.length;
+    AppState.questHistory[today] = { r: regularCompleted, d: diyCompleted, t: totalPossible, dt: diyTotal };
 }
 
 window.toggleQuest = (i) => {
@@ -1070,6 +1073,16 @@ window.saveDiyQuest = () => {
     if (!stat) return;
 
     const editId = modal?.dataset.editId;
+    const lang = AppState.currentLang;
+
+    // 중복 명칭 체크
+    const duplicate = AppState.diyQuests.definitions.find(d =>
+        d.title.trim().toLowerCase() === title.toLowerCase() && d.id !== editId
+    );
+    if (duplicate) {
+        alert(i18n[lang]?.diy_duplicate_name || '같은 이름의 퀘스트가 이미 존재합니다.');
+        return;
+    }
 
     if (editId) {
         const q = AppState.diyQuests.definitions.find(d => d.id === editId);
@@ -1169,6 +1182,7 @@ function renderCalendar() {
 // --- 퀘스트 통계 렌더링 ---
 let _qstatsMonth = new Date();
 let _qstatsYear = new Date().getFullYear();
+let _qstatsDiyOnly = false;
 
 function renderQuestStats() {
     const history = AppState.questHistory || {};
@@ -1201,9 +1215,17 @@ function renderMonthlySummary(year, month, history) {
     let totalRate = 0, perfectDays = 0;
     keys.forEach(k => {
         const rec = history[k];
-        const rate = (rec.r + rec.d) / Math.max(rec.t, 1);
+        let done, total;
+        if (_qstatsDiyOnly) {
+            done = rec.d || 0;
+            total = rec.dt != null ? rec.dt : (rec.t - 12);
+        } else {
+            done = rec.r + rec.d;
+            total = rec.t;
+        }
+        const rate = done / Math.max(total, 1);
         totalRate += rate;
-        if (rate >= 1) perfectDays++;
+        if (rate >= 1 && total > 0) perfectDays++;
     });
     const avgRate = activeDays > 0 ? Math.round(totalRate / activeDays * 100) : 0;
 
@@ -1246,7 +1268,15 @@ function renderMonthlyHeatmap(year, month, history) {
         const rec = history[key];
         let level = 0;
         if (rec) {
-            const rate = (rec.r + rec.d) / Math.max(rec.t, 1) * 100;
+            let done, total;
+            if (_qstatsDiyOnly) {
+                done = rec.d || 0;
+                total = rec.dt != null ? rec.dt : (rec.t - 12);
+            } else {
+                done = rec.r + rec.d;
+                total = rec.t;
+            }
+            const rate = done / Math.max(total, 1) * 100;
             if (rate >= 76) level = 4;
             else if (rate >= 51) level = 3;
             else if (rate >= 26) level = 2;
@@ -1300,7 +1330,15 @@ function renderAnnualChart(year, history) {
             let totalRate = 0;
             keys.forEach(k => {
                 const rec = history[k];
-                totalRate += (rec.r + rec.d) / Math.max(rec.t, 1);
+                let done, total;
+                if (_qstatsDiyOnly) {
+                    done = rec.d || 0;
+                    total = rec.dt != null ? rec.dt : (rec.t - 12);
+                } else {
+                    done = rec.r + rec.d;
+                    total = rec.t;
+                }
+                totalRate += done / Math.max(total, 1);
             });
             avgRate = totalRate / keys.length * 100;
         }
