@@ -1888,6 +1888,24 @@ function openShareModal() {
     m.classList.add('d-flex');
 }
 
+// 인앱 이미지 오버레이 (외부 브라우저 열지 않고 앱 내에서 이미지 저장 안내)
+function showImageOverlay(dataUrl, lang) {
+    const labels = {
+        ko: '이미지를 길게 눌러 저장하세요',
+        en: 'Long press the image to save',
+        ja: '画像を長押しして保存してください'
+    };
+    const closeLabels = { ko: '닫기', en: 'Close', ja: '閉じる' };
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+        <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">${labels[lang] || labels.ko}</p>
+        <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
+        <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">${closeLabels[lang] || closeLabels.ko}</button>
+    `;
+    document.body.appendChild(overlay);
+}
+
 // 플래너를 이미지로 저장 (html2canvas 없이 캔버스 직접 생성)
 window.sharePlannerAsImage = async function() {
     const lang = AppState.currentLang;
@@ -2178,8 +2196,19 @@ window.sharePlannerAsImage = async function() {
                     saved = true;
                 }
             } catch(shareErr) {
-                AppLogger.warn('[Planner] Share API failed: ' + shareErr.message);
+                if (shareErr.name === 'AbortError') {
+                    saved = true; // 사용자 취소는 정상 동작
+                } else {
+                    AppLogger.warn('[Planner] Share API failed: ' + shareErr.message);
+                }
             }
+        }
+
+        // 네이티브 앱에서 모든 방법 실패 시 인앱 오버레이로 표시
+        if (!saved && isNative) {
+            const overlayDataUrl = canvas.toDataURL('image/png');
+            showImageOverlay(overlayDataUrl, lang);
+            saved = true;
         }
 
         // <a> 태그 다운로드 (데스크톱 웹 브라우저 폴백)
@@ -2205,17 +2234,10 @@ window.sharePlannerAsImage = async function() {
         }
     } catch(e) {
         AppLogger.error('[Planner] Image save error: ' + e.message);
-        // 최종 폴백 - 이미지를 화면에 표시하여 길게 눌러 저장
+        // 최종 폴백 - 인앱 오버레이로 이미지 표시 (외부 브라우저 열지 않음)
         try {
             const dataUrl = canvas.toDataURL('image/png');
-            const imgWindow = document.createElement('div');
-            imgWindow.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
-            imgWindow.innerHTML = `
-                <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">이미지를 길게 눌러 저장하세요</p>
-                <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
-                <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">닫기</button>
-            `;
-            document.body.appendChild(imgWindow);
+            showImageOverlay(dataUrl, lang);
         } catch(e2) {
             alert(failMsgs[lang] || failMsgs.ko);
         }
