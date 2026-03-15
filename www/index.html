@@ -6,6 +6,11 @@
     <title>LEVEL UP: REBOOT</title>
     <meta name="google-site-verification" content="F-GCFsin3A6JKiAqstN1j7Zw9KhKIJbJSSnB9GVeL8o" />
     <meta name="google-adsense-account" content="ca-pub-6654057059754695">
+    <meta name="theme-color" content="#00d9ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="play_store_512.png">
     <link rel="stylesheet" href="style.css">
 
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6654057059754695" crossorigin="anonymous"></script>
@@ -62,49 +67,18 @@
         </div>
     </div>
 
-    <!-- 권한 요청 온보딩 오버레이 (최초 설치 시 1회 표시) -->
-    <div id="permission-onboarding" class="d-none">
-        <div class="perm-overlay-bg"></div>
-        <div class="perm-card">
-            <div class="perm-logo">⚔️ LEVEL UP</div>
-            <div class="perm-title" id="perm-title" data-i18n="perm_title">앱 권한 설정</div>
-            <div class="perm-desc" id="perm-desc" data-i18n="perm_desc">최고의 경험을 위해 아래 권한을 허용해주세요.</div>
-
-            <!-- Step 1: GPS -->
-            <div class="perm-item" id="perm-step-gps">
-                <div class="perm-item-icon">📍</div>
-                <div class="perm-item-info">
-                    <div class="perm-item-name" data-i18n="perm_gps_title">위치 권한 (GPS)</div>
-                    <div class="perm-item-desc" data-i18n="perm_gps_desc">던전 레이드 근접 보너스 및 위치 기반 기능에 사용됩니다.</div>
-                </div>
-                <div class="perm-item-status" id="perm-gps-status"></div>
-            </div>
-
-            <!-- Step 2: Fitness -->
-            <div class="perm-item" id="perm-step-fitness">
-                <div class="perm-item-icon">🏃</div>
-                <div class="perm-item-info">
-                    <div class="perm-item-name" data-i18n="perm_fitness_title">피트니스 데이터</div>
-                    <div class="perm-item-desc" data-i18n="perm_fitness_desc">걸음 수를 동기화하여 포인트와 STR 스탯을 획득합니다.</div>
-                </div>
-                <div class="perm-item-status" id="perm-fitness-status"></div>
-            </div>
-
-            <button class="perm-btn" id="perm-allow-btn" onclick="handlePermissionStep()">
-                <span data-i18n="perm_allow_btn">권한 허용하기</span>
-            </button>
-            <button class="perm-skip-btn" id="perm-skip-btn" onclick="skipPermissionOnboarding()">
-                <span data-i18n="perm_skip_btn">나중에 설정</span>
-            </button>
-        </div>
-    </div>
-
     <!-- 로그인 전 화면 하단 오류 로그 패널 (body 직속 자식 → position:fixed 정상 동작 보장) -->
     <div id="login-log-panel" style="position:fixed;bottom:0;left:0;right:0;padding:8px 12px;display:flex;gap:8px;align-items:center;justify-content:center;background:rgba(5,5,8,0.92);border-top:1px solid #1a1a2a;z-index:9999;">
         <span style="font-size:0.7rem;color:#555;">오류 로그</span>
         <span id="login-log-badge" style="font-size:0.72rem;color:#00d9ff;font-weight:bold;">0개</span>
         <button onclick="AppLogger.openViewer()" style="background:rgba(0,217,255,0.08);border:1px solid #00d9ff;color:#00d9ff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.72rem;">로그 보기</button>
         <button onclick="AppLogger.export()" style="background:rgba(255,204,0,0.08);border:1px solid #ffcc00;color:#ffcc00;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.72rem;">파일 저장</button>
+    </div>
+
+    <!-- 오프라인 상태 배너 -->
+    <div id="offline-banner" class="offline-banner d-none">
+        <span class="offline-icon">⚡</span>
+        <span id="offline-text" data-i18n="offline_banner">오프라인 모드 — 일부 기능이 제한됩니다</span>
     </div>
 
     <div id="app-container" class="d-none">
@@ -196,6 +170,13 @@
                 </div>
                 <div class="system-card" style="padding:10px;">
                     <div class="quest-list-wrapper" id="quest-list-container"></div>
+                    <div id="diy-quest-section" style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:0.75rem; color:var(--neon-gold); font-weight:bold;" data-i18n="diy_quest_title">DIY Quests</span>
+                            <button class="btn-info-sm" id="btn-add-diy-quest" onclick="window.showDiyQuestModal()">+ <span data-i18n="btn_add_diy">추가</span></button>
+                        </div>
+                        <div id="diy-quest-list"></div>
+                    </div>
                 </div>
                 <div class="system-card calendar-wrapper">
                     <div class="cal-header">
@@ -236,7 +217,7 @@
                 </div>
                 
                 <div class="system-card dungeon-banner" id="dungeon-banner"></div>
-                <div class="system-card dungeon-active d-none" id="dungeon-active-board" style="display: block;">
+                <div class="system-card dungeon-active d-none" id="dungeon-active-board">
                     <div class="active-header">
                         <span class="blink-text text-red">⚠️ ANOMALY DETECTED</span>
                         <span id="active-stat-badge" class="quest-stat-tag">STR</span>
@@ -521,6 +502,41 @@
                 <button class="modal-close" onclick="document.getElementById('legalModal').classList.add('d-none');document.getElementById('legalModal').classList.remove('d-flex');">×</button>
             </div>
             <div id="legal-modal-body" style="overflow-y:auto; flex-grow:1; max-height:60vh; font-size:0.8rem; color:var(--text-main); line-height:1.7;"></div>
+        </div>
+    </div>
+
+    <!-- DIY 퀘스트 생성/수정 모달 -->
+    <div class="modal-overlay d-none" id="diyQuestModal" onclick="if(event.target===this){closeDiyQuestModal();}">
+        <div class="modal-content" style="max-width: 95%; width: 360px; padding: 20px;">
+            <div class="modal-header" style="margin-bottom: 10px; padding-bottom: 8px;">
+                <span id="diy-modal-title" style="font-weight:bold; color:var(--neon-gold);" data-i18n="diy_modal_create">퀘스트 만들기</span>
+                <button class="modal-close" onclick="closeDiyQuestModal()">×</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <div>
+                    <label style="font-size:0.75rem; color:var(--text-sub);" data-i18n="diy_input_title">제목</label>
+                    <input type="text" id="diy-title-input" maxlength="20" class="login-input" style="margin-top:4px; font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:var(--text-sub);" data-i18n="diy_input_desc">설명</label>
+                    <input type="text" id="diy-desc-input" maxlength="40" class="login-input" style="margin-top:4px; font-size:0.85rem;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:var(--text-sub);" data-i18n="diy_select_stat">스탯 선택</label>
+                    <div class="diy-stat-selector" style="margin-top:6px;">
+                        <button class="diy-stat-btn" data-stat="STR" onclick="window.selectDiyStat(this)">STR</button>
+                        <button class="diy-stat-btn" data-stat="INT" onclick="window.selectDiyStat(this)">INT</button>
+                        <button class="diy-stat-btn" data-stat="CHA" onclick="window.selectDiyStat(this)">CHA</button>
+                        <button class="diy-stat-btn" data-stat="VIT" onclick="window.selectDiyStat(this)">VIT</button>
+                        <button class="diy-stat-btn" data-stat="WLTH" onclick="window.selectDiyStat(this)">WLTH</button>
+                        <button class="diy-stat-btn" data-stat="AGI" onclick="window.selectDiyStat(this)">AGI</button>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                    <button class="btn-primary" style="flex:1;" onclick="window.saveDiyQuest()" data-i18n="diy_btn_save">저장</button>
+                    <button id="diy-btn-delete" class="btn-primary" style="flex:1; background:var(--neon-red); display:none;" onclick="window.deleteDiyQuest()" data-i18n="diy_btn_delete">삭제</button>
+                </div>
+            </div>
         </div>
     </div>
 
