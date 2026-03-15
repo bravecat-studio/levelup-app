@@ -1888,6 +1888,24 @@ function openShareModal() {
     m.classList.add('d-flex');
 }
 
+// 인앱 이미지 오버레이 (외부 브라우저 열지 않고 앱 내에서 이미지 저장 안내)
+function showImageOverlay(dataUrl, lang) {
+    const labels = {
+        ko: '이미지를 길게 눌러 저장하세요',
+        en: 'Long press the image to save',
+        ja: '画像を長押しして保存してください'
+    };
+    const closeLabels = { ko: '닫기', en: 'Close', ja: '閉じる' };
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+        <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">${labels[lang] || labels.ko}</p>
+        <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
+        <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">${closeLabels[lang] || closeLabels.ko}</button>
+    `;
+    document.body.appendChild(overlay);
+}
+
 // 플래너를 이미지로 저장 (html2canvas 없이 캔버스 직접 생성)
 window.sharePlannerAsImage = async function() {
     const lang = AppState.currentLang;
@@ -2163,18 +2181,30 @@ window.sharePlannerAsImage = async function() {
                 }
             } catch(fsErr) {
                 AppLogger.warn('[Planner] Filesystem save failed, trying Share API: ' + fsErr.message);
-                // Filesystem 실패 시 Share API 폴백
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                if (blob && navigator.share && navigator.canShare) {
-                    const file = new File([blob], fileName, { type: 'image/png' });
-                    const shareData = { files: [file] };
-                    if (navigator.canShare(shareData)) {
-                        await navigator.share(shareData);
-                    } else {
-                        throw new Error('canShare returned false');
+                // Filesystem 실패 시 Share API 폴백 (인앱 공유만, 외부 브라우저 열지 않음)
+                let shared = false;
+                try {
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    if (blob && navigator.share && navigator.canShare) {
+                        const file = new File([blob], fileName, { type: 'image/png' });
+                        const shareData = { files: [file] };
+                        if (navigator.canShare(shareData)) {
+                            await navigator.share(shareData);
+                            shared = true;
+                        }
                     }
-                } else {
-                    throw new Error('Share API not available');
+                } catch(shareErr) {
+                    // 사용자 취소(AbortError)는 정상 동작
+                    if (shareErr.name === 'AbortError') {
+                        shared = true; // 취소해도 에러 아님
+                    } else {
+                        AppLogger.warn('[Planner] Share API failed: ' + shareErr.message);
+                    }
+                }
+                if (!shared) {
+                    // 외부 브라우저 열지 않고 인앱 오버레이로 저장 안내
+                    const overlayDataUrl = canvas.toDataURL('image/png');
+                    showImageOverlay(overlayDataUrl, lang);
                 }
             }
         } else {
@@ -2184,14 +2214,25 @@ window.sharePlannerAsImage = async function() {
 
             // Web Share API 시도 (모바일 브라우저)
             if (navigator.share && navigator.canShare) {
-                const file = new File([blob], fileName, { type: 'image/png' });
-                const shareData = { files: [file] };
-                if (navigator.canShare(shareData)) {
-                    await navigator.share(shareData);
-                    const m = document.getElementById('shareModal');
-                    m.classList.add('d-none');
-                    m.classList.remove('d-flex');
-                    return;
+                try {
+                    const file = new File([blob], fileName, { type: 'image/png' });
+                    const shareData = { files: [file] };
+                    if (navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        const m = document.getElementById('shareModal');
+                        m.classList.add('d-none');
+                        m.classList.remove('d-flex');
+                        return;
+                    }
+                } catch(shareErr) {
+                    if (shareErr.name === 'AbortError') {
+                        // 사용자 취소 - 정상 처리, <a> 다운로드로 진행하지 않음
+                        const m = document.getElementById('shareModal');
+                        m.classList.add('d-none');
+                        m.classList.remove('d-flex');
+                        return;
+                    }
+                    AppLogger.warn('[Planner] Web Share failed, falling back to download: ' + shareErr.message);
                 }
             }
 
@@ -2212,23 +2253,10 @@ window.sharePlannerAsImage = async function() {
         }
     } catch(e) {
         AppLogger.error('[Planner] Image save error: ' + e.message);
-        // 최종 폴백 - 새 탭에서 이미지 열기 (사용자가 길게 눌러 저장)
+        // 최종 폴백 - 인앱 오버레이로 이미지 표시 (외부 브라우저 열지 않음)
         try {
             const dataUrl = canvas.toDataURL('image/png');
-            const w = window.open();
-            if (w) {
-                w.document.write(`<html><head><title>${fileName}</title></head><body style="margin:0;background:#000;display:flex;justify-content:center;align-items:center;min-height:100vh;"><img src="${dataUrl}" style="max-width:100%;height:auto;"></body></html>`);
-                w.document.close();
-            } else {
-                const imgWindow = document.createElement('div');
-                imgWindow.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
-                imgWindow.innerHTML = `
-                    <p style="color:#fff;font-size:0.85rem;margin-bottom:12px;text-align:center;">이미지를 길게 눌러 저장하세요</p>
-                    <img src="${dataUrl}" style="max-width:100%;max-height:80vh;border-radius:8px;">
-                    <button onclick="this.parentElement.remove()" style="margin-top:16px;padding:10px 30px;background:var(--neon-blue);color:#000;border:none;border-radius:6px;font-weight:bold;cursor:pointer;">닫기</button>
-                `;
-                document.body.appendChild(imgWindow);
-            }
+            showImageOverlay(dataUrl, lang);
         } catch(e2) {
             alert(failMsgs[lang] || failMsgs.ko);
         }
