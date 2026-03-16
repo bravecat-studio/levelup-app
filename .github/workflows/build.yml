@@ -5,6 +5,9 @@ on:
     branches: [ "main", "claude/**" ]
   workflow_dispatch:  # 수동 트리거 허용
 
+permissions:
+  contents: write  # app.js → www/app.js 자동 동기화 커밋에 필요
+
 jobs:
   build:
     runs-on: ubuntu-22.04  # Android SDK 사전 설치된 안정적 환경
