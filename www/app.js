@@ -1,6 +1,6 @@
 // --- Firebase SDK 초기화 ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
@@ -288,6 +288,17 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             if (_initializedUid === user.uid) return; // 토큰 갱신 등 재발화 시 중복 초기화 방지
+
+            // 이메일/비밀번호 사용자의 이메일 인증 확인 (Google OAuth 등은 건너뜀)
+            const isEmailUser = user.providerData.some(p => p.providerId === 'password');
+            if (isEmailUser && !user.emailVerified) {
+                AppLogger.info('[Auth] 미인증 이메일 사용자 차단: ' + user.email);
+                const lang = AppState.currentLang || 'ko';
+                alert(i18n[lang]?.verify_login_blocked || "이메일 인증을 완료해주세요. 받은편지함을 확인하세요.");
+                await fbSignOut(auth);
+                return;
+            }
+
             _initializedUid = user.uid;
 
             AppLogger.info('[Auth] 로그인 감지: ' + (user.email || user.uid));
@@ -361,6 +372,8 @@ function bindEvents() {
     document.getElementById('btn-google-login').addEventListener('click', simulateGoogleLogin);
     document.getElementById('auth-toggle-btn').addEventListener('click', toggleAuthMode);
     document.getElementById('login-email').addEventListener('focus', showEmailLoginFields);
+    document.getElementById('btn-resend-verify').addEventListener('click', resendVerificationEmail);
+    document.getElementById('btn-back-login').addEventListener('click', hideEmailVerificationNotice);
     document.getElementById('login-pw').addEventListener('input', function() {
         const hint = document.getElementById('pw-hint');
         if (!hint.classList.contains('d-none')) {
@@ -383,6 +396,10 @@ function bindEvents() {
     document.getElementById('btn-quest-info').addEventListener('click', openQuestInfoModal);
     document.getElementById('btn-dungeon-info').addEventListener('click', openDungeonInfoModal);
     document.getElementById('btn-planner-info').addEventListener('click', openPlannerInfoModal);
+    document.getElementById('btn-day1-info').addEventListener('click', openDay1InfoModal);
+    document.getElementById('btn-settings-push-guide').addEventListener('click', () => openSettingsGuideModal('push'));
+    document.getElementById('btn-settings-gps-guide').addEventListener('click', () => openSettingsGuideModal('gps'));
+    document.getElementById('btn-settings-fitness-guide').addEventListener('click', () => openSettingsGuideModal('fitness'));
     document.getElementById('btn-info-close').addEventListener('click', closeInfoModal);
 
     document.getElementById('btn-levelup').addEventListener('click', processLevelUp); 
@@ -431,6 +448,26 @@ function bindEvents() {
             if (prioritySave) prioritySave.style.display = tab === 'priority' ? 'block' : 'none';
         });
     });
+    // 퀘스트 서브탭 전환 (퀘스트 / 통계)
+    document.querySelectorAll('.quest-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.quest-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.quest-tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.getAttribute('data-quest-tab');
+            const target = document.getElementById('quest-tab-' + tab);
+            if (target) target.classList.add('active');
+            if (tab === 'stats') renderQuestStats();
+        });
+    });
+    // 퀘스트 통계 월/연 네비게이션
+    document.getElementById('btn-qstats-prev-month').addEventListener('click', () => { _qstatsMonth.setMonth(_qstatsMonth.getMonth() - 1); renderQuestStats(); });
+    document.getElementById('btn-qstats-next-month').addEventListener('click', () => { _qstatsMonth.setMonth(_qstatsMonth.getMonth() + 1); renderQuestStats(); });
+    document.getElementById('btn-qstats-prev-year').addEventListener('click', () => { _qstatsYear--; renderQuestStats(); });
+    document.getElementById('btn-qstats-next-year').addEventListener('click', () => { _qstatsYear++; renderQuestStats(); });
+    // DIY 전용 통계 필터
+    document.getElementById('qstats-diy-filter')?.addEventListener('change', (e) => { _qstatsDiyOnly = e.target.checked; renderQuestStats(); });
+
     document.getElementById('btn-raid-complete').addEventListener('click', window.completeDungeon);
 
     // Reels tab
@@ -527,18 +564,6 @@ async function loadUserDataFromDB(user) {
                 AppState.dungeon.globalParticipants = 0;
                 AppState.dungeon.globalProgress = 0;
             }
-            if(data.pendingStats) AppState.user.pendingStats = data.pendingStats;
-            if(data.friends) AppState.user.friends = data.friends;
-            if(data.syncEnabled !== undefined) AppState.user.syncEnabled = data.syncEnabled;
-            if(data.gpsEnabled !== undefined) AppState.user.gpsEnabled = data.gpsEnabled;
-            if(data.pushEnabled !== undefined) AppState.user.pushEnabled = data.pushEnabled;
-            if(data.fcmToken) AppState.user.fcmToken = data.fcmToken;
-            if(data.stepData) AppState.user.stepData = data.stepData;
-            if(data.instaId) AppState.user.instaId = data.instaId;
-            if(data.nameLastChanged) AppState.user.nameLastChanged = data.nameLastChanged;
-            if(data.streakStr) {
-                try { AppState.user.streak = JSON.parse(data.streakStr); } catch(e) { AppState.user.streak = { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 }; }
-            }
             if(data.diyQuestsStr) {
                 try { AppState.diyQuests = JSON.parse(data.diyQuestsStr); } catch(e) { AppState.diyQuests = { definitions: [], completedToday: {}, lastResetDate: null }; }
             }
@@ -552,6 +577,18 @@ async function loadUserDataFromDB(user) {
                 } catch(e) { AppState.questHistory = {}; }
             }
             checkDiyDailyReset();
+            if(data.pendingStats) AppState.user.pendingStats = data.pendingStats;
+            if(data.friends) AppState.user.friends = data.friends;
+            if(data.syncEnabled !== undefined) AppState.user.syncEnabled = data.syncEnabled;
+            if(data.gpsEnabled !== undefined) AppState.user.gpsEnabled = data.gpsEnabled;
+            if(data.pushEnabled !== undefined) AppState.user.pushEnabled = data.pushEnabled;
+            if(data.fcmToken) AppState.user.fcmToken = data.fcmToken;
+            if(data.stepData) AppState.user.stepData = data.stepData;
+            if(data.instaId) AppState.user.instaId = data.instaId;
+            if(data.nameLastChanged) AppState.user.nameLastChanged = data.nameLastChanged;
+            if(data.streakStr) {
+                try { AppState.user.streak = JSON.parse(data.streakStr); } catch(e) { AppState.user.streak = { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 }; }
+            }
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
             if(data.diaryStr) {
@@ -810,8 +847,12 @@ function showLootModal(loot) {
 
 function checkDailyAllClear() {
     const day = AppState.quest.currentDayOfWeek;
-    const allDone = AppState.quest.completedState[day].every(v => v);
-    if (!allDone) return;
+    const regularAllDone = AppState.quest.completedState[day].every(v => v);
+    if (!regularAllDone) return;
+
+    const diyDefs = AppState.diyQuests.definitions;
+    const diyAllDone = diyDefs.length === 0 || diyDefs.every(q => AppState.diyQuests.completedToday[q.id]);
+    if (!diyAllDone) return;
 
     // 오늘 이미 루트 받았는지 확인
     const todayKey = 'loot_' + getTodayStr();
@@ -850,15 +891,17 @@ function changePlayerName() {
         AppState.user.name = newName.trim();
         AppState.user.nameLastChanged = new Date().toISOString();
         loadPlayerName();
-        saveUserData().then(() => fetchSocialData());
+        updateSocialUserData();
+        saveUserData();
     }
 }
 
 function changeInstaId() {
     const newId = prompt(i18n[AppState.currentLang].insta_prompt || "인스타 ID를 입력하세요", AppState.user.instaId);
-    if (newId !== null) { 
-        AppState.user.instaId = newId.trim().replace('@', ''); 
-        saveUserData().then(() => fetchSocialData());
+    if (newId !== null) {
+        AppState.user.instaId = newId.trim().replace('@', '');
+        updateSocialUserData();
+        saveUserData();
     }
 }
 
@@ -938,6 +981,19 @@ function renderQuestList() {
             </div>
         `;
     }).join('');
+
+    renderDiyQuestList();
+}
+
+// --- 퀘스트 히스토리 스냅샷 ---
+function updateQuestHistory() {
+    const today = getTodayKST();
+    const day = AppState.quest.currentDayOfWeek;
+    const regularCompleted = AppState.quest.completedState[day].filter(v => v).length;
+    const diyCompleted = Object.values(AppState.diyQuests.completedToday).filter(v => v).length;
+    const totalPossible = 12 + AppState.diyQuests.definitions.length;
+    const diyTotal = AppState.diyQuests.definitions.length;
+    AppState.questHistory[today] = { r: regularCompleted, d: diyCompleted, t: totalPossible, dt: diyTotal };
 }
 
 window.toggleQuest = (i) => {
@@ -970,6 +1026,7 @@ window.toggleQuest = (i) => {
         updateChallengeProgress('quest_count');
     }
 
+    updateQuestHistory();
     saveUserData();
     renderQuestList();
     renderCalendar();
@@ -985,6 +1042,196 @@ window.toggleQuest = (i) => {
     }
 
     if (state[i]) checkDailyAllClear();
+};
+
+// --- DIY 퀘스트 ---
+function checkDiyDailyReset() {
+    const today = getTodayKST();
+    if (AppState.diyQuests.lastResetDate !== today) {
+        AppState.diyQuests.completedToday = {};
+        AppState.diyQuests.lastResetDate = today;
+    }
+}
+
+function renderDiyQuestList() {
+    const container = document.getElementById('diy-quest-list');
+    const section = document.getElementById('diy-quest-section');
+    if (!container || !section) return;
+
+    checkDiyDailyReset();
+    const defs = AppState.diyQuests.definitions;
+
+    section.style.display = (defs.length > 0) ? 'block' : 'block';
+
+    container.innerHTML = defs.map(q => {
+        const isDone = AppState.diyQuests.completedToday[q.id] || false;
+        return `
+            <div class="quest-row ${isDone ? 'done' : ''}" onclick="window.toggleDiyQuest('${q.id}')">
+                <div>
+                    <div class="quest-title"><span class="quest-stat-tag">${sanitizeText(q.stat)}</span>${sanitizeText(q.title)}</div>
+                    <div class="quest-desc">${sanitizeText(q.desc)}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="diy-quest-edit" onclick="event.stopPropagation(); window.showDiyQuestModal('${q.id}')">✎</span>
+                    <div class="quest-checkbox"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.toggleDiyQuest = (questId) => {
+    const q = AppState.diyQuests.definitions.find(d => d.id === questId);
+    if (!q) return;
+
+    const wasCompleted = AppState.diyQuests.completedToday[questId] || false;
+    AppState.diyQuests.completedToday[questId] = !wasCompleted;
+    const factor = wasCompleted ? -1 : 1;
+    const mult = AppState.user.streak.multiplier || 1.0;
+
+    let pointReward = 20;
+    let statReward = 0.5;
+    let isCritical = false;
+
+    if (!wasCompleted && rollCritical()) {
+        isCritical = true;
+        const critMult = getCriticalMultiplier();
+        pointReward = 20 * critMult;
+        statReward = 0.5 * critMult;
+        showCriticalFlash();
+        updateChallengeProgress('critical_hits');
+    }
+
+    AppState.user.points += Math.floor(pointReward * mult * factor);
+    AppState.user.pendingStats[q.stat.toLowerCase()] += (statReward * factor);
+
+    if (!wasCompleted) {
+        updateStreak();
+        updateChallengeProgress('quest_count');
+    }
+
+    updateQuestHistory();
+    saveUserData();
+    renderDiyQuestList();
+    renderCalendar();
+    updatePointUI();
+    renderRoulette();
+
+    if (!wasCompleted) checkDailyAllClear();
+};
+
+window.showDiyQuestModal = (questId) => {
+    const modal = document.getElementById('diyQuestModal');
+    if (!modal) return;
+
+    const isEdit = !!questId;
+    const existing = isEdit ? AppState.diyQuests.definitions.find(d => d.id === questId) : null;
+
+    if (!isEdit && AppState.diyQuests.definitions.length >= 6) {
+        const lang = AppState.currentLang;
+        alert(i18n[lang]?.diy_limit_reached || 'Max 6 custom quests');
+        return;
+    }
+
+    const titleInput = document.getElementById('diy-title-input');
+    const descInput = document.getElementById('diy-desc-input');
+    const modalTitle = document.getElementById('diy-modal-title');
+    const deleteBtn = document.getElementById('diy-btn-delete');
+
+    if (titleInput) titleInput.value = existing ? existing.title : '';
+    if (descInput) descInput.value = existing ? existing.desc : '';
+    if (modalTitle) {
+        const lang = AppState.currentLang;
+        modalTitle.textContent = isEdit ? (i18n[lang]?.diy_modal_edit || 'Edit Quest') : (i18n[lang]?.diy_modal_create || 'Create Quest');
+    }
+    if (deleteBtn) deleteBtn.style.display = isEdit ? 'inline-block' : 'none';
+
+    // 스탯 선택 초기화
+    document.querySelectorAll('.diy-stat-btn').forEach(btn => {
+        btn.classList.toggle('active', existing && btn.dataset.stat === existing.stat);
+    });
+
+    modal.dataset.editId = questId || '';
+    modal.classList.remove('d-none');
+    modal.classList.add('d-flex');
+};
+
+window.saveDiyQuest = () => {
+    const modal = document.getElementById('diyQuestModal');
+    const titleInput = document.getElementById('diy-title-input');
+    const descInput = document.getElementById('diy-desc-input');
+    const activeStatBtn = document.querySelector('.diy-stat-btn.active');
+
+    const title = (titleInput?.value || '').trim();
+    const desc = (descInput?.value || '').trim();
+    const stat = activeStatBtn?.dataset.stat;
+
+    if (!title) return;
+    if (!stat) return;
+
+    const editId = modal?.dataset.editId;
+    const lang = AppState.currentLang;
+
+    // 중복 명칭 체크
+    const duplicate = AppState.diyQuests.definitions.find(d =>
+        d.title.trim().toLowerCase() === title.toLowerCase() && d.id !== editId
+    );
+    if (duplicate) {
+        alert(i18n[lang]?.diy_duplicate_name || '같은 이름의 퀘스트가 이미 존재합니다.');
+        return;
+    }
+
+    if (editId) {
+        const q = AppState.diyQuests.definitions.find(d => d.id === editId);
+        if (q) {
+            q.title = title;
+            q.desc = desc;
+            q.stat = stat;
+        }
+    } else {
+        AppState.diyQuests.definitions.push({
+            id: 'diy_' + Date.now(),
+            title: title,
+            desc: desc,
+            stat: stat,
+            createdAt: Date.now()
+        });
+    }
+
+    saveUserData();
+    renderDiyQuestList();
+    renderCalendar();
+    closeDiyQuestModal();
+};
+
+window.deleteDiyQuest = () => {
+    const modal = document.getElementById('diyQuestModal');
+    const editId = modal?.dataset.editId;
+    if (!editId) return;
+
+    const lang = AppState.currentLang;
+    if (!confirm(i18n[lang]?.diy_confirm_delete || 'Delete this quest?')) return;
+
+    AppState.diyQuests.definitions = AppState.diyQuests.definitions.filter(d => d.id !== editId);
+    delete AppState.diyQuests.completedToday[editId];
+
+    saveUserData();
+    renderDiyQuestList();
+    renderCalendar();
+    closeDiyQuestModal();
+};
+
+window.closeDiyQuestModal = function() {
+    const modal = document.getElementById('diyQuestModal');
+    if (modal) {
+        modal.classList.add('d-none');
+        modal.classList.remove('d-flex');
+    }
+};
+
+window.selectDiyStat = (btn) => {
+    document.querySelectorAll('.diy-stat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
 };
 
 function renderCalendar() {
@@ -1030,6 +1277,189 @@ function renderCalendar() {
             </div>
         `;
     }).join('');
+}
+
+// --- 퀘스트 통계 렌더링 ---
+let _qstatsMonth = new Date();
+let _qstatsYear = new Date().getFullYear();
+let _qstatsDiyOnly = false;
+
+function renderQuestStats() {
+    const history = AppState.questHistory || {};
+    const hasData = Object.keys(history).length > 0;
+    const emptyEl = document.getElementById('qstats-empty-state');
+    if (emptyEl) emptyEl.classList.toggle('d-none', hasData);
+
+    const y = _qstatsMonth.getFullYear();
+    const m = _qstatsMonth.getMonth();
+    renderMonthlySummary(y, m, history);
+    renderMonthlyHeatmap(y, m, history);
+    renderAnnualChart(_qstatsYear, history);
+
+    const lang = AppState.currentLang;
+    const monthNames = i18n[lang]?.month_names_short || ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+    const monthLabel = document.getElementById('qstats-month-label');
+    if (monthLabel) monthLabel.textContent = `${y} ${monthNames[m]}`;
+    const yearLabel = document.getElementById('qstats-year-label');
+    if (yearLabel) yearLabel.textContent = `${_qstatsYear}`;
+}
+
+function renderMonthlySummary(year, month, history) {
+    const container = document.getElementById('qstats-monthly-summary');
+    if (!container) return;
+    const lang = AppState.currentLang;
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const keys = Object.keys(history).filter(k => k.startsWith(prefix));
+
+    const activeDays = keys.length;
+    let totalRate = 0, perfectDays = 0;
+    keys.forEach(k => {
+        const rec = history[k];
+        let done, total;
+        if (_qstatsDiyOnly) {
+            done = rec.d || 0;
+            total = rec.dt != null ? rec.dt : (rec.t - 12);
+        } else {
+            done = rec.r + rec.d;
+            total = rec.t;
+        }
+        const rate = done / Math.max(total, 1);
+        totalRate += rate;
+        if (rate >= 1 && total > 0) perfectDays++;
+    });
+    const avgRate = activeDays > 0 ? Math.round(totalRate / activeDays * 100) : 0;
+
+    const labels = {
+        ko: { days: '활동일', avg: '평균 달성률', perfect: '올클리어' },
+        en: { days: 'Active Days', avg: 'Avg. Rate', perfect: 'Perfect Days' },
+        ja: { days: '活動日数', avg: '平均達成率', perfect: '全完了日' }
+    };
+    const l = labels[lang] || labels.en;
+
+    container.innerHTML = `
+        <div class="qstats-summary-item"><div class="qstats-summary-val">${activeDays}</div><div class="qstats-summary-label">${l.days}</div></div>
+        <div class="qstats-summary-item"><div class="qstats-summary-val">${avgRate}%</div><div class="qstats-summary-label">${l.avg}</div></div>
+        <div class="qstats-summary-item"><div class="qstats-summary-val">${perfectDays}</div><div class="qstats-summary-label">${l.perfect}</div></div>
+    `;
+}
+
+function renderMonthlyHeatmap(year, month, history) {
+    const container = document.getElementById('qstats-monthly-heatmap');
+    if (!container) return;
+    const lang = AppState.currentLang;
+    const dayNames = {
+        ko: ["일","월","화","수","목","금","토"],
+        en: ["S","M","T","W","T","F","S"],
+        ja: ["日","月","火","水","木","金","土"]
+    };
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let headerHTML = '<div class="qstats-heatmap-header">';
+    (dayNames[lang] || dayNames.en).forEach(d => { headerHTML += `<span>${d}</span>`; });
+    headerHTML += '</div>';
+
+    let gridHTML = '<div class="qstats-heatmap-grid">';
+    for (let i = 0; i < firstDay; i++) gridHTML += '<div class="qstats-heatmap-cell empty"></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const rec = history[key];
+        let level = 0;
+        if (rec) {
+            let done, total;
+            if (_qstatsDiyOnly) {
+                done = rec.d || 0;
+                total = rec.dt != null ? rec.dt : (rec.t - 12);
+            } else {
+                done = rec.r + rec.d;
+                total = rec.t;
+            }
+            const rate = done / Math.max(total, 1) * 100;
+            if (rate >= 76) level = 4;
+            else if (rate >= 51) level = 3;
+            else if (rate >= 26) level = 2;
+            else if (rate >= 1) level = 1;
+        }
+        gridHTML += `<div class="qstats-heatmap-cell level-${level}">${d}</div>`;
+    }
+    gridHTML += '</div>';
+
+    const legendHTML = `<div class="qstats-legend">
+        <span>0%</span>
+        <div class="qstats-legend-cell level-0" style="background:rgba(255,255,255,0.05);"></div>
+        <div class="qstats-legend-cell level-1" style="background:rgba(0,217,255,0.15);"></div>
+        <div class="qstats-legend-cell level-2" style="background:rgba(0,217,255,0.3);"></div>
+        <div class="qstats-legend-cell level-3" style="background:rgba(0,217,255,0.5);"></div>
+        <div class="qstats-legend-cell level-4" style="background:rgba(0,217,255,0.75);"></div>
+        <span>100%</span>
+    </div>`;
+
+    container.innerHTML = headerHTML + gridHTML + legendHTML;
+}
+
+function renderAnnualChart(year, history) {
+    const svg = document.getElementById('qstats-annual-chart');
+    if (!svg) return;
+    const lang = AppState.currentLang;
+    const monthNames = i18n[lang]?.month_names_short || ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+
+    const padding = { top: 20, right: 10, bottom: 30, left: 30 };
+    const W = 320, H = 180;
+    const chartW = W - padding.left - padding.right;
+    const chartH = H - padding.top - padding.bottom;
+    const barGap = chartW / 12;
+    const barW = barGap * 0.6;
+
+    let svgContent = '';
+
+    // Gridlines
+    for (let pct = 0; pct <= 100; pct += 25) {
+        const y = padding.top + chartH - (pct / 100 * chartH);
+        svgContent += `<line x1="${padding.left}" y1="${y}" x2="${W - padding.right}" y2="${y}" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>`;
+        svgContent += `<text x="${padding.left - 4}" y="${y + 3}" text-anchor="end" fill="rgba(255,255,255,0.4)" font-size="7">${pct}%</text>`;
+    }
+
+    // Bars
+    for (let m = 0; m < 12; m++) {
+        const prefix = `${year}-${String(m + 1).padStart(2, '0')}`;
+        const keys = Object.keys(history).filter(k => k.startsWith(prefix));
+        let avgRate = 0;
+        if (keys.length > 0) {
+            let totalRate = 0;
+            keys.forEach(k => {
+                const rec = history[k];
+                let done, total;
+                if (_qstatsDiyOnly) {
+                    done = rec.d || 0;
+                    total = rec.dt != null ? rec.dt : (rec.t - 12);
+                } else {
+                    done = rec.r + rec.d;
+                    total = rec.t;
+                }
+                totalRate += done / Math.max(total, 1);
+            });
+            avgRate = totalRate / keys.length * 100;
+        }
+
+        const x = padding.left + m * barGap + (barGap - barW) / 2;
+        const barH = (avgRate / 100) * chartH;
+        const y = padding.top + chartH - barH;
+
+        if (barH > 0) {
+            const opacity = 0.3 + (avgRate / 100) * 0.6;
+            svgContent += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="2" fill="rgba(0,217,255,${opacity.toFixed(2)})"/>`;
+            if (avgRate >= 5) {
+                svgContent += `<text x="${x + barW / 2}" y="${y - 3}" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="6">${Math.round(avgRate)}%</text>`;
+            }
+        }
+
+        // Month label
+        svgContent += `<text x="${x + barW / 2}" y="${H - 8}" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="7">${monthNames[m]}</text>`;
+    }
+
+    svg.innerHTML = svgContent;
 }
 
 // --- 던전 로직 ---
@@ -1507,6 +1937,7 @@ function changeLanguage(langCode) {
         updateDungeonStatus();
         loadPlayerName();
         updateReelsResetTimer(); // i18n 업데이트 후 버튼 쿨다운 상태 재적용
+        if (document.querySelector('.quest-tab-btn[data-quest-tab="stats"].active')) renderQuestStats();
     }
 }
 
@@ -1630,6 +2061,20 @@ function renderUsers(criteria, btn = null) {
 
 window.fetchSocialData = fetchSocialData;
 
+// 현재 유저의 프로필 변경사항을 소셜 탭에 즉시 반영
+function updateSocialUserData() {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const idx = AppState.social.users.findIndex(u => u.id === uid);
+    if (idx !== -1) {
+        AppState.social.users[idx].name = AppState.user.name;
+        AppState.social.users[idx].photoURL = AppState.user.photoURL;
+        AppState.social.users[idx].instaId = AppState.user.instaId || '';
+        AppState.social.users[idx].stats = { ...AppState.user.stats };
+        renderUsers(AppState.social.sortCriteria);
+    }
+}
+
 window.toggleFriend = async (id) => {
     const isFriend = AppState.user.friends.includes(id);
     await setDoc(doc(db, "users", auth.currentUser.uid), { friends: isFriend ? arrayRemove(id) : arrayUnion(id) }, { merge: true });
@@ -1649,20 +2094,30 @@ function validatePassword(pw) {
     return pw.length >= 8 && /[A-Z]/.test(pw) && (pw.match(/[^A-Za-z0-9]/g) || []).length >= 2;
 }
 
+function validateEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 async function simulateLogin() {
     const email = document.getElementById('login-email').value;
     const pw = document.getElementById('login-pw').value;
     const btn = document.getElementById('btn-login-submit');
-    if(!email || !pw) { alert("이메일과 비밀번호를 입력해주세요."); return; }
+    const lang = AppState.currentLang || 'ko';
+    if(!email || !pw) { alert(i18n[lang]?.login_err_empty || "이메일과 비밀번호를 입력해주세요."); return; }
+    if(!validateEmail(email)) { alert(i18n[lang]?.login_err_email || "유효한 이메일 주소를 입력해주세요."); return; }
     btn.innerText = "Processing..."; btn.disabled = true;
     try {
         if(!AppState.isLoginMode) {
-            if(!validatePassword(pw)) throw new Error("비밀번호는 8자리 이상, 대문자 1개 이상, 특수문자 2개 이상 포함해야 합니다.");
+            if(!validatePassword(pw)) throw new Error(i18n[lang]?.login_err_pw_req || "비밀번호는 8자리 이상, 대문자 1개 이상, 특수문자 2개 이상 포함해야 합니다.");
             const pwConfirm = document.getElementById('login-pw-confirm').value;
-            if(pw !== pwConfirm) throw new Error("비밀번호 불일치");
-            await createUserWithEmailAndPassword(auth, email, pw);
+            if(pw !== pwConfirm) throw new Error(i18n[lang]?.pw_mismatch || "비밀번호 불일치");
+            const userCredential = await createUserWithEmailAndPassword(auth, email, pw);
+            await sendEmailVerification(userCredential.user);
+            await fbSignOut(auth);
+            showEmailVerificationNotice(email);
+            return;
         } else { await signInWithEmailAndPassword(auth, email, pw); }
-    } catch (e) { alert("인증 오류: " + e.message); } 
+    } catch (e) { alert("인증 오류: " + e.message); }
     finally { btn.innerText = AppState.isLoginMode ? "시스템 접속" : "회원가입"; btn.disabled = false; }
 }
 
@@ -1736,34 +2191,44 @@ function toggleAuthMode() {
     toggleText.innerText = AppState.isLoginMode ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인";
 }
 
-function updateSocialUserData() {
-    if (!auth.currentUser) return;
-    const uid = auth.currentUser.uid;
-    const idx = AppState.social.users.findIndex(u => u.id === uid);
-    if (idx !== -1) {
-        AppState.social.users[idx].name = AppState.user.name;
-        AppState.social.users[idx].photoURL = AppState.user.photoURL;
-        AppState.social.users[idx].instaId = AppState.user.instaId || '';
-        AppState.social.users[idx].stats = { ...AppState.user.stats };
-        renderUsers(AppState.social.sortCriteria);
-    }
+// --- 이메일 인증 안내 화면 ---
+let _pendingVerifyEmail = '';
+
+function showEmailVerificationNotice(email) {
+    _pendingVerifyEmail = email;
+    document.querySelector('#login-screen > .login-center').classList.add('d-none');
+    document.getElementById('email-verify-notice').classList.remove('d-none');
+    document.getElementById('verify-email-addr').textContent = email;
+    const lang = AppState.currentLang || 'ko';
+    alert(i18n[lang]?.verify_sent || "인증 메일이 발송되었습니다.");
 }
 
-function updateLocalReelsProfileImage() {
-    if (!auth.currentUser) return;
+function hideEmailVerificationNotice() {
+    document.getElementById('email-verify-notice').classList.add('d-none');
+    document.querySelector('#login-screen > .login-center').classList.remove('d-none');
+    _pendingVerifyEmail = '';
+}
+
+async function resendVerificationEmail() {
+    const lang = AppState.currentLang || 'ko';
+    const email = _pendingVerifyEmail || document.getElementById('login-email').value;
+    const pw = document.getElementById('login-pw').value;
+    if (!email || !pw) {
+        alert(i18n[lang]?.login_err_empty || "이메일과 비밀번호를 입력해주세요.");
+        return;
+    }
+    const btn = document.getElementById('btn-resend-verify');
+    btn.disabled = true;
     try {
-        const data = JSON.parse(localStorage.getItem('reels_posts') || '{}');
-        if (!data.posts || data.posts.length === 0) return;
-        const uid = auth.currentUser.uid;
-        let changed = false;
-        data.posts.forEach(p => {
-            if (p.uid === uid && p.userPhoto !== AppState.user.photoURL) {
-                p.userPhoto = AppState.user.photoURL;
-                changed = true;
-            }
-        });
-        if (changed) localStorage.setItem('reels_posts', JSON.stringify(data));
-    } catch(e) {}
+        const userCredential = await signInWithEmailAndPassword(auth, email, pw);
+        await sendEmailVerification(userCredential.user);
+        await fbSignOut(auth);
+        alert(i18n[lang]?.verify_resent || "인증 메일이 재발송되었습니다.");
+    } catch (e) {
+        alert("오류: " + e.message);
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 async function loadProfileImage(event) {
@@ -2219,6 +2684,62 @@ function openPlannerInfoModal() {
             </div>
         </div>
     `).join('');
+
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
+    m.classList.add('d-flex');
+}
+
+// --- ★ 설정 가이드 모달 (푸시/GPS/피트니스) ★ ---
+function openSettingsGuideModal(type) {
+    const lang = AppState.currentLang;
+    const l = i18n[lang];
+    const titleKey = `settings_guide_${type}_title`;
+    const descKey = `settings_guide_${type}_desc`;
+    const title = l[titleKey] || titleKey;
+    const desc = l[descKey] || descKey;
+
+    const colors = { push: 'var(--neon-gold)', gps: 'var(--neon-blue)', fitness: 'var(--neon-purple, #b388ff)' };
+    const icons = { push: '🔔', gps: '📍', fitness: '🏃' };
+    const color = colors[type] || 'var(--neon-blue)';
+    const icon = icons[type] || 'ℹ️';
+
+    document.getElementById('info-modal-title').innerText = title;
+    const body = document.getElementById('info-modal-body');
+    body.innerHTML = `
+        <div style="background:rgba(0,217,255,0.06); border:1px solid ${color}; padding:14px; border-radius:8px; text-align:center;">
+            <div style="font-size:2rem; margin-bottom:8px;">${icon}</div>
+            <div style="font-weight:bold; color:${color}; margin-bottom:8px; font-size:0.9rem;">${title}</div>
+            <p style="font-size:0.8rem; color:var(--text-sub); line-height:1.6; margin:0;">${desc}</p>
+        </div>
+    `;
+
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
+    m.classList.add('d-flex');
+}
+
+// --- ★ Day1 가이드 모달 ★ ---
+function openDay1InfoModal() {
+    const lang = AppState.currentLang;
+    const l = i18n[lang];
+    document.getElementById('info-modal-title').innerText = l.day1_guide_title || 'Day1 Guide';
+    const body = document.getElementById('info-modal-body');
+    body.innerHTML = `
+        <div style="background:rgba(0,217,255,0.06); border:1px solid var(--neon-blue); padding:12px; border-radius:8px; margin-bottom:10px;">
+            <div style="font-weight:bold; color:var(--neon-blue); margin-bottom:8px;">🎬 ${l.day1_guide_title || 'Day1 Guide'}</div>
+            <p style="font-size:0.8rem; color:var(--text-sub); line-height:1.6; margin:0 0 8px 0;">${l.day1_guide_desc || ''}</p>
+        </div>
+        <div style="background:rgba(255,220,0,0.06); border:1px solid var(--neon-gold); padding:10px; border-radius:8px; margin-bottom:8px;">
+            <div style="font-weight:bold; color:var(--neon-gold); margin-bottom:4px;">🎁 ${l.day1_guide_reward || ''}</div>
+        </div>
+        <div style="background:rgba(255,60,60,0.06); border:1px solid var(--neon-red); padding:10px; border-radius:8px; margin-bottom:8px;">
+            <div style="font-weight:bold; color:var(--neon-red); margin-bottom:4px;">⏰ ${l.day1_guide_auto_delete || ''}</div>
+        </div>
+        <div style="background:rgba(180,0,255,0.06); border:1px solid rgba(180,0,255,0.3); padding:10px; border-radius:8px;">
+            <div style="font-size:0.75rem; color:var(--text-sub);">${l.day1_guide_cooldown || ''}</div>
+        </div>
+    `;
 
     const m = document.getElementById('infoModal');
     m.classList.remove('d-none');
@@ -2877,6 +3398,53 @@ function canSpinRoulette() {
     return anyDone ? 'ready' : 'locked';
 }
 
+// KST 자정까지 남은 시간(ms) 계산
+function getMsUntilNextKSTMidnight() {
+    const now = new Date();
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kstNow = new Date(now.getTime() + kstOffset + now.getTimezoneOffset() * 60 * 1000);
+    const kstTomorrow = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate() + 1, 0, 0, 0, 0);
+    return kstTomorrow.getTime() - kstNow.getTime();
+}
+
+// 남은 시간을 HH:MM:SS 포맷으로 변환
+function formatCountdown(ms) {
+    const totalSec = Math.max(0, Math.floor(ms / 1000));
+    const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+}
+
+let _rouletteTimerInterval = null;
+
+function startRouletteTimer() {
+    stopRouletteTimer();
+    const timerEl = document.getElementById('roulette-timer');
+    if (!timerEl) return;
+
+    function tick() {
+        const ms = getMsUntilNextKSTMidnight();
+        const lang = AppState.currentLang;
+        timerEl.textContent = `${i18n[lang].roulette_next_spin} ${formatCountdown(ms)}`;
+        timerEl.style.display = '';
+        // 자정이 되면 룰렛 상태 갱신
+        if (ms <= 1000) {
+            stopRouletteTimer();
+            setTimeout(() => renderRoulette(), 1100);
+        }
+    }
+    tick();
+    _rouletteTimerInterval = setInterval(tick, 1000);
+}
+
+function stopRouletteTimer() {
+    if (_rouletteTimerInterval) {
+        clearInterval(_rouletteTimerInterval);
+        _rouletteTimerInterval = null;
+    }
+}
+
 function renderRoulette() {
     const container = document.getElementById('roulette-container');
     if (!container) return;
@@ -2890,6 +3458,7 @@ function renderRoulette() {
 
     const btn = document.getElementById('btn-roulette-spin');
     const statusText = document.getElementById('roulette-status');
+    const timerEl = document.getElementById('roulette-timer');
     if (btn && statusText) {
         if (status === 'ready') {
             btn.disabled = false;
@@ -2897,18 +3466,23 @@ function renderRoulette() {
             btn.style.opacity = '1';
             statusText.textContent = i18n[lang].roulette_desc;
             statusText.style.color = 'var(--neon-gold)';
+            stopRouletteTimer();
+            if (timerEl) timerEl.style.display = 'none';
         } else if (status === 'used') {
             btn.disabled = true;
             btn.textContent = i18n[lang].roulette_used;
             btn.style.opacity = '0.4';
             statusText.textContent = i18n[lang].roulette_used;
             statusText.style.color = 'var(--text-sub)';
+            startRouletteTimer();
         } else {
             btn.disabled = true;
             btn.textContent = i18n[lang].roulette_spin;
             btn.style.opacity = '0.4';
             statusText.textContent = i18n[lang].roulette_locked;
             statusText.style.color = 'var(--text-sub)';
+            stopRouletteTimer();
+            if (timerEl) timerEl.style.display = 'none';
         }
     }
 }
@@ -3484,14 +4058,6 @@ function getTodayKST() {
     return `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
 }
 
-function checkDiyDailyReset() {
-    const today = getTodayKST();
-    if (AppState.diyQuests.lastResetDate !== today) {
-        AppState.diyQuests.completedToday = {};
-        AppState.diyQuests.lastResetDate = today;
-    }
-}
-
 // 릴스 데이터 로드 (localStorage) — 업로드 후 24시간 경과 포스트 자동 삭제
 function getReelsData() {
     try {
@@ -3515,6 +4081,23 @@ function saveReelsData(data) {
     localStorage.setItem('reels_posts', JSON.stringify(data));
 }
 
+function updateLocalReelsProfileImage() {
+    if (!auth.currentUser) return;
+    try {
+        const data = JSON.parse(localStorage.getItem('reels_posts') || '{}');
+        if (!data.posts || data.posts.length === 0) return;
+        const uid = auth.currentUser.uid;
+        let changed = false;
+        data.posts.forEach(p => {
+            if (p.uid === uid && p.userPhoto !== AppState.user.photoURL) {
+                p.userPhoto = AppState.user.photoURL;
+                changed = true;
+            }
+        });
+        if (changed) localStorage.setItem('reels_posts', JSON.stringify(data));
+    } catch(e) {}
+}
+
 // Firestore에 릴스 포스트 저장/로드
 async function saveReelsToFirestore(post) {
     if (!auth.currentUser) return;
@@ -3527,6 +4110,9 @@ async function saveReelsToFirestore(post) {
         // 24시간 이내 포스트만 유지
         const now = Date.now();
         existingPosts = existingPosts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
+        // 기존 포스트의 프로필 이미지를 최신 값으로 갱신
+        const currentPhoto = AppState.user.photoURL || null;
+        existingPosts.forEach(p => { p.userPhoto = currentPhoto; });
         existingPosts.push(post);
         await setDoc(doc(db, "users", auth.currentUser.uid), {
             reelsStr: JSON.stringify(existingPosts)
@@ -4907,6 +5493,7 @@ window.addEventListener('load', () => {
     if (hash) {
         const tabEl = document.querySelector(`.nav-item[data-tab="${hash}"]`);
         if (tabEl) {
+            // 약간의 지연으로 앱 초기화 완료 후 탭 전환
             setTimeout(() => switchTab(hash, tabEl), 300);
         }
     }
