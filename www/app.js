@@ -54,9 +54,19 @@ function isBase64Image(str) {
 }
 
 async function uploadImageToStorage(storagePath, base64str) {
-    const res = await fetch(base64str);
-    const blob = await res.blob();
-    const contentType = blob.type || (base64str.match(/^data:([^;]+);/) || [])[1] || 'image/jpeg';
+    let blob, contentType;
+    if (base64str.startsWith('data:')) {
+        const parts = base64str.split(',');
+        contentType = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
+        const byteString = atob(parts[1]);
+        const u8arr = new Uint8Array(byteString.length);
+        for (let i = 0; i < byteString.length; i++) u8arr[i] = byteString.charCodeAt(i);
+        blob = new Blob([u8arr], { type: contentType });
+    } else {
+        const res = await fetch(base64str);
+        blob = await res.blob();
+        contentType = blob.type || 'image/jpeg';
+    }
     const storageRef = ref(storage, storagePath);
     await uploadBytes(storageRef, blob, { contentType });
     return await getDownloadURL(storageRef);
@@ -1673,6 +1683,36 @@ function toggleAuthMode() {
     toggleText.innerText = AppState.isLoginMode ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인";
 }
 
+function updateSocialUserData() {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const idx = AppState.social.users.findIndex(u => u.id === uid);
+    if (idx !== -1) {
+        AppState.social.users[idx].name = AppState.user.name;
+        AppState.social.users[idx].photoURL = AppState.user.photoURL;
+        AppState.social.users[idx].instaId = AppState.user.instaId || '';
+        AppState.social.users[idx].stats = { ...AppState.user.stats };
+        renderUsers(AppState.social.sortCriteria);
+    }
+}
+
+function updateLocalReelsProfileImage() {
+    if (!auth.currentUser) return;
+    try {
+        const data = JSON.parse(localStorage.getItem('reels_posts') || '{}');
+        if (!data.posts || data.posts.length === 0) return;
+        const uid = auth.currentUser.uid;
+        let changed = false;
+        data.posts.forEach(p => {
+            if (p.uid === uid && p.userPhoto !== AppState.user.photoURL) {
+                p.userPhoto = AppState.user.photoURL;
+                changed = true;
+            }
+        });
+        if (changed) localStorage.setItem('reels_posts', JSON.stringify(data));
+    } catch(e) {}
+}
+
 async function loadProfileImage(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -1692,6 +1732,10 @@ async function loadProfileImage(event) {
             ctx.drawImage(img, 0, 0, 150, 150);
             const base64 = canvas.toDataURL('image/jpeg', 0.6);
             setProfilePreview(base64);
+            if (!auth.currentUser) {
+                alert(lang === 'ko' ? '로그인이 필요합니다.' : 'Please log in first.');
+                return;
+            }
             try {
                 const uid = auth.currentUser.uid;
                 const downloadURL = await uploadImageToStorage(`profile_images/${uid}/profile.jpg`, base64);
@@ -1703,6 +1747,10 @@ async function loadProfileImage(event) {
             }
             try {
                 await saveUserData();
+                // 소셜 탭에 변경된 프로필 사진 즉시 반영
+                updateSocialUserData();
+                // 로컬 릴스 캐시의 프로필 이미지도 갱신
+                updateLocalReelsProfileImage();
             } catch (e) {
                 console.error('[Profile] 프로필 사진 DB 저장 실패:', e);
                 alert(lang === 'ko' ? '프로필 사진 저장에 실패했습니다. 다시 시도해주세요.' : 'Failed to save profile picture. Please try again.');
