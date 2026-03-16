@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+import { getStorage, ref, uploadBytes, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
@@ -56,29 +56,26 @@ function isBase64Image(str) {
 async function uploadImageToStorage(storagePath, base64str) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
     _log('1-START', `path=${storagePath}, inputLen=${base64str ? base64str.length : 'null'}, startsWithData=${base64str ? base64str.startsWith('data:') : 'N/A'}`);
-    let blob, contentType;
+    const storageRef = ref(storage, storagePath);
+    let contentType = 'image/jpeg';
     if (base64str.startsWith('data:')) {
         const parts = base64str.split(',');
         contentType = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
-        _log('2-DECODE', `contentType=${contentType}, base64PartLen=${parts[1] ? parts[1].length : 0}`);
-        const byteString = atob(parts[1]);
-        const u8arr = new Uint8Array(byteString.length);
-        for (let i = 0; i < byteString.length; i++) u8arr[i] = byteString.charCodeAt(i);
-        blob = new Blob([u8arr], { type: contentType });
-        _log('3-BLOB', `blobSize=${blob.size}, blobType=${blob.type}`);
+        const base64Only = parts[1];
+        _log('2-DECODE', `contentType=${contentType}, base64Len=${base64Only.length}`);
+        _log('3-UPLOAD', 'Calling uploadString (base64)...');
+        await uploadString(storageRef, base64Only, 'base64', { contentType });
     } else {
-        _log('2-FETCH', 'Using fetch() for non-data URI');
+        _log('2-FETCH', 'Non-data URI, using fetch→blob→uploadBytes');
         const res = await fetch(base64str);
-        blob = await res.blob();
+        const blob = await res.blob();
         contentType = blob.type || 'image/jpeg';
-        _log('3-BLOB', `blobSize=${blob.size}, blobType=${blob.type}`);
+        _log('3-UPLOAD', `Calling uploadBytes, blobSize=${blob.size}`);
+        await uploadBytes(storageRef, blob, { contentType });
     }
-    const storageRef = ref(storage, storagePath);
-    _log('4-UPLOAD', 'Calling uploadBytes...');
-    await uploadBytes(storageRef, blob, { contentType });
-    _log('5-GETURL', 'uploadBytes OK, calling getDownloadURL...');
+    _log('4-GETURL', 'Upload OK, calling getDownloadURL...');
     const url = await getDownloadURL(storageRef);
-    _log('6-DONE', `downloadURL=${url.substring(0, 80)}...`);
+    _log('5-DONE', `downloadURL=${url.substring(0, 80)}...`);
     return url;
 }
 
