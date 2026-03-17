@@ -44,6 +44,7 @@ const i18n = {
         planner_weekly: "주간 플래너", planner_reward: "저장 시 +20P & AGI +0.5",
         planner_placeholder: "할 일을 입력하세요",
         raid_reward_label: "클리어 보상", raid_reward_points: "결속 포인트", raid_reward_stat: "성장 데이터", raid_reward_condition: "달성 조건",
+        raid_participants_title: "참여 헌터", raid_contributed: "기여 완료", raid_waiting_contribute: "대기 중",
 
         // 스트릭 시스템
         streak_label: "연속", streak_day: "일", streak_bonus: "스트릭 보너스", streak_lost: "스트릭이 초기화되었습니다!", stat_decay_warning: "미접속으로 스탯이 감소했습니다.",
@@ -172,6 +173,7 @@ const i18n = {
         planner_weekly: "Weekly Planner", planner_reward: "Save: +20P & AGI +0.5",
         planner_placeholder: "Enter task",
         raid_reward_label: "Clear Reward", raid_reward_points: "Bond Points", raid_reward_stat: "Growth Data", raid_reward_condition: "Condition",
+        raid_participants_title: "Participants", raid_contributed: "Contributed", raid_waiting_contribute: "Waiting",
 
         streak_label: "Streak", streak_day: "days", streak_bonus: "Streak Bonus", streak_lost: "Streak has been reset!", stat_decay_warning: "Stats decreased due to inactivity.",
         streak_multiplier: "Reward Multiplier",
@@ -297,6 +299,7 @@ const i18n = {
         planner_weekly: "週間プランナー", planner_reward: "保存: +20P & AGI +0.5",
         planner_placeholder: "タスクを入力",
         raid_reward_label: "クリア報酬", raid_reward_points: "結束ポイント", raid_reward_stat: "成長データ", raid_reward_condition: "達成条件",
+        raid_participants_title: "参加ハンター", raid_contributed: "貢献完了", raid_waiting_contribute: "待機中",
 
         streak_label: "連続", streak_day: "日", streak_bonus: "ストリークボーナス", streak_lost: "ストリークがリセットされました！", stat_decay_warning: "未接続によりステータスが減少しました。",
         streak_multiplier: "報酬倍率",
