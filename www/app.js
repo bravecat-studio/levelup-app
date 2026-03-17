@@ -4273,9 +4273,6 @@ async function postToReels() {
         const caption = (entry.caption || '').trim();
         const postTimestamp = Date.now();
 
-        // 즉시 타임스탬프 저장 → 타이머가 버튼을 다시 활성화하는 것을 방지
-        localStorage.setItem('reels_last_post_ts', String(postTimestamp));
-
         // 릴스 사진을 Cloud Storage에 업로드
         let finalPhotoURL = photoData;
         if (isBase64Image(photoData)) {
@@ -4306,6 +4303,9 @@ async function postToReels() {
         reelsData.posts.push(post);
         saveReelsData(reelsData);
 
+        // 포스팅 타임스탬프 저장 (로그아웃 후에도 비활성화 유지용)
+        localStorage.setItem('reels_last_post_ts', String(postTimestamp));
+
         // Firestore 저장
         await saveReelsToFirestore(post);
 
@@ -4326,8 +4326,6 @@ async function postToReels() {
         renderReelsFeed();
     } catch(e) {
         AppLogger.error('[Reels] 포스팅 오류: ' + (e.message || e));
-        // 포스팅 실패 시 타임스탬프 제거 → 재시도 가능
-        localStorage.removeItem('reels_last_post_ts');
     } finally {
         // 항상 타이머/버튼 상태 갱신 (에러 발생 시에도)
         updateReelsResetTimer();
