@@ -44,6 +44,7 @@ const i18n = {
         planner_weekly: "주간 플래너", planner_reward: "저장 시 +20P & AGI +0.5",
         planner_placeholder: "할 일을 입력하세요",
         raid_reward_label: "클리어 보상", raid_reward_points: "결속 포인트", raid_reward_stat: "성장 데이터", raid_reward_condition: "달성 조건",
+        raid_participants_title: "참여 헌터", raid_contributed: "기여 완료", raid_waiting_contribute: "대기 중",
 
         // 스트릭 시스템
         streak_label: "연속", streak_day: "일", streak_bonus: "스트릭 보너스", streak_lost: "스트릭이 초기화되었습니다!", stat_decay_warning: "미접속으로 스탯이 감소했습니다.",
@@ -65,6 +66,7 @@ const i18n = {
         // P4: 일일 보너스 룰렛
         roulette_title: "일일 보너스 룰렛", roulette_spin: "스핀!", roulette_desc: "퀘스트 1개 이상 완료 후 하루 1회 스핀 가능",
         roulette_locked: "퀘스트를 완료하면 스핀 가능", roulette_used: "오늘 스핀 완료", roulette_result: "보상 획득!",
+        roulette_next_spin: "다음 스핀까지",
 
         // 릴스 탭
         nav_reels: "Day1", reels_title: "🎬 Day1", reels_post_btn: "Day1 포스팅",
@@ -81,16 +83,51 @@ const i18n = {
         reels_comment_post: "등록",
         reels_comment_empty: "첫 번째 댓글을 남겨보세요!",
         planner_photo_required: "사진 추가",
+        planner_photo_warning: "⚠️ 로그아웃 시 사진이 삭제됩니다. 중요한 사진은 미리 저장하세요.",
         planner_caption_placeholder: "오늘의 한마디를 남겨보세요...",
         planner_caption_limit_ko: "한글 140자 / 영문 280자",
         btn_planner_info: "가이드",
+        btn_day1_info: "가이드",
+        settings_guide_push_title: "푸시 알림 활성화 장점",
+        settings_guide_push_desc: "퀘스트 리마인더, 던전 출현 알림, 스트릭 유지 알림을 실시간으로 받을 수 있습니다. 중요한 보상을 놓치지 마세요!",
+        settings_guide_gps_title: "위치 탐색 활성화 장점",
+        settings_guide_gps_desc: "던전(로컬 레이드) 참여 시 해당 역 반경 2km 이내에서 근접 보너스 +50P를 추가로 획득할 수 있습니다.",
+        settings_guide_fitness_title: "피트니스 동기화 활성화 장점",
+        settings_guide_fitness_desc: "걸음 수가 자동으로 동기화되어 1,000보당 +10P & STR +0.5 보상을 매일 받을 수 있습니다. 걸으면서 레벨업!",
+        day1_guide_title: "Day1 가이드",
+        day1_guide_desc: "플래너에서 시간표를 완성하고 사진+한마디를 추가하면 Day1에 포스팅할 수 있습니다.",
+        day1_guide_reward: "포스팅 보상: +20P & CHA +0.5",
+        day1_guide_auto_delete: "포스팅은 24시간 후 자동 삭제됩니다.",
+        day1_guide_cooldown: "하루 1회만 포스팅 가능 (00:00 KST 초기화)",
         share_save_local: "이미지 로컬 저장",
         share_save_local_desc: "플래너를 이미지로 저장합니다",
         share_link: "링크 공유",
         share_link_desc: "플래너 요약을 클립보드에 복사합니다",
 
         // 오프라인 모드
-        offline_banner: "오프라인 모드 — 일부 기능이 제한됩니다"
+        offline_banner: "오프라인 모드 — 일부 기능이 제한됩니다",
+
+        // DIY 퀘스트
+        diy_quest_title: "DIY 퀘스트", btn_add_diy: "추가",
+        diy_modal_create: "퀘스트 만들기", diy_modal_edit: "퀘스트 수정",
+        diy_input_title: "제목", diy_input_desc: "설명", diy_select_stat: "스탯 선택",
+        diy_btn_save: "저장", diy_btn_delete: "삭제",
+        diy_limit_reached: "최대 6개까지 추가 가능합니다.",
+        diy_confirm_delete: "이 퀘스트를 삭제하시겠습니까?",
+        diy_duplicate_name: "같은 이름의 퀘스트가 이미 존재합니다.",
+
+        // 퀘스트 통계 서브탭
+        quest_tab_main: "📜 퀘스트", quest_tab_stats: "📊 통계",
+        qstats_monthly_title: "월간 퀘스트 통계", qstats_annual_title: "연간 퀘스트 통계",
+        qstats_empty: "퀘스트를 완료하면 통계가 기록됩니다.",
+        qstats_diy_only: "DIY 퀘스트만",
+        qstats_active_days: "활동일", qstats_total_completed: "완료 퀘스트", qstats_avg_rate: "평균 달성률", qstats_perfect_days: "올클리어",
+        month_names_short: ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"],
+
+        // 이메일 인증
+        verify_title: "이메일 인증이 필요합니다", verify_desc: "받은편지함에서 인증 링크를 클릭한 후 로그인해주세요.",
+        verify_sent: "인증 메일이 발송되었습니다.", verify_resend: "인증 메일 재발송", verify_back: "로그인으로 돌아가기",
+        verify_login_blocked: "이메일 인증을 완료해주세요. 받은편지함을 확인하세요.", verify_resent: "인증 메일이 재발송되었습니다."
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -136,6 +173,7 @@ const i18n = {
         planner_weekly: "Weekly Planner", planner_reward: "Save: +20P & AGI +0.5",
         planner_placeholder: "Enter task",
         raid_reward_label: "Clear Reward", raid_reward_points: "Bond Points", raid_reward_stat: "Growth Data", raid_reward_condition: "Condition",
+        raid_participants_title: "Participants", raid_contributed: "Contributed", raid_waiting_contribute: "Waiting",
 
         streak_label: "Streak", streak_day: "days", streak_bonus: "Streak Bonus", streak_lost: "Streak has been reset!", stat_decay_warning: "Stats decreased due to inactivity.",
         streak_multiplier: "Reward Multiplier",
@@ -154,6 +192,7 @@ const i18n = {
         // P4: Daily Bonus Roulette
         roulette_title: "Daily Bonus Roulette", roulette_spin: "SPIN!", roulette_desc: "Complete 1+ quest to unlock daily spin",
         roulette_locked: "Complete a quest to spin", roulette_used: "Spin used today", roulette_result: "Reward!",
+        roulette_next_spin: "Next spin in",
 
         // Reels tab
         nav_reels: "Reels", reels_title: "🎬 Reels", reels_post_btn: "Post Timetable",
@@ -170,16 +209,51 @@ const i18n = {
         reels_comment_post: "Post",
         reels_comment_empty: "Be the first to comment!",
         planner_photo_required: "Add Photo (Required)",
+        planner_photo_warning: "⚠️ Photos will be deleted on logout. Save important photos beforehand.",
         planner_caption_placeholder: "Write a short caption...",
         planner_caption_limit_ko: "280 chars (English) / 140 chars (Korean)",
         btn_planner_info: "Guide",
+        btn_day1_info: "Guide",
+        settings_guide_push_title: "Benefits of Push Notifications",
+        settings_guide_push_desc: "Receive real-time quest reminders, dungeon spawn alerts, and streak maintenance notifications. Never miss important rewards!",
+        settings_guide_gps_title: "Benefits of Location Tracking",
+        settings_guide_gps_desc: "Get a +50P proximity bonus when joining dungeon raids within 2km of the target station.",
+        settings_guide_fitness_title: "Benefits of Fitness Sync",
+        settings_guide_fitness_desc: "Your steps sync automatically — earn +10P & STR +0.5 per 1,000 steps daily. Level up while you walk!",
+        day1_guide_title: "Day1 Guide",
+        day1_guide_desc: "Complete your timetable in the Planner and add a photo + caption to post on Day1.",
+        day1_guide_reward: "Posting reward: +20P & CHA +0.5",
+        day1_guide_auto_delete: "Posts are automatically deleted after 24 hours.",
+        day1_guide_cooldown: "You can post once per day (resets at 00:00 KST)",
         share_save_local: "Save as Image",
         share_save_local_desc: "Save your planner as an image",
         share_link: "Copy to Clipboard",
         share_link_desc: "Copy planner summary text to clipboard",
 
         // Offline mode
-        offline_banner: "Offline Mode — Some features are limited"
+        offline_banner: "Offline Mode — Some features are limited",
+
+        // DIY Quests
+        diy_quest_title: "DIY Quests", btn_add_diy: "Add",
+        diy_modal_create: "Create Quest", diy_modal_edit: "Edit Quest",
+        diy_input_title: "Title", diy_input_desc: "Description", diy_select_stat: "Select Stat",
+        diy_btn_save: "Save", diy_btn_delete: "Delete",
+        diy_limit_reached: "Max 6 custom quests.",
+        diy_confirm_delete: "Delete this quest?",
+        diy_duplicate_name: "A quest with this name already exists.",
+
+        // Quest Stats Subtab
+        quest_tab_main: "📜 Quests", quest_tab_stats: "📊 Stats",
+        qstats_monthly_title: "Monthly Quest Stats", qstats_annual_title: "Annual Quest Stats",
+        qstats_empty: "Complete quests to start tracking statistics.",
+        qstats_diy_only: "DIY Quests Only",
+        qstats_active_days: "Active Days", qstats_total_completed: "Completed", qstats_avg_rate: "Avg. Rate", qstats_perfect_days: "Perfect Days",
+        month_names_short: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+
+        // Email Verification
+        verify_title: "Email Verification Required", verify_desc: "Please click the verification link in your inbox, then log in.",
+        verify_sent: "Verification email sent.", verify_resend: "Resend Verification Email", verify_back: "Back to Login",
+        verify_login_blocked: "Please verify your email first. Check your inbox.", verify_resent: "Verification email resent."
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -225,6 +299,7 @@ const i18n = {
         planner_weekly: "週間プランナー", planner_reward: "保存: +20P & AGI +0.5",
         planner_placeholder: "タスクを入力",
         raid_reward_label: "クリア報酬", raid_reward_points: "結束ポイント", raid_reward_stat: "成長データ", raid_reward_condition: "達成条件",
+        raid_participants_title: "参加ハンター", raid_contributed: "貢献完了", raid_waiting_contribute: "待機中",
 
         streak_label: "連続", streak_day: "日", streak_bonus: "ストリークボーナス", streak_lost: "ストリークがリセットされました！", stat_decay_warning: "未接続によりステータスが減少しました。",
         streak_multiplier: "報酬倍率",
@@ -243,6 +318,7 @@ const i18n = {
         // P4: デイリーボーナスルーレット
         roulette_title: "デイリーボーナスルーレット", roulette_spin: "スピン！", roulette_desc: "クエスト1つ以上完了で1日1回スピン可能",
         roulette_locked: "クエストを完了するとスピン可能", roulette_used: "本日スピン済", roulette_result: "報酬獲得！",
+        roulette_next_spin: "次のスピンまで",
 
         // リールタブ
         nav_reels: "リール", reels_title: "🎬 リール", reels_post_btn: "タイムテーブル投稿",
@@ -259,16 +335,51 @@ const i18n = {
         reels_comment_post: "投稿",
         reels_comment_empty: "最初のコメントを残しましょう！",
         planner_photo_required: "写真追加（必須）",
+        planner_photo_warning: "⚠️ ログアウト時に写真は削除されます。大切な写真は事前に保存してください。",
         planner_caption_placeholder: "今日の一言を残しましょう...",
         planner_caption_limit_ko: "全角140字 / 半角280字",
         btn_planner_info: "ガイド",
+        btn_day1_info: "ガイド",
+        settings_guide_push_title: "プッシュ通知の利点",
+        settings_guide_push_desc: "クエストリマインダー、ダンジョン出現通知、ストリーク維持通知をリアルタイムで受信できます。重要な報酬を逃さないでください！",
+        settings_guide_gps_title: "位置情報の利点",
+        settings_guide_gps_desc: "ダンジョンレイド参加時、対象駅から半径2km以内で近接ボーナス+50Pを獲得できます。",
+        settings_guide_fitness_title: "フィットネス同期の利点",
+        settings_guide_fitness_desc: "歩数が自動同期され、1,000歩ごとに+10P & STR +0.5の報酬を毎日獲得できます。歩きながらレベルアップ！",
+        day1_guide_title: "Day1ガイド",
+        day1_guide_desc: "プランナーでタイムテーブルを完成し、写真+一言を追加するとDay1に投稿できます。",
+        day1_guide_reward: "投稿報酬: +20P & CHA +0.5",
+        day1_guide_auto_delete: "投稿は24時間後に自動削除されます。",
+        day1_guide_cooldown: "1日1回のみ投稿可能（00:00 KSTリセット）",
         share_save_local: "画像として保存",
         share_save_local_desc: "プランナーを画像として保存します",
         share_link: "クリップボードにコピー",
         share_link_desc: "プランナーの要約テキストをコピーします",
 
         // オフラインモード
-        offline_banner: "オフラインモード — 一部の機能が制限されます"
+        offline_banner: "オフラインモード — 一部の機能が制限されます",
+
+        // DIYクエスト
+        diy_quest_title: "DIYクエスト", btn_add_diy: "追加",
+        diy_modal_create: "クエスト作成", diy_modal_edit: "クエスト編集",
+        diy_input_title: "タイトル", diy_input_desc: "説明", diy_select_stat: "ステータス選択",
+        diy_btn_save: "保存", diy_btn_delete: "削除",
+        diy_limit_reached: "最大6個まで追加可能です。",
+        diy_confirm_delete: "このクエストを削除しますか？",
+        diy_duplicate_name: "同じ名前のクエストがすでに存在します。",
+
+        // クエスト統計サブタブ
+        quest_tab_main: "📜 クエスト", quest_tab_stats: "📊 統計",
+        qstats_monthly_title: "月間クエスト統計", qstats_annual_title: "年間クエスト統計",
+        qstats_empty: "クエストを完了すると統計が記録されます。",
+        qstats_diy_only: "DIYクエストのみ",
+        qstats_active_days: "活動日数", qstats_total_completed: "完了クエスト", qstats_avg_rate: "平均達成率", qstats_perfect_days: "全完了日",
+        month_names_short: ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"],
+
+        // メール認証
+        verify_title: "メール認証が必要です", verify_desc: "受信トレイの認証リンクをクリックしてからログインしてください。",
+        verify_sent: "認証メールを送信しました。", verify_resend: "認証メール再送信", verify_back: "ログインに戻る",
+        verify_login_blocked: "メール認証を完了してください。受信トレイを確認してください。", verify_resent: "認証メールを再送信しました。"
     }
 };
 

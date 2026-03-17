@@ -132,7 +132,7 @@ function getInitialAppState() {
             weekStart: getWeekStartDate()
         },
         social: { mode: 'global', sortCriteria: 'total', users: [] },
-        dungeon: { lastGeneratedDate: null, slot: 0, stationIdx: 0, maxParticipants: 5, globalParticipants: 0, globalProgress: 0, isJoined: false, hasContributed: false, targetStat: 'str', isCleared: false, bossMaxHP: 5, bossDamageDealt: 0 },
+        dungeon: { lastGeneratedDate: null, slot: 0, stationIdx: 0, maxParticipants: 5, globalParticipants: 0, globalProgress: 0, isJoined: false, hasContributed: false, targetStat: 'str', isCleared: false, bossMaxHP: 5, bossDamageDealt: 0, raidParticipants: [] },
         diyQuests: { definitions: [], completedToday: {}, lastResetDate: null },
         questHistory: {},
     };
@@ -1663,6 +1663,7 @@ window.syncGlobalDungeon = async () => {
         const snap = await getDocs(collection(db, "users"));
         let realParticipants = 0;
         let totalDamage = 0;
+        const participants = [];
         const targetDate = AppState.dungeon.lastGeneratedDate;
         const targetSlot = AppState.dungeon.slot;
 
@@ -1674,6 +1675,25 @@ window.syncGlobalDungeon = async () => {
                     if (dng.lastGeneratedDate === targetDate && dng.slot === targetSlot && dng.isJoined) {
                         realParticipants++;
                         if (dng.hasContributed) totalDamage++;
+                        let title = "각성자";
+                        if (data.titleHistoryStr) {
+                            try {
+                                const hist = JSON.parse(data.titleHistoryStr);
+                                const last = hist[hist.length - 1].title;
+                                title = typeof last === 'object' ? last[AppState.currentLang] || last.ko : last;
+                            } catch(e) {}
+                        }
+                        const stats = data.stats || {};
+                        participants.push({
+                            id: doc.id,
+                            name: data.name || '헌터',
+                            photoURL: data.photoURL || null,
+                            title,
+                            instaId: data.instaId || '',
+                            hasContributed: !!dng.hasContributed,
+                            statValue: Number(stats[AppState.dungeon.targetStat]) || 0,
+                            isMe: auth.currentUser?.uid === doc.id
+                        });
                     }
                 } catch(e) {}
             }
@@ -1686,6 +1706,7 @@ window.syncGlobalDungeon = async () => {
         AppState.dungeon.bossDamageDealt = totalDamage;
         AppState.dungeon.globalParticipants = realParticipants;
         AppState.dungeon.globalProgress = Math.min(100, (totalDamage / scaledHP) * 100);
+        AppState.dungeon.raidParticipants = participants.sort((a, b) => (b.hasContributed - a.hasContributed) || (b.statValue - a.statValue));
 
         if (document.getElementById('dungeon').classList.contains('active')) {
             renderDungeon();
@@ -1753,6 +1774,32 @@ function updateDungeonStatus() {
     window.syncGlobalDungeon();
 }
 
+function renderRaidParticipants(participants) {
+    if (!participants || participants.length === 0) return '';
+    const lang = AppState.currentLang;
+    const t = i18n[lang];
+    const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="color:#ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
+
+    const cards = participants.map(u => `
+        <div class="user-card ${u.isMe ? 'my-rank' : ''}" style="padding:8px;">
+            <div style="display:flex; align-items:center; flex-grow:1;">
+                ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:28px; height:28px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
+                <div>
+                    <div class="title-badge" style="font-size:0.55rem;">${sanitizeText(u.title)}</div>
+                    <div style="font-size:0.8rem; display:flex; align-items:center;">
+                        ${sanitizeText(u.name)} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="raid-contribution-badge ${u.hasContributed ? 'contributed' : 'pending'}">
+                ${u.hasContributed ? '⚔️ ' + (t.raid_contributed || '기여 완료') : '⏳ ' + (t.raid_waiting_contribute || '대기 중')}
+            </div>
+        </div>
+    `).join('');
+
+    return `<div class="raid-participants-title">${t.raid_participants_title || '참여 헌터'} (${participants.length})</div>${cards}`;
+}
+
 function renderDungeon() {
     const banner = document.getElementById('dungeon-banner');
     const activeBoard = document.getElementById('dungeon-active-board');
@@ -1817,6 +1864,7 @@ function renderDungeon() {
                     ${i18n[AppState.currentLang].raid_part}
                     <span class="text-blue">${AppState.dungeon.globalParticipants}</span> 명
                 </div>
+                <div class="raid-participants-list">${renderRaidParticipants(AppState.dungeon.raidParticipants)}</div>
                 ${joinBtnHtml}
             `;
         } else {
@@ -1839,6 +1887,11 @@ function renderDungeon() {
             document.getElementById('raid-reward-stat-val').style.color = m.color;
 
             document.getElementById('raid-part-count').innerText = `${AppState.dungeon.globalParticipants}`;
+
+            const partListEl = document.getElementById('raid-participants-list');
+            if (partListEl) {
+                partListEl.innerHTML = renderRaidParticipants(AppState.dungeon.raidParticipants);
+            }
 
             // HP 바 표시 (진행도 대신 보스 HP)
             const bossMaxHP = AppState.dungeon.bossMaxHP || 5;

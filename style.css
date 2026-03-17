@@ -218,6 +218,12 @@ h2 { font-size: 1rem; color: var(--neon-blue); margin-top: 0; margin-bottom: 12p
 .btn-friend { padding: 4px 8px; font-size: 0.65rem; font-weight: bold; background: transparent; border: 1px solid var(--neon-blue); color: var(--neon-blue); border-radius: 4px; }
 .btn-friend.added { background: var(--neon-blue); color: #fff; }
 
+.raid-participants-list { margin-top: 10px; max-height: 200px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
+.raid-participants-title { font-size: 0.75rem; color: var(--text-sub); font-weight: bold; margin-bottom: 6px; }
+.raid-contribution-badge { font-size: 0.65rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.raid-contribution-badge.contributed { color: var(--neon-blue); border: 1px solid var(--neon-blue); background: rgba(0, 217, 255, 0.1); }
+.raid-contribution-badge.pending { color: var(--text-sub); border: 1px solid var(--border-color); }
+
 .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
 .setting-row:last-child { border-bottom: none; }
 .custom-select { background: transparent; color: var(--text-main); border: 1px solid var(--neon-blue); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; outline: none; }
