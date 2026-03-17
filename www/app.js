@@ -53,6 +53,14 @@ function isBase64Image(str) {
     return typeof str === 'string' && str.startsWith('data:image/');
 }
 
+function raceWithTimeout(promise, ms, label) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function uploadImageToStorage(storagePath, base64str) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
     _log('1-START', `path=${storagePath}, inputLen=${base64str ? base64str.length : 'null'}, startsWithData=${base64str ? base64str.startsWith('data:') : 'N/A'}`);
@@ -74,17 +82,30 @@ async function uploadImageToStorage(storagePath, base64str) {
         _log('3-BLOB', `blobSize=${blob.size}, blobType=${blob.type}`);
     }
     const storageRef = ref(storage, storagePath);
-    _log('4-UPLOAD', 'Calling uploadBytes...');
-    // 타임아웃 30초: 네트워크 불안정 시 uploadBytes가 무한 대기하는 문제 방지
-    const uploadPromise = uploadBytes(storageRef, blob, { contentType });
-    const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Upload timed out after 30s')), 30000)
-    );
-    await Promise.race([uploadPromise, timeoutPromise]);
-    _log('5-GETURL', 'uploadBytes OK, calling getDownloadURL...');
-    const url = await getDownloadURL(storageRef);
-    _log('6-DONE', `downloadURL=${url.substring(0, 80)}...`);
-    return url;
+    // 동적 타임아웃: 30s 기본 + blob 100KB당 10s 추가 (Day1 사진 등 큰 파일 대응)
+    const uploadTimeout = Math.max(30000, 30000 + Math.floor(blob.size / 100000) * 10000);
+    const maxRetries = 2;
+    _log('4-UPLOAD', `blobSize=${blob.size}, timeout=${uploadTimeout}ms, maxRetries=${maxRetries}`);
+    let lastError;
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+        try {
+            if (attempt > 1) {
+                const backoff = 1000 * attempt;
+                _log('4-RETRY', `Attempt ${attempt}/${maxRetries + 1} after ${backoff}ms backoff`);
+                await new Promise(r => setTimeout(r, backoff));
+            }
+            await raceWithTimeout(uploadBytes(storageRef, blob, { contentType }), uploadTimeout, 'Upload');
+            _log('5-GETURL', 'uploadBytes OK, calling getDownloadURL...');
+            const url = await raceWithTimeout(getDownloadURL(storageRef), 15000, 'getDownloadURL');
+            _log('6-DONE', `downloadURL=${url.substring(0, 80)}...`);
+            return url;
+        } catch (e) {
+            lastError = e;
+            _log('4-ERR', `Attempt ${attempt} failed: ${e.message}`);
+            if (!e.message.includes('timed out')) throw e;
+        }
+    }
+    throw lastError;
 }
 
 const googleProvider = new GoogleAuthProvider();
