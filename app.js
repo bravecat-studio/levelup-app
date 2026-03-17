@@ -321,10 +321,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const loginPanel = document.getElementById('login-log-panel');
             if (loginPanel) loginPanel.style.display = 'none';
 
-            // 개발자 계정만 로그 섹션 표시
+            // 관리자/로그 표시 설정
             const isDev = user.email === 'nazi2k@gmail.com';
             const settingsLogCard = document.getElementById('settings-log-card');
-            if (settingsLogCard) settingsLogCard.style.display = isDev ? 'block' : 'none';
+            const adminLoggerToggleCard = document.getElementById('admin-logger-toggle-card');
+
+            // 관리자 토글 카드는 관리자만 표시
+            if (adminLoggerToggleCard) adminLoggerToggleCard.style.display = isDev ? 'block' : 'none';
+
+            // Firestore에서 로그 공개 설정 읽기
+            try {
+                const configSnap = await getDoc(doc(db, "app_config", "settings"));
+                const loggerVisible = configSnap.exists() ? (configSnap.data().loggerVisible === true) : false;
+
+                if (isDev) {
+                    // 관리자: 항상 로그 카드 표시, 토글 상태 반영
+                    if (settingsLogCard) settingsLogCard.style.display = 'block';
+                    const adminToggle = document.getElementById('admin-logger-toggle');
+                    if (adminToggle) {
+                        adminToggle.checked = loggerVisible;
+                        document.getElementById('admin-logger-toggle-status').textContent = loggerVisible ? '모든 사용자에게 표시 중' : '관리자만 표시 중';
+                    }
+                } else {
+                    // 일반 사용자: 토글 ON일 때만 로그 카드 표시
+                    if (settingsLogCard) settingsLogCard.style.display = loggerVisible ? 'block' : 'none';
+                }
+            } catch(e) {
+                console.warn('[Config] 로그 설정 로드 실패:', e);
+                if (settingsLogCard) settingsLogCard.style.display = isDev ? 'block' : 'none';
+            }
 
             document.querySelector('main').style.overflowY = 'auto';
 
@@ -426,6 +451,18 @@ function bindEvents() {
     document.getElementById('gps-toggle').addEventListener('change', toggleGPS);
     document.getElementById('sync-toggle').addEventListener('change', toggleHealthSync);
     document.getElementById('btn-logout').addEventListener('click', logout);
+
+    // 관리자 로그 공개 토글
+    document.getElementById('admin-logger-toggle').addEventListener('change', async function() {
+        const visible = this.checked;
+        try {
+            await setDoc(doc(db, "app_config", "settings"), { loggerVisible: visible }, { merge: true });
+            document.getElementById('admin-logger-toggle-status').textContent = visible ? '모든 사용자에게 표시 중' : '관리자만 표시 중';
+        } catch(e) {
+            console.error('[Config] 로그 설정 저장 실패:', e);
+            this.checked = !visible; // 롤백
+        }
+    });
 
     document.getElementById('btn-myinfo').addEventListener('click', function() {
         document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));

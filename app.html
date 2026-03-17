@@ -507,6 +507,15 @@
                 </div>
                 <button class="btn-primary" style="background: #222; border: 1px solid var(--border-color); color: var(--neon-red);" id="btn-logout" data-i18n="set_logout">로그아웃</button>
 
+                <div class="system-card" style="margin-top: 12px; display:none;" id="admin-logger-toggle-card">
+                    <h2 style="margin-bottom: 10px;">로그 관리</h2>
+                    <div class="setting-row">
+                        <span style="font-size:0.85rem;">일반 사용자 로그 표시</span>
+                        <label class="switch"><input type="checkbox" id="admin-logger-toggle"><span class="slider"></span></label>
+                    </div>
+                    <div id="admin-logger-toggle-status" style="font-size:0.7rem; color:var(--neon-blue); text-align:right; padding-top:2px;"></div>
+                </div>
+
                 <div class="system-card" style="margin-top: 12px; display:none;" id="settings-log-card">
                     <h2 style="margin-bottom: 10px;">오류 로그</h2>
                     <div class="setting-row">
