@@ -40,12 +40,19 @@ const DEFAULT_PROFILE_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 function setProfilePreview(url) {
     const el = document.getElementById('profilePreview');
-    if (!el) return;
-    el.onerror = function() {
-        this.onerror = null;
-        this.src = DEFAULT_PROFILE_SVG;
+    if (!el || el._currentUrl === url) return;
+    // 프리로딩: 새 이미지가 완전히 로드된 후에만 src 교체 → 깜빡거림 방지
+    const preloader = new Image();
+    preloader.onload = () => {
+        el.onerror = function() { this.onerror = null; this.src = DEFAULT_PROFILE_SVG; };
+        el._currentUrl = url;
+        el.src = url;
     };
-    el.src = url;
+    preloader.onerror = () => {
+        el._currentUrl = DEFAULT_PROFILE_SVG;
+        el.src = DEFAULT_PROFILE_SVG;
+    };
+    preloader.src = url;
 }
 
 // --- Cloud Storage 헬퍼 ---
@@ -53,12 +60,18 @@ function isBase64Image(str) {
     return typeof str === 'string' && str.startsWith('data:image/');
 }
 
-async function uploadImageToStorage(storagePath, base64str) {
+async function uploadImageToStorage(storagePath, imageData) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
-    _log('1-START', `path=${storagePath}, inputLen=${base64str ? base64str.length : 'null'}, startsWithData=${base64str ? base64str.startsWith('data:') : 'N/A'}`);
     let blob, contentType;
-    if (base64str.startsWith('data:')) {
-        const parts = base64str.split(',');
+    if (imageData instanceof Blob) {
+        // Blob/File 직접 전달 — base64 변환 없이 바로 업로드
+        blob = imageData;
+        contentType = blob.type || 'image/jpeg';
+        _log('1-START', `path=${storagePath}, inputType=Blob, blobSize=${blob.size}, blobType=${contentType}`);
+    } else if (typeof imageData === 'string' && imageData.startsWith('data:')) {
+        // 기존 base64 호환 (마이그레이션 경로)
+        _log('1-START', `path=${storagePath}, inputType=base64, inputLen=${imageData.length}`);
+        const parts = imageData.split(',');
         contentType = (parts[0].match(/:(.*?);/) || [])[1] || 'image/jpeg';
         _log('2-DECODE', `contentType=${contentType}, base64PartLen=${parts[1] ? parts[1].length : 0}`);
         const byteString = atob(parts[1]);
@@ -67,8 +80,10 @@ async function uploadImageToStorage(storagePath, base64str) {
         blob = new Blob([u8arr], { type: contentType });
         _log('3-BLOB', `blobSize=${blob.size}, blobType=${blob.type}`);
     } else {
+        // URL fetch (마이그레이션 경로)
+        _log('1-START', `path=${storagePath}, inputType=url`);
         _log('2-FETCH', 'Using fetch() for non-data URI');
-        const res = await fetch(base64str);
+        const res = await fetch(imageData);
         blob = await res.blob();
         contentType = blob.type || 'image/jpeg';
         _log('3-BLOB', `blobSize=${blob.size}, blobType=${blob.type}`);
@@ -85,6 +100,14 @@ async function uploadImageToStorage(storagePath, base64str) {
     const url = await getDownloadURL(storageRef);
     _log('6-DONE', `downloadURL=${url.substring(0, 80)}...`);
     return url;
+}
+
+// --- Blob 해시 헬퍼 (중복 업로드 방지) ---
+async function blobHash(blob) {
+    const buffer = await blob.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 const googleProvider = new GoogleAuthProvider();
@@ -753,13 +776,15 @@ async function loadUserDataFromDB(user) {
             if(data.photoURL) {
                 AppState.user.photoURL = data.photoURL;
                 setProfilePreview(data.photoURL);
-                // 기존 base64 프로필 이미지를 Cloud Storage로 자동 마이그레이션
-                if (isBase64Image(data.photoURL) && auth.currentUser) {
+                // 기존 base64 프로필 이미지를 Cloud Storage로 자동 마이그레이션 (가드 포함)
+                const _migrationKey = 'profile_migrated_' + auth.currentUser.uid;
+                if (isBase64Image(data.photoURL) && auth.currentUser && localStorage.getItem(_migrationKey) !== 'done') {
                     uploadImageToStorage(`profile_images/${auth.currentUser.uid}/profile.jpg`, data.photoURL)
-                        .then(downloadURL => {
+                        .then(async downloadURL => {
                             AppState.user.photoURL = downloadURL;
                             setProfilePreview(downloadURL);
-                            saveUserData();
+                            await saveUserData();
+                            localStorage.setItem(_migrationKey, 'done');
                         })
                         .catch(e => {
                             console.warn('[Migration] 프로필 이미지 마이그레이션 실패:', e);
@@ -2401,48 +2426,78 @@ async function loadProfileImage(event) {
         return;
     }
     const lang = AppState.currentLang || 'ko';
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const img = new Image();
-        img.onload = async () => {
-            const _plog = (step, msg) => { console.log(`[ProfileImg:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[ProfileImg:${step}] ${msg}`); };
-            _plog('A', `img loaded: ${img.naturalWidth}x${img.naturalHeight}`);
-            const canvas = document.createElement('canvas');
-            canvas.width = 150; canvas.height = 150;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, 150, 150);
-            const base64 = canvas.toDataURL('image/jpeg', 0.6);
-            _plog('B', `canvas→base64: len=${base64.length}, starts=${base64.substring(0, 30)}`);
-            setProfilePreview(base64);
+    // File → Image → Canvas → toBlob (base64 왕복 제거)
+    const objectURL = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = async () => {
+        const _plog = (step, msg) => { console.log(`[ProfileImg:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[ProfileImg:${step}] ${msg}`); };
+        _plog('A', `img loaded: ${img.naturalWidth}x${img.naturalHeight}`);
+        URL.revokeObjectURL(objectURL); // 원본 objectURL 해제
+        const canvas = document.createElement('canvas');
+        canvas.width = 150; canvas.height = 150;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, 150, 150);
+        // canvas.toBlob()으로 직접 Blob 생성 — base64 변환 없음
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                _plog('B-FAIL', 'canvas.toBlob returned null');
+                alert(lang === 'ko' ? '이미지 처리에 실패했습니다.' : 'Image processing failed.');
+                return;
+            }
+            // 즉시 미리보기: objectURL 사용 (네트워크 지연 없음)
+            const previewURL = URL.createObjectURL(blob);
+            _plog('B', `canvas→blob: size=${blob.size}, type=${blob.type}`);
+            setProfilePreview(previewURL);
             if (!auth.currentUser) {
                 _plog('C-FAIL', 'auth.currentUser is null after canvas');
+                URL.revokeObjectURL(previewURL);
                 alert(lang === 'ko' ? '로그인이 필요합니다.' : 'Please log in first.');
                 return;
             }
-            _plog('C', `auth OK: uid=${auth.currentUser.uid}`);
-            _profileUploadInFlight = true;
+            const uid = auth.currentUser.uid;
+            _plog('C', `auth OK: uid=${uid}`);
+            // 중복 업로드 방지: SHA-256 해시 비교
             try {
-                const uid = auth.currentUser.uid;
-                _plog('D', 'Calling uploadImageToStorage...');
-                const downloadURL = await uploadImageToStorage(`profile_images/${uid}/profile.jpg`, base64);
+                const hash = await blobHash(blob);
+                const prevHash = localStorage.getItem('profile_img_hash_' + uid);
+                if (hash === prevHash) {
+                    _plog('C-SKIP', 'Image hash matches previous upload, skipping');
+                    URL.revokeObjectURL(previewURL);
+                    return;
+                }
+            } catch (hashErr) {
+                _plog('C-HASH', `Hash check failed (proceeding): ${hashErr.message}`);
+            }
+            _profileUploadInFlight = true;
+            // 스피너 표시
+            document.getElementById('profileUploadSpinner')?.classList.remove('d-none');
+            try {
+                _plog('D', 'Calling uploadImageToStorage with Blob...');
+                const downloadURL = await uploadImageToStorage(`profile_images/${uid}/profile.jpg`, blob);
                 _plog('E', `Upload OK: url=${downloadURL.substring(0, 80)}...`);
                 AppState.user.photoURL = downloadURL;
                 setProfilePreview(downloadURL);
+                URL.revokeObjectURL(previewURL); // 업로드 성공 후 미리보기 objectURL 해제
+                // 해시 저장 (중복 업로드 방지)
+                try {
+                    const hash = await blobHash(blob);
+                    localStorage.setItem('profile_img_hash_' + uid, hash);
+                } catch (_) { /* 해시 저장 실패는 무시 */ }
             } catch (e) {
                 _plog('D-FAIL', `Storage 업로드 실패: ${e.code || ''} ${e.message || e}`);
-                console.error('[Profile] Storage 업로드 실패, base64 폴백:', e);
-                AppState.user.photoURL = base64;
+                console.error('[Profile] Storage 업로드 실패:', e);
+                // base64 폴백 금지: 기존 photoURL 유지, 로컬 미리보기는 objectURL로 유지
+                // AppState.user.photoURL은 변경하지 않음 (이전 Cloud Storage URL 보존)
             } finally {
                 _profileUploadInFlight = false;
+                document.getElementById('profileUploadSpinner')?.classList.add('d-none');
             }
-            _plog('F', `photoURL set to: type=${AppState.user.photoURL.startsWith('http') ? 'url' : 'base64'}, len=${AppState.user.photoURL.length}`);
+            _plog('F', `photoURL set to: type=${AppState.user.photoURL && AppState.user.photoURL.startsWith('http') ? 'url' : 'other'}, len=${AppState.user.photoURL ? AppState.user.photoURL.length : 0}`);
             try {
                 _plog('G', 'Calling saveUserData...');
                 await saveUserData();
                 _plog('H', 'saveUserData OK');
-                // 소셜 탭에 변경된 프로필 사진 즉시 반영
                 updateSocialUserData();
-                // 로컬 릴스 캐시의 프로필 이미지도 갱신
                 updateLocalReelsProfileImage();
                 _plog('I', 'All done - profile image saved successfully');
             } catch (e) {
@@ -2450,18 +2505,14 @@ async function loadProfileImage(event) {
                 console.error('[Profile] 프로필 사진 DB 저장 실패:', e);
                 alert(lang === 'ko' ? '프로필 사진 저장에 실패했습니다. 다시 시도해주세요.' : 'Failed to save profile picture. Please try again.');
             }
-        };
-        img.onerror = () => {
-            console.error('[Profile] 이미지 로드 실패');
-            alert(lang === 'ko' ? '이미지를 불러올 수 없습니다. 다른 파일을 선택해주세요.' : 'Unable to load image. Please select a different file.');
-        };
-        img.src = e.target.result;
+        }, 'image/jpeg', 0.6);
     };
-    reader.onerror = () => {
-        console.error('[Profile] 파일 읽기 실패');
-        alert(lang === 'ko' ? '파일을 읽을 수 없습니다. 다시 시도해주세요.' : 'Unable to read file. Please try again.');
+    img.onerror = () => {
+        URL.revokeObjectURL(objectURL);
+        console.error('[Profile] 이미지 로드 실패');
+        alert(lang === 'ko' ? '이미지를 불러올 수 없습니다. 다른 파일을 선택해주세요.' : 'Unable to load image. Please select a different file.');
     };
-    reader.readAsDataURL(file);
+    img.src = objectURL;
 }
 
 // --- ★ 팝업 모달창 로직 (다국어 지원 호칭 표 포함) ★ ---
@@ -2983,7 +3034,7 @@ window.sharePlannerAsImage = async function() {
 
     const blocks = (entry && entry.blocks) ? Object.entries(entry.blocks).sort(([a],[b]) => a.localeCompare(b)) : [];
     const caption = (entry && entry.caption) ? entry.caption : (document.getElementById('planner-caption')?.value || '');
-    const photoSrc = plannerPhotoData || (entry && entry.photo) || null;
+    const photoSrc = (plannerPhotoData ? (plannerPhotoData.objectURL || plannerPhotoData.base64ForLocal || plannerPhotoData) : null) || (entry && entry.photo) || null;
     const mood = (entry && entry.mood) ? entry.mood : '';
     const moodMap = { great: '😄', good: '🙂', neutral: '😐', bad: '😞', terrible: '😫' };
     const moodEmoji = moodMap[mood] || '';
@@ -4015,7 +4066,8 @@ function loadPlannerForDate(dateStr) {
 
     // 사진 복원
     if (saved && saved.photo) {
-        plannerPhotoData = saved.photo;
+        // localStorage에서 복원: 문자열(base64/URL)이므로 호환 래퍼 생성
+        plannerPhotoData = typeof saved.photo === 'string' ? { blob: null, objectURL: null, base64ForLocal: saved.photo } : saved.photo;
         const preview = document.getElementById('planner-photo-preview');
         const placeholder = document.getElementById('planner-photo-placeholder');
         const removeBtn = document.getElementById('planner-photo-remove');
@@ -4095,7 +4147,7 @@ async function savePlannerEntry() {
             tasks: tasksData,
             priorities: rankedByOrder,
             brainDump,
-            photo: plannerPhotoData || (diaries[dateStr]?.photo || null),
+            photo: (plannerPhotoData ? (plannerPhotoData.base64ForLocal || plannerPhotoData) : null) || (diaries[dateStr]?.photo || null),
             caption: (document.getElementById('planner-caption')?.value || '').trim()
         };
 
@@ -4131,39 +4183,50 @@ async function savePlannerEntry() {
 }
 
 // --- ★ 플래너 사진 기능 (타임테이블 사진 필수) ★ ---
-let plannerPhotoData = null; // base64
+let plannerPhotoData = null; // { blob, objectURL, base64ForLocal } 또는 null
 
 function loadPlannerPhoto(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const maxSize = 600;
-            let w = img.width, h = img.height;
-            if (w > maxSize || h > maxSize) {
-                if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
-                else { w = Math.round(w * maxSize / h); h = maxSize; }
+    // File → Image → Canvas → toBlob (base64 왕복 제거)
+    const fileURL = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function() {
+        URL.revokeObjectURL(fileURL);
+        const canvas = document.createElement('canvas');
+        const maxSize = 600;
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+            if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+            else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(function(blob) {
+            if (!blob) return;
+            // 이전 objectURL 해제
+            if (plannerPhotoData && plannerPhotoData.objectURL) {
+                URL.revokeObjectURL(plannerPhotoData.objectURL);
             }
-            canvas.width = w; canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            plannerPhotoData = canvas.toDataURL('image/jpeg', 0.7);
+            const objectURL = URL.createObjectURL(blob);
+            // localStorage용 base64는 diary 저장 시에만 사용
+            const base64ForLocal = canvas.toDataURL('image/jpeg', 0.7);
+            plannerPhotoData = { blob, objectURL, base64ForLocal };
             const preview = document.getElementById('planner-photo-preview');
             const placeholder = document.getElementById('planner-photo-placeholder');
             const removeBtn = document.getElementById('planner-photo-remove');
-            preview.src = plannerPhotoData;
+            preview.src = objectURL;
             preview.classList.remove('d-none');
             placeholder.classList.add('d-none');
             removeBtn.classList.remove('d-none');
-        };
-        img.src = ev.target.result;
+        }, 'image/jpeg', 0.7);
     };
-    reader.readAsDataURL(file);
+    img.onerror = function() { URL.revokeObjectURL(fileURL); };
+    img.src = fileURL;
 }
 
 window.removePlannerPhoto = function() {
+    if (plannerPhotoData && plannerPhotoData.objectURL) URL.revokeObjectURL(plannerPhotoData.objectURL);
     plannerPhotoData = null;
     const preview = document.getElementById('planner-photo-preview');
     const placeholder = document.getElementById('planner-photo-placeholder');
@@ -4484,7 +4547,8 @@ async function postToReels() {
     }
 
     // 사진 + 텍스트 모두 있는지 체크
-    const photoData = plannerPhotoData || (entry.photo || null);
+    const photoDataRaw = plannerPhotoData || (entry.photo ? { blob: null, base64ForLocal: entry.photo } : null);
+    const photoData = photoDataRaw ? (photoDataRaw.blob || photoDataRaw.base64ForLocal || photoDataRaw) : null;
     const captionText = (entry.caption || document.getElementById('planner-caption')?.value || '').trim();
     if (!photoData || !captionText) {
         alert(i18n[lang].reels_no_photo);
@@ -4508,15 +4572,18 @@ async function postToReels() {
         const caption = (entry.caption || '').trim();
         const postTimestamp = Date.now();
 
-        // 릴스 사진을 Cloud Storage에 업로드
-        let finalPhotoURL = photoData;
-        if (isBase64Image(photoData)) {
+        // 릴스 사진을 Cloud Storage에 업로드 (Blob 또는 base64)
+        let finalPhotoURL = typeof photoData === 'string' ? photoData : null;
+        if (photoData instanceof Blob || isBase64Image(photoData)) {
+            if (postBtn) postBtn.textContent = '사진 업로드 중...';
             try {
                 const uid = auth.currentUser.uid;
                 finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}.jpg`, photoData);
             } catch (e) {
-                console.error('[Reels] Storage 업로드 실패, base64 폴백:', e);
+                console.error('[Reels] Storage 업로드 실패:', e);
+                if (typeof photoData === 'string') finalPhotoURL = photoData; // base64 폴백
             }
+            if (postBtn) postBtn.textContent = '저장 중...';
         }
 
         const post = {
@@ -4669,7 +4736,7 @@ function renderReelsCards(posts, lang) {
                 </div>
                 <div class="reels-time">${formatReelsTime(post.timestamp)}</div>
             </div>
-            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(post.photo)}" alt="Timetable"></div>` : ''}
+            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(post.photo)}" alt="Timetable" loading="lazy" decoding="async"></div>` : ''}
             ${post.caption ? `<div class="reels-caption">${post.caption.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>` : ''}
             <div class="reels-timetable">
                 <div class="reels-timetable-title" ${moreCount > 0 ? `onclick="toggleScheduleFold('${postId}')" style="cursor:pointer;"` : ''}>
@@ -4698,8 +4765,8 @@ function renderReelsCards(posts, lang) {
         </div>`;
     }).join('');
 
-    // 렌더 후 각 포스트의 리액션 데이터 로드
-    setTimeout(() => {
+    // 렌더 후 각 포스트의 리액션 데이터 로드 (불필요한 100ms 지연 제거)
+    requestAnimationFrame(() => {
         posts.forEach(post => {
             const postId = getPostId(post);
             loadReelsReactions(postId).then(data => {
@@ -4707,7 +4774,7 @@ function renderReelsCards(posts, lang) {
                 if (data.comments && data.comments.length > 0) renderCommentsSection(postId, data.comments);
             });
         });
-    }, 100);
+    });
 
     return html;
 }
