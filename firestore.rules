@@ -12,14 +12,14 @@ service cloud.firestore {
 
     // push_logs: 관리자만 읽기/쓰기 (Cloud Functions에서 서버사이드 쓰기)
     match /push_logs/{logId} {
-      allow read: if request.auth != null && request.auth.token.email == 'nazi2k@gmail.com';
+      allow read: if request.auth != null && request.auth.token.admin == true;
       allow write: if false; // Cloud Functions (Admin SDK)에서만 쓰기
     }
 
     // push_feedback: 인증된 유저 쓰기, 관리자만 읽기
     match /push_feedback/{feedbackId} {
       allow create: if request.auth != null;
-      allow read: if request.auth != null && request.auth.token.email == 'nazi2k@gmail.com';
+      allow read: if request.auth != null && request.auth.token.admin == true;
       allow update, delete: if false;
     }
 
@@ -31,7 +31,7 @@ service cloud.firestore {
     // app_config: 인증된 유저 읽기, 관리자만 쓰기
     match /app_config/{docId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.token.email == 'nazi2k@gmail.com';
+      allow write: if request.auth != null && request.auth.token.admin == true;
     }
   }
 }

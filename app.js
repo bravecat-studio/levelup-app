@@ -1,6 +1,6 @@
 // --- Firebase SDK 초기화 ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
@@ -348,8 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const loginPanel = document.getElementById('login-log-panel');
             if (loginPanel) loginPanel.style.display = 'none';
 
-            // 관리자/로그 표시 설정
-            const isDev = user.email === 'nazi2k@gmail.com';
+            // 관리자/로그 표시 설정 (Custom Claims 기반)
+            const tokenResult = await getIdTokenResult(user);
+            const isDev = tokenResult.claims.admin === true;
             const settingsLogCard = document.getElementById('settings-log-card');
             const adminLoggerToggleCard = document.getElementById('admin-logger-toggle-card');
 
