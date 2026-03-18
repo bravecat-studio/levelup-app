@@ -4,6 +4,7 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const { getStorage } = require("firebase-admin/storage");
+const { getAuth } = require("firebase-admin/auth");
 
 initializeApp();
 const db = getFirestore();
@@ -16,13 +17,33 @@ const callableOpts = {
     invoker: "public"
 };
 
+// ─── Admin claim helper ───
+
+function assertAdmin(request) {
+    if (!request.auth?.token?.admin) {
+        throw new HttpsError("permission-denied", "권한이 없습니다.");
+    }
+}
+
+// ─── setAdminClaim: 관리자 Custom Claims 설정 (기존 관리자만 호출 가능) ───
+
+exports.setAdminClaim = onCall(callableOpts, async (request) => {
+    assertAdmin(request);
+
+    const { uid } = request.data || {};
+    if (!uid || typeof uid !== "string") {
+        throw new HttpsError("invalid-argument", "uid는 필수 문자열입니다.");
+    }
+
+    await getAuth().setCustomUserClaims(uid, { admin: true });
+    console.log(`[setAdminClaim] admin claim set for uid: ${uid}`);
+    return { success: true, uid };
+});
+
 // ─── Admin action handlers (shared between ping router and individual exports) ───
 
 async function handleGetTestUsers(request) {
-    const callerEmail = request.auth?.token?.email;
-    if (callerEmail !== "nazi2k@gmail.com") {
-        throw new HttpsError("permission-denied", "권한이 없습니다.");
-    }
+    assertAdmin(request);
 
     console.log("[getTestUsers] Querying pushEnabled users...");
     const usersSnap = await db.collection("users")
@@ -64,10 +85,7 @@ async function handleGetTestUsers(request) {
 }
 
 async function handleGetPushLogs(request) {
-    const callerEmail = request.auth?.token?.email;
-    if (callerEmail !== "nazi2k@gmail.com") {
-        throw new HttpsError("permission-denied", "권한이 없습니다.");
-    }
+    assertAdmin(request);
 
     console.log("[getPushLogs] Querying push_logs...");
     const logsSnap = await db.collection("push_logs")
@@ -110,9 +128,7 @@ async function handleSendTestNotification(request) {
     const callerEmail = request.auth?.token?.email;
     const reqData = request.data || {};
     console.log("[sendTestNotification] caller:", callerEmail, "data:", JSON.stringify(reqData));
-    if (callerEmail !== "nazi2k@gmail.com") {
-        throw new HttpsError("permission-denied", "권한이 없습니다.");
-    }
+    assertAdmin(request);
 
     const { token, topic, type, lang, customTitle, customBody } = reqData;
     if (!token && !topic) {
@@ -193,10 +209,7 @@ async function handleSendTestNotification(request) {
 }
 
 async function handleSendAnnouncement(request) {
-    const callerEmail = request.auth?.token?.email;
-    if (callerEmail !== "nazi2k@gmail.com") {
-        throw new HttpsError("permission-denied", "권한이 없습니다.");
-    }
+    assertAdmin(request);
 
     const { title, body, targetTab } = request.data || {};
     if (!title || !body) {
@@ -288,7 +301,7 @@ exports.ping = onCall(callableOpts, async (request) => {
     if (request.data && request.data.diag) {
         const diag = {};
         diag.adminEmail = request.auth?.token?.email || null;
-        diag.isAdmin = (request.auth?.token?.email === "nazi2k@gmail.com");
+        diag.isAdmin = !!(request.auth?.token?.admin);
 
         try {
             const usersSnap = await db.collection("users")
