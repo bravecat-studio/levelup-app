@@ -3,32 +3,161 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // users 컬렉션: 인증된 유저 전체 읽기 허용 (소셜 랭킹, Day1 피드, 던전 글로벌 싱크에 필요)
-    // 쓰기는 본인 문서만 가능
+    // ──────────────────────────────────────────────
+    // 헬퍼 함수
+    // ──────────────────────────────────────────────
+
+    // stats 맵 검증 (str, int, cha, vit, wlth, agi — 모두 number >= 0)
+    function isValidStatsMap(s) {
+      return s is map
+        && s.keys().hasOnly(['str', 'int', 'cha', 'vit', 'wlth', 'agi'])
+        && (!('str' in s) || (s.str is number && s.str >= 0))
+        && (!('int' in s) || (s.int is number && s.int >= 0))
+        && (!('cha' in s) || (s.cha is number && s.cha >= 0))
+        && (!('vit' in s) || (s.vit is number && s.vit >= 0))
+        && (!('wlth' in s) || (s.wlth is number && s.wlth >= 0))
+        && (!('agi' in s) || (s.agi is number && s.agi >= 0));
+    }
+
+    // streak 맵 검증
+    function isValidStreakMap(s) {
+      return s is map
+        && s.keys().hasOnly(['currentStreak', 'lastActiveDate', 'multiplier'])
+        && (!('currentStreak' in s) || (s.currentStreak is number && s.currentStreak >= 0))
+        && (!('multiplier' in s) || (s.multiplier is number && s.multiplier >= 0))
+        && (!('lastActiveDate' in s) || s.lastActiveDate == null || s.lastActiveDate is string);
+    }
+
+    // stepData 맵 검증
+    function isValidStepData(s) {
+      return s is map
+        && s.keys().hasOnly(['date', 'rewardedSteps'])
+        && (!('date' in s) || s.date is string)
+        && (!('rewardedSteps' in s) || (s.rewardedSteps is number && s.rewardedSteps >= 0));
+    }
+
+    // users 문서 허용 필드 목록
+    function allowedUserFields() {
+      return [
+        'name', 'level', 'points', 'photoURL', 'stats', 'pendingStats',
+        'friends', 'fcmToken', 'syncEnabled', 'gpsEnabled', 'pushEnabled',
+        'instaId', 'nameLastChanged', 'lastRouletteDate', 'lastReelsPostTs',
+        'stepData', 'streak',
+        'questStr', 'questWeekStart', 'diaryStr', 'reelsStr',
+        'dungeonStr', 'diyQuestsStr', 'questHistoryStr',
+        'titleHistoryStr', 'streakStr',
+        'hasActiveReels', '_profileUploadFailed'
+      ];
+    }
+
+    // users 문서 필드 검증 (request.resource.data = 쓰기 후 최종 상태)
+    function isValidUserData() {
+      let d = request.resource.data;
+      return
+        // 허용된 필드만 포함
+        d.keys().hasOnly(allowedUserFields())
+
+        // ── 핵심 필드 ──
+        // name: 문자열, 1~50자
+        && (!('name' in d) || (d.name is string && d.name.size() >= 1 && d.name.size() <= 50))
+        // level: 정수, 1~999
+        && (!('level' in d) || (d.level is int && d.level >= 1 && d.level <= 999))
+        // points: 숫자, >= 0
+        && (!('points' in d) || (d.points is number && d.points >= 0))
+        // photoURL: null 또는 문자열 (Storage URL)
+        && (!('photoURL' in d) || d.photoURL == null || (d.photoURL is string && d.photoURL.size() <= 1024))
+
+        // ── 맵 필드 ──
+        && (!('stats' in d) || isValidStatsMap(d.stats))
+        && (!('pendingStats' in d) || isValidStatsMap(d.pendingStats))
+        && (!('streak' in d) || isValidStreakMap(d.streak))
+        && (!('stepData' in d) || isValidStepData(d.stepData))
+
+        // ── 배열 필드 ──
+        // friends: 문자열 배열, 최대 500명
+        && (!('friends' in d) || (d.friends is list && d.friends.size() <= 500))
+
+        // ── 불리언 필드 ──
+        && (!('syncEnabled' in d) || d.syncEnabled is bool)
+        && (!('gpsEnabled' in d) || d.gpsEnabled is bool)
+        && (!('pushEnabled' in d) || d.pushEnabled is bool)
+        && (!('hasActiveReels' in d) || d.hasActiveReels is bool)
+        && (!('_profileUploadFailed' in d) || d._profileUploadFailed is bool)
+
+        // ── 문자열 필드 (짧은) ──
+        && (!('instaId' in d) || (d.instaId is string && d.instaId.size() <= 50))
+        && (!('fcmToken' in d) || d.fcmToken == null || (d.fcmToken is string && d.fcmToken.size() <= 500))
+        && (!('questWeekStart' in d) || (d.questWeekStart is string && d.questWeekStart.size() <= 10))
+        && (!('lastRouletteDate' in d) || (d.lastRouletteDate is string && d.lastRouletteDate.size() <= 10))
+
+        // ── 타임스탬프/숫자 필드 ──
+        && (!('nameLastChanged' in d) || d.nameLastChanged == null || d.nameLastChanged is number)
+        && (!('lastReelsPostTs' in d) || d.lastReelsPostTs is number)
+
+        // ── 직렬화 JSON 문자열 (크기 제한) ──
+        && (!('questStr' in d) || (d.questStr is string && d.questStr.size() <= 10000))
+        && (!('diaryStr' in d) || (d.diaryStr is string && d.diaryStr.size() <= 500000))
+        && (!('reelsStr' in d) || (d.reelsStr is string && d.reelsStr.size() <= 500000))
+        && (!('dungeonStr' in d) || (d.dungeonStr is string && d.dungeonStr.size() <= 50000))
+        && (!('diyQuestsStr' in d) || (d.diyQuestsStr is string && d.diyQuestsStr.size() <= 50000))
+        && (!('questHistoryStr' in d) || (d.questHistoryStr is string && d.questHistoryStr.size() <= 200000))
+        && (!('titleHistoryStr' in d) || (d.titleHistoryStr is string && d.titleHistoryStr.size() <= 50000))
+        && (!('streakStr' in d) || (d.streakStr is string && d.streakStr.size() <= 5000));
+    }
+
+    // ──────────────────────────────────────────────
+    // users 컬렉션
+    // ──────────────────────────────────────────────
+    // 인증된 유저 전체 읽기 허용 (소셜 랭킹, Day1 피드, 던전 글로벌 싱크에 필요)
+    // 쓰기는 본인 문서만 + 필드 검증 통과 시
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && isValidUserData();
     }
 
-    // push_logs: 관리자만 읽기/쓰기 (Cloud Functions에서 서버사이드 쓰기)
+    // ──────────────────────────────────────────────
+    // push_logs: 관리자만 읽기 (Cloud Functions Admin SDK에서만 쓰기)
+    // ──────────────────────────────────────────────
     match /push_logs/{logId} {
       allow read: if request.auth != null && request.auth.token.admin == true;
-      allow write: if false; // Cloud Functions (Admin SDK)에서만 쓰기
+      allow write: if false;
     }
 
-    // push_feedback: 인증된 유저 쓰기, 관리자만 읽기
+    // ──────────────────────────────────────────────
+    // push_feedback: 인증된 유저 생성, 관리자만 읽기
+    // ──────────────────────────────────────────────
     match /push_feedback/{feedbackId} {
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['device', 'os', 'received', 'type', 'memo', 'timestamp', 'reporter'])
+        && request.resource.data.device is string
+        && request.resource.data.os is string
+        && request.resource.data.received is bool
+        && request.resource.data.type is string
+        && request.resource.data.memo is string
+        && request.resource.data.memo.size() <= 2000
+        && request.resource.data.reporter is string;
       allow read: if request.auth != null && request.auth.token.admin == true;
       allow update, delete: if false;
     }
 
-    // reels_reactions: 인증된 유저 읽기/쓰기
+    // ──────────────────────────────────────────────
+    // reels_reactions: 인증된 유저 읽기/쓰기 + 구조 검증
+    // ──────────────────────────────────────────────
     match /reels_reactions/{postId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.data.keys().hasOnly(['likes', 'comments'])
+        && request.resource.data.likes is list
+        && request.resource.data.likes.size() <= 1000
+        && request.resource.data.comments is list
+        && request.resource.data.comments.size() <= 500;
     }
 
+    // ──────────────────────────────────────────────
     // app_config: 인증된 유저 읽기, 관리자만 쓰기
+    // ──────────────────────────────────────────────
     match /app_config/{docId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.token.admin == true;
