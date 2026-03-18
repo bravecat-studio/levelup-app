@@ -903,3 +903,26 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 
 /* 피드 카드 위치 표시 */
 .reels-location { font-size: 0.65rem; color: var(--text-sub, #999); margin-top: 1px; }
+
+/* 스켈레톤 로딩 UI */
+.skeleton {
+    background: linear-gradient(90deg, var(--panel-bg) 25%, rgba(255,255,255,0.06) 50%, var(--panel-bg) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}
+[data-theme="light"] .skeleton {
+    background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+    background-size: 200% 100%;
+}
+@keyframes skeleton-pulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+.skeleton-rank-item {
+    height: 52px;
+    margin-bottom: 8px;
+}
+.skeleton-social-list {
+    padding: 12px;
+}
