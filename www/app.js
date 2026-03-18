@@ -1,7 +1,7 @@
 // --- Firebase SDK 초기화 ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, collection, getDocs, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
@@ -19,6 +19,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const isNativePlatform = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
     ...(isNativePlatform
         ? { experimentalForceLongPolling: true }
         : { experimentalAutoDetectLongPolling: true })
@@ -2132,6 +2133,9 @@ async function renderQuote() {
         const quoteText = data.message || data.quote;
         const quoteAuthor = data.author || "Unknown";
 
+        // 성공한 명언 캐시
+        try { localStorage.setItem('cached_quote', JSON.stringify({ text: quoteText, author: quoteAuthor })); } catch(e) {}
+
         quoteEl.style.opacity = 0;
         authorEl.style.opacity = 0;
 
@@ -2146,8 +2150,19 @@ async function renderQuote() {
 
     } catch (error) {
         console.error("명언 API 호출 실패:", error);
-        quoteEl.innerText = `"어떠한 시련 속에서도 꾸준함은 시스템을 지탱하는 가장 강력한 무기이다."`;
-        authorEl.innerText = `- System Offline -`;
+        // 캐시된 명언 우선 사용
+        let fallbackText = "어떠한 시련 속에서도 꾸준함은 시스템을 지탱하는 가장 강력한 무기이다.";
+        let fallbackAuthor = "System Offline";
+        try {
+            const cached = localStorage.getItem('cached_quote');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                fallbackText = parsed.text;
+                fallbackAuthor = parsed.author;
+            }
+        } catch(e) {}
+        quoteEl.innerText = `"${fallbackText}"`;
+        authorEl.innerText = `- ${fallbackAuthor} -`;
         quoteEl.style.opacity = 1;
         authorEl.style.opacity = 1;
     }
@@ -2156,11 +2171,29 @@ async function renderQuote() {
 // --- 소셜 탭 ---
 async function fetchSocialData() {
     const container = document.getElementById('user-list-container');
-    if (container && AppState.social.users.length === 0) {
-        container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-sub); font-size:0.85rem;">데이터 로딩 중...</div>';
+
+    // Stale-While-Revalidate: 캐시된 데이터 우선 표시
+    if (AppState.social.users.length === 0) {
+        try {
+            const cached = localStorage.getItem('social_users_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                AppState.social.users = parsed;
+                renderUsers(AppState.social.sortCriteria);
+            }
+        } catch(e) {}
     }
+
+    if (container && AppState.social.users.length === 0) {
+        container.innerHTML = '<div class="skeleton-social-list"><div class="skeleton skeleton-rank-item"></div><div class="skeleton skeleton-rank-item"></div><div class="skeleton skeleton-rank-item"></div></div>';
+    }
+
     try {
-        const snap = await getDocs(collection(db, "users"));
+        // 5초 타임아웃 적용
+        const snap = await Promise.race([
+            getDocs(collection(db, "users")),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('social_timeout')), 5000))
+        ]);
         AppState.social.users = snap.docs.map(d => {
             const data = d.data();
             let title = "각성자";
@@ -2173,11 +2206,16 @@ async function fetchSocialData() {
             }
             return { id: d.id, ...data, title, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, isFriend: (AppState.user.friends || []).includes(d.id), isMe: auth.currentUser?.uid === d.id };
         });
+        // 성공 시 캐시 갱신
+        try { localStorage.setItem('social_users_cache', JSON.stringify(AppState.social.users)); } catch(e) {}
         renderUsers(AppState.social.sortCriteria);
     } catch(e) {
         console.error("소셜 로드 에러", e);
         AppLogger.error('[Social] 데이터 로드 실패', e.stack || e.message);
-        if (container) {
+        // 캐시 데이터가 있으면 유지, 없으면 에러 표시
+        if (AppState.social.users.length > 0) {
+            renderUsers(AppState.social.sortCriteria);
+        } else if (container) {
             container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--neon-red); font-size:0.85rem;">랭킹 데이터를 불러올 수 없습니다.<br><button onclick="fetchSocialData()" style="margin-top:10px; padding:6px 16px; background:var(--neon-blue); color:#000; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">다시 시도</button></div>';
         }
     }
@@ -4584,7 +4622,13 @@ async function renderReelsFeed() {
         container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">로딩 중...</div>';
     }
 
-    // Firestore에서 최신 데이터 로드 (5초 타임아웃)
+    // Firestore에서 최신 데이터 로드 (5초 타임아웃, 5분 TTL 캐시)
+    const reelsCacheTime = parseInt(localStorage.getItem('reels_cache_time') || '0', 10);
+    const REELS_TTL = 5 * 60 * 1000; // 5분
+    const cacheStillFresh = (Date.now() - reelsCacheTime) < REELS_TTL && localPosts.length > 0;
+
+    if (cacheStillFresh) return; // TTL 이내면 서버 요청 스킵
+
     try {
         const posts = await Promise.race([
             fetchAllReelsPosts(),
@@ -4598,6 +4642,7 @@ async function renderReelsFeed() {
             return;
         }
         container.innerHTML = renderReelsCards(posts, lang);
+        try { localStorage.setItem('reels_cache_time', String(Date.now())); } catch(e) {}
     } catch(e) {
         // 타임아웃 또는 네트워크 오류 시 로컬 데이터 유지
         if (localPosts.length === 0) {
