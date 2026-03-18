@@ -17,7 +17,7 @@
 | 7 | **base64 폴백 축소** | — | 재시도+백오프, 실패 큐 | **Codex ✓** | base64 폴백이 Firestore 문서 비대화 유발 |
 | 8 | **uploadBytesResumable** | — | 전환 + 진행률 UI | **Codex ✓** | 모바일 30s 타임아웃 단일 업로드 실패율↑ |
 | 9 | **Lifecycle Rule 정리** | — | 메타데이터 + Lifecycle | **Codex ✓ (변형)** | CF 완전 대체 대신 이중 안전망 |
-| 10 | **데이터 비정규화** | posts에 author 정보 중복 | — | **Gemini ✓ (축소)** | `fetchAllReelsPosts()`가 전체 users 스캔. 릴스 컬렉션 분리와 함께 적용 |
+| 10 | **데이터 비정규화** | posts에 author 정보 중복 | — | **이미 구현됨** | `reelsStr`에 이미 `userName, userPhoto, userLevel` 포함 (app.js:4522-4534). 추가 작업 불필요 |
 | 11 | **분산 카운터** | 도입 | — | **기각** | likes[] 배열 관리, 현재 규모에서 과잉 설계 |
 | 12 | **복합 인덱스** | 최적화 | — | **Gemini ✓** | `firestore.indexes.json` 현재 비어 있음 |
 | 13 | **Firestore Rules 필드 검증** | 필드 타입/길이 강제 | — | **Gemini ✓** | 현재 인증 여부만 확인. 필드 레벨 검증 필요 |
@@ -29,7 +29,7 @@
 | 19 | **데이터 모델 분리 (핫/콜드)** | — | subcollection 분리 | **Codex ✓** | `users/{uid}` 단일 문서 JSON 20개+. 분리 시 성능/확장성↑ |
 | 20 | **Observability** | — | 구조화 로그 + 대시보드 | **Codex ✓** | 현재 `console.log` 의존 |
 
-**요약:** Gemini 10개 중 4개 채택 / Codex 9개 중 8개 채택 / 5개 기각
+**요약:** Gemini 10개 중 3개 채택 / Codex 9개 중 8개 채택 / 6개 기각 (1개 이미 구현)
 
 ---
 
@@ -75,11 +75,14 @@
 
 플래너 임시 이미지와 릴스 게시 이미지의 Storage 경로를 분리한다. 기존 릴스 데이터는 24시간 후 자동 삭제되므로 마이그레이션 불필요.
 
+> **코드 실사 추가 발견:** 플래너 사진이 `diaryStr` 내부에 base64로 저장되고 있다 (app.js:4098). 일기 항목이 누적되면 `users/{uid}` 문서가 1MB Firestore 한계에 도달할 위험이 있다. 경로 분리와 함께 플래너 사진을 Cloud Storage로 즉시 업로드하는 것이 **P0의 가장 중요한 항목**이다.
+
 **변경 대상:**
 | 파일 | 변경 내용 |
 |------|-----------|
 | `storage.rules` | `planner_photos/{userId}/` 경로 규칙 추가 (2MB, image/*) |
-| `app.js` | 플래너 독립 저장 시 새 경로 사용 (향후) |
+| `app.js` L4136 | `loadPlannerPhoto()` — Canvas 처리 후 즉시 Storage 업로드, base64 대신 URL 저장 |
+| `app.js` L4098 | 일기 저장 시 `photo` 필드에 download URL 사용 |
 
 ---
 
@@ -148,13 +151,21 @@ allow write: if request.auth != null
 |------|------|-----------|
 | `app.js` | L4831-4854 | `toggleLike()` → UI 즉시 반영 후 Firestore 쓰기, catch 시 롤백 |
 
-### P1-5. Firestore 복합 인덱스 추가
+### P1-5. 릴스 피드 쿼리 최적화
 
-**출처:** Gemini #5 | **복잡도:** 낮 | **임팩트:** 쿼리 성능↑
+**출처:** 코드 실사 발견 | **복잡도:** 낮 | **임팩트:** Firestore 읽기 90%↓↓
 
-현재 `firestore.indexes.json`이 비어 있다. 주요 쿼리에 대한 인덱스를 사전 정의한다.
+현재 `fetchAllReelsPosts()` (app.js:4288)가 **전체 `users` 컬렉션을 스캔**하여 `reelsStr`을 추출한다. 모든 사용자의 전체 데이터(stats, diary, quests 등)를 다운로드하는 극심한 비효율.
 
-**변경 대상:** `firestore.indexes.json`
+**해결:** `hasActiveReels: true` 필드를 추가하여 릴스 활성 사용자만 쿼리.
+
+**변경 대상:**
+| 파일 | 위치 | 변경 내용 |
+|------|------|-----------|
+| `app.js` | L4267 | `saveReelsToFirestore()` — `hasActiveReels: true` 필드 추가 |
+| `app.js` | L4288 | `fetchAllReelsPosts()` — `where("hasActiveReels", "==", true)` 쿼리로 변경 |
+| `app.js` | 릴스 만료 시 | `hasActiveReels: false` 리셋 |
+| `firestore.indexes.json` | 신규 | `hasActiveReels` + 관련 복합 인덱스 |
 
 ---
 
@@ -204,6 +215,8 @@ GCS 버킷에 Lifecycle Rule + 객체 메타데이터 `expireAt`. 기존 `cleanu
 | 분산 카운터 | Gemini 2.2 | 현재 규모에서 과잉 설계. likes[] 배열로 충분 |
 | minInstances | Gemini 3.3 | Callable은 ping 하나뿐. 비용 대비 효과 없음 |
 | AVIF 포맷 | Gemini 1.1 | 브라우저 호환성 부족, Canvas `toDataURL('image/avif')` 미지원 |
+| 데이터 비정규화 | Gemini 2.1 | **이미 구현됨.** `reelsStr`에 `userName, userPhoto, userLevel` 이미 포함 (app.js:4522-4534) |
+| onSnapshot 확장 | Gemini 4.2 | 24시간 휘발 콘텐츠에 persistent WebSocket은 Firestore 읽기 비용 과다 |
 
 ---
 
@@ -231,6 +244,28 @@ GCS 버킷에 Lifecycle Rule + 객체 메타데이터 `expireAt`. 기존 `cleanu
 2. `uploadBytesResumable` 전환 + 진행률 UI
 3. Firestore Rules 필드 검증 강화
 4. Optimistic UI (좋아요) 구현
+
+---
+
+## 배포 순서 및 의존성
+
+```
+P0-1 (Admin Claims) ──────────────────────────── 독립, 최우선 배포
+  ⚠️ 배포 순서: (1) Claims 설정 → (2) Functions 배포 → (3) Rules 배포
+  (순서 어기면 관리자 잠김)
+
+P0-2 (업로드 재시도) ──→ P1-2 (Resumable 업로드)
+P0-3 (경로 분리 + 플래너 Storage) ──→ P2-1 (데이터 모델 분리)
+
+P1-1 (WebP) ────────────────────────────────── 독립
+P1-3 (Rules 강화) ──────────────────────────── 독립
+P1-4 (Optimistic UI) ──────────────────────── 독립
+P1-5 (릴스 쿼리 최적화) ──→ P2-1 (데이터 모델 분리)
+
+P2-4 (Web Worker) ──────────────────────────── 독립
+```
+
+> **핵심:** P0-1은 보안 수정으로 가장 예측 가능한 범위이므로 **가장 먼저 배포**한다. P1-5(릴스 쿼리 최적화)는 **노력 대비 임팩트가 가장 큰 단일 항목**이므로 P1 내에서 우선 진행한다.
 
 ---
 
