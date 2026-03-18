@@ -70,6 +70,24 @@ function _addToRetryQueue(storagePath, base64str) {
     console.warn(`[UploadRetry] 재전송 큐에 추가: ${storagePath} (큐 크기: ${_uploadRetryQueue.length})`);
 }
 
+// WebP 포맷 지원 감지 — canvas.toDataURL('image/webp') 결과로 판별
+const _supportsWebP = (() => {
+    try {
+        const c = document.createElement('canvas');
+        c.width = 1; c.height = 1;
+        return c.toDataURL('image/webp').startsWith('data:image/webp');
+    } catch (e) { return false; }
+})();
+
+function canvasToOptimalDataURL(canvas, quality) {
+    if (_supportsWebP) return canvas.toDataURL('image/webp', quality);
+    return canvas.toDataURL('image/jpeg', quality);
+}
+
+function getImageExtension() {
+    return _supportsWebP ? '.webp' : '.jpg';
+}
+
 async function uploadImageToStorage(storagePath, base64str) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
     _log('1-START', `path=${storagePath}, inputLen=${base64str ? base64str.length : 'null'}, startsWithData=${base64str ? base64str.startsWith('data:') : 'N/A'}`);
@@ -2448,8 +2466,8 @@ async function loadProfileImage(event) {
             canvas.width = 150; canvas.height = 150;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, 150, 150);
-            const base64 = canvas.toDataURL('image/jpeg', 0.6);
-            _plog('B', `canvas→base64: len=${base64.length}, starts=${base64.substring(0, 30)}`);
+            const base64 = canvasToOptimalDataURL(canvas, 0.6);
+            _plog('B', `canvas→base64: len=${base64.length}, fmt=${_supportsWebP ? 'webp' : 'jpeg'}, starts=${base64.substring(0, 30)}`);
             setProfilePreview(base64);
             if (!auth.currentUser) {
                 _plog('C-FAIL', 'auth.currentUser is null after canvas');
@@ -2461,7 +2479,7 @@ async function loadProfileImage(event) {
             try {
                 const uid = auth.currentUser.uid;
                 _plog('D', 'Calling uploadImageToStorage...');
-                const downloadURL = await uploadImageToStorage(`profile_images/${uid}/profile.jpg`, base64);
+                const downloadURL = await uploadImageToStorage(`profile_images/${uid}/profile${getImageExtension()}`, base64);
                 _plog('E', `Upload OK: url=${downloadURL.substring(0, 80)}...`);
                 AppState.user.photoURL = downloadURL;
                 setProfilePreview(downloadURL);
@@ -4155,7 +4173,7 @@ async function savePlannerEntry() {
             try {
                 const uid = auth.currentUser.uid;
                 const photoURL = await uploadImageToStorage(
-                    `planner_photos/${uid}/${dateStr}.jpg`, photoValue
+                    `planner_photos/${uid}/${dateStr}${getImageExtension()}`, photoValue
                 );
                 photoValue = photoURL;
                 plannerPhotoData = photoURL; // 메모리 캐시도 URL로 교체
@@ -4227,7 +4245,7 @@ function loadPlannerPhoto(e) {
             }
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            plannerPhotoData = canvas.toDataURL('image/jpeg', 0.7);
+            plannerPhotoData = canvasToOptimalDataURL(canvas, 0.7);
             const preview = document.getElementById('planner-photo-preview');
             const placeholder = document.getElementById('planner-photo-placeholder');
             const removeBtn = document.getElementById('planner-photo-remove');
@@ -4592,7 +4610,7 @@ async function postToReels() {
         if (isBase64Image(photoData)) {
             try {
                 const uid = auth.currentUser.uid;
-                finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}.jpg`, photoData);
+                finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}${getImageExtension()}`, photoData);
             } catch (e) {
                 console.error('[Reels] Storage 업로드 실패 (3회 재시도 후):', e);
                 // base64 직접 저장 대신 에러 상태 기록 — Firestore 문서 비대화 방지
