@@ -116,23 +116,22 @@ function supportsWebP() {
 | `app.js` 프로필/릴스/플래너 업로드 | 진행률 토스트 연동 (성공/실패 시 자동 hide) | ✅ |
 | `app.html` / `www/app.html` | 업로드 진행률 토스트 마크업 (프로그레스바 + 퍼센트 표시) | ✅ |
 
-### P1-3. Firestore Rules 필드 검증 강화
+### P1-3. Firestore Rules 필드 검증 강화 ✅ 구현 완료
 
 **출처:** Gemini #6 | **복잡도:** 중 | **임팩트:** 보안↑, 무결성↑
 
-현재 인증 여부만 검사하는 규칙에 필드 레벨 검증을 추가한다.
+~~현재 인증 여부만 검사하는 규칙에 필드 레벨 검증을 추가한다.~~ 전체 컬렉션 필드 검증 완료.
 
-**변경 대상:** `firestore.rules`
-```
-// users 컬렉션 쓰기 규칙 예시
-allow write: if request.auth != null
-  && request.auth.uid == userId
-  && request.resource.data.name is string
-  && request.resource.data.name.size() < 50
-  && request.resource.data.level is int
-  && request.resource.data.level >= 1
-  && request.resource.data.level <= 999;
-```
+**구현 내역:**
+| 파일 | 변경 내용 | 상태 |
+|------|-----------|------|
+| `firestore.rules` | `users/{userId}` — 허용 필드 화이트리스트 (`hasOnly`) + 타입/범위 검증 | ✅ |
+| `firestore.rules` | `isValidStatsMap()` — stats/pendingStats 맵 키·값 검증 (number >= 0) | ✅ |
+| `firestore.rules` | `isValidStreakMap()` / `isValidStepData()` — 중첩 맵 구조 검증 | ✅ |
+| `firestore.rules` | 핵심 필드: `name` (string, 1-50자), `level` (int, 1-999), `points` (number, ≥0) | ✅ |
+| `firestore.rules` | 직렬화 JSON 문자열 크기 제한: `diaryStr`/`reelsStr` ≤500KB, `questHistoryStr` ≤200KB 등 | ✅ |
+| `firestore.rules` | `push_feedback` — 생성 시 필드 화이트리스트 + 타입 강제 | ✅ |
+| `firestore.rules` | `reels_reactions` — likes/comments 배열 크기 제한 (1000/500) | ✅ |
 
 ### P1-4. Optimistic UI (좋아요)
 
