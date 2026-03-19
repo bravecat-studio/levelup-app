@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+import { getStorage, ref, uploadBytesResumable, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
@@ -173,6 +173,28 @@ async function _flushRetryQueue() {
     _flushingRetryQueue = false;
 }
 
+// 업로드 직렬화 큐 — WebView 네트워크 경합 방지 (동시 업로드 → 순차 실행)
+const _uploadQueue = [];
+let _uploadRunning = false;
+
+async function _processUploadQueue() {
+    if (_uploadRunning) return;
+    _uploadRunning = true;
+    while (_uploadQueue.length > 0) {
+        const { fn, resolve, reject } = _uploadQueue.shift();
+        try { resolve(await fn()); }
+        catch (e) { reject(e); }
+    }
+    _uploadRunning = false;
+}
+
+function enqueueUpload(fn) {
+    return new Promise((resolve, reject) => {
+        _uploadQueue.push({ fn, resolve, reject });
+        _processUploadQueue();
+    });
+}
+
 // WebP 포맷 지원 감지 — canvas.toDataURL('image/webp') 결과로 판별
 const _supportsWebP = (() => {
     try {
@@ -262,6 +284,10 @@ function createUploadProgressCallback(label) {
 }
 
 async function uploadImageToStorage(storagePath, base64str, onProgress) {
+    return enqueueUpload(() => _uploadImageToStorageImpl(storagePath, base64str, onProgress));
+}
+
+async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
 
     // 제1원칙: 오프라인에서 업로드 시도는 배터리 낭비 — 즉시 큐에 넣고 종료
@@ -300,41 +326,67 @@ async function uploadImageToStorage(storagePath, base64str, onProgress) {
     }
     const storageRef = ref(storage, storagePath);
 
+    // 프로필 이미지: 기존 파일 삭제 후 업로드 (best-effort, 5초 타임아웃)
+    if (storagePath.startsWith('profile_images/')) {
+        try {
+            await Promise.race([
+                deleteObject(storageRef),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('delete timeout')), 5000))
+            ]);
+            _log('3.5-DELETE', 'Existing profile image deleted');
+        } catch (e) {
+            _log('3.5-DELETE', `Delete skipped: ${e.code || e.message}`);
+        }
+    }
+
     // 지수 백오프 재시도 (최대 3회, 2s → 4s → 실패)
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 2000;
     let lastError;
+    const useSimpleUpload = blob.size < 100 * 1024; // 100KB 미만: 단일 PUT (uploadBytes)
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
-            _log('4-UPLOAD', `Calling uploadBytesResumable... (attempt ${attempt}/${MAX_RETRIES})`);
-            const url = await new Promise((resolve, reject) => {
-                const uploadTask = uploadBytesResumable(storageRef, blob, { contentType });
-                const timeout = setTimeout(() => {
-                    uploadTask.cancel();
-                    reject(new Error('Upload timed out after 60s'));
-                }, 60000);
-                uploadTask.on('state_changed',
-                    (snapshot) => {
-                        const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-                        _log('4-PROGRESS', `${pct}% (${snapshot.bytesTransferred}/${snapshot.totalBytes})`);
-                        if (onProgress) onProgress(pct);
-                    },
-                    (error) => {
-                        clearTimeout(timeout);
-                        reject(error);
-                    },
-                    async () => {
-                        clearTimeout(timeout);
-                        try {
-                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                            resolve(downloadURL);
-                        } catch (e) { reject(e); }
-                    }
-                );
-            });
-            _log('6-DONE', `downloadURL=${url.substring(0, 80)}...`);
-            if (onProgress) onProgress(100);
-            return url;
+            if (useSimpleUpload) {
+                _log('4-UPLOAD', `Using simple uploadBytes (${blob.size}B), attempt ${attempt}/${MAX_RETRIES}`);
+                const snapshot = await Promise.race([
+                    uploadBytes(storageRef, blob, { contentType }),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('Upload timed out after 60s')), 60000))
+                ]);
+                if (onProgress) onProgress(100);
+                const downloadURL = await getDownloadURL(snapshot.ref);
+                _log('6-DONE', `downloadURL=${downloadURL.substring(0, 80)}...`);
+                return downloadURL;
+            } else {
+                _log('4-UPLOAD', `Calling uploadBytesResumable... (attempt ${attempt}/${MAX_RETRIES})`);
+                const url = await new Promise((resolve, reject) => {
+                    const uploadTask = uploadBytesResumable(storageRef, blob, { contentType });
+                    const timeout = setTimeout(() => {
+                        uploadTask.cancel();
+                        reject(new Error('Upload timed out after 60s'));
+                    }, 60000);
+                    uploadTask.on('state_changed',
+                        (snapshot) => {
+                            const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                            _log('4-PROGRESS', `${pct}% (${snapshot.bytesTransferred}/${snapshot.totalBytes})`);
+                            if (onProgress) onProgress(pct);
+                        },
+                        (error) => {
+                            clearTimeout(timeout);
+                            reject(error);
+                        },
+                        async () => {
+                            clearTimeout(timeout);
+                            try {
+                                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                                resolve(downloadURL);
+                            } catch (e) { reject(e); }
+                        }
+                    );
+                });
+                _log('6-DONE', `downloadURL=${url.substring(0, 80)}...`);
+                if (onProgress) onProgress(100);
+                return url;
+            }
         } catch (e) {
             lastError = e;
             _log('4-RETRY', `attempt ${attempt}/${MAX_RETRIES} failed: ${e.message}`);
