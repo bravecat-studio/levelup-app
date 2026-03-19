@@ -167,6 +167,23 @@
 }
 .prompt-copy-btn:hover { background: var(--accent-dim); }
 
+/* Prompt toolbar */
+.prompt-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.prompt-toolbar .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.prompt-toolbar-icon {
+    font-size: 0.85rem;
+}
+
 .log-stats-bar {
     display: flex;
     gap: 16px;
