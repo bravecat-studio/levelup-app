@@ -730,7 +730,7 @@ async function _doSaveUserData() {
             questWeekStart: AppState.quest.weekStart,
             dungeonStr: JSON.stringify(AppState.dungeon),
             friends: AppState.user.friends || [],
-            ...(_profileUploadInFlight || isBase64Image(AppState.user.photoURL) ? {} : { photoURL: AppState.user.photoURL || null }),
+            photoURL: (_profileUploadInFlight || isBase64Image(AppState.user.photoURL)) ? null : (AppState.user.photoURL || null),
             syncEnabled: AppState.user.syncEnabled,
             gpsEnabled: AppState.user.gpsEnabled,
             pushEnabled: AppState.user.pushEnabled,
