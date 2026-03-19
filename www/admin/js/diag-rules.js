@@ -406,6 +406,15 @@ function render() {
                     <button class="prompt-copy-btn" onclick="window._copyPrompt()">복사</button>
                     <div class="prompt-output" id="generated-prompt"></div>
                 </div>
+                <div class="prompt-toolbar">
+                    <button class="btn btn-primary btn-sm" onclick="window._copyPrompt()">
+                        <span class="prompt-toolbar-icon">📋</span> 프롬프트 복사
+                    </button>
+                    <button class="btn btn-outline btn-sm" onclick="window._downloadPrompt()">
+                        <span class="prompt-toolbar-icon">💾</span> 다운로드
+                    </button>
+                    <span class="text-sub text-sm" id="prompt-copy-status"></span>
+                </div>
             </div>
         </div>
 
@@ -560,10 +569,66 @@ window._clearAnalysis = function() {
 
 window._copyPrompt = function() {
     const prompt = document.getElementById("generated-prompt").textContent;
-    navigator.clipboard.writeText(prompt).then(() => {
+    if (!prompt) return;
+
+    const onSuccess = () => {
         const btn = document.querySelector(".prompt-copy-btn");
         btn.textContent = "복사됨!";
         setTimeout(() => { btn.textContent = "복사"; }, 1500);
+        const status = document.getElementById("prompt-copy-status");
+        if (status) {
+            status.textContent = "클립보드에 복사됨!";
+            setTimeout(() => { status.textContent = ""; }, 2000);
+        }
         tok("Analyzer", "프롬프트 클립보드 복사 완료");
-    });
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(prompt).then(onSuccess).catch(() => {
+            // Fallback for Capacitor WebView
+            _fallbackCopy(prompt, onSuccess);
+        });
+    } else {
+        _fallbackCopy(prompt, onSuccess);
+    }
+};
+
+function _fallbackCopy(text, onSuccess) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;left:-9999px;top:-9999px;opacity:0;";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand("copy");
+        onSuccess();
+    } catch (e) {
+        terror("Analyzer", "클립보드 복사 실패: " + e.message);
+    }
+    document.body.removeChild(ta);
+}
+
+window._downloadPrompt = function() {
+    const prompt = document.getElementById("generated-prompt").textContent;
+    if (!prompt) return;
+
+    const now = new Date();
+    const ts = now.getFullYear()
+        + String(now.getMonth() + 1).padStart(2, "0")
+        + String(now.getDate()).padStart(2, "0")
+        + "_" + String(now.getHours()).padStart(2, "0")
+        + String(now.getMinutes()).padStart(2, "0");
+    const filename = `fix-prompt_${ts}.txt`;
+
+    const blob = new Blob([prompt], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    tok("Analyzer", `프롬프트 다운로드: ${filename}`);
 };
