@@ -55,6 +55,7 @@ function isBase64Image(str) {
 
 // 업로드 실패 재전송 큐 (로컬 메모리 + localStorage 백업)
 const _uploadRetryQueue = [];
+let _retryProcessing = false;
 function _persistRetryQueue() {
     try {
         const serializable = _uploadRetryQueue.map(item => ({
@@ -65,9 +66,65 @@ function _persistRetryQueue() {
     } catch (e) { /* quota exceeded 등 무시 */ }
 }
 function _addToRetryQueue(storagePath, base64str) {
+    // 동일 경로 중복 방지
+    const idx = _uploadRetryQueue.findIndex(item => item.storagePath === storagePath);
+    if (idx !== -1) _uploadRetryQueue.splice(idx, 1);
     _uploadRetryQueue.push({ storagePath, base64str, timestamp: Date.now() });
     _persistRetryQueue();
     console.warn(`[UploadRetry] 재전송 큐에 추가: ${storagePath} (큐 크기: ${_uploadRetryQueue.length})`);
+}
+async function _processRetryQueue() {
+    if (_retryProcessing || _uploadRetryQueue.length === 0) return;
+    _retryProcessing = true;
+    console.log(`[UploadRetry] 재전송 큐 처리 시작 (${_uploadRetryQueue.length}건)`);
+    while (_uploadRetryQueue.length > 0) {
+        const item = _uploadRetryQueue[0];
+        // 1시간 이상 지난 항목은 폐기
+        if (Date.now() - item.timestamp > 60 * 60 * 1000) {
+            _uploadRetryQueue.shift();
+            _persistRetryQueue();
+            console.warn(`[UploadRetry] 만료 항목 폐기: ${item.storagePath}`);
+            continue;
+        }
+        try {
+            const storageRef = ref(storage, item.storagePath);
+            const res = await fetch(item.base64str);
+            const blob = await res.blob();
+            const contentType = blob.type || 'image/jpeg';
+            await new Promise((resolve, reject) => {
+                const uploadTask = uploadBytesResumable(storageRef, blob, { contentType });
+                const timeout = setTimeout(() => { uploadTask.cancel(); reject(new Error('Retry upload timed out')); }, 120000);
+                uploadTask.on('state_changed', null, (err) => { clearTimeout(timeout); reject(err); }, () => { clearTimeout(timeout); resolve(); });
+            });
+            _uploadRetryQueue.shift();
+            _persistRetryQueue();
+            console.log(`[UploadRetry] 재전송 성공: ${item.storagePath}`);
+        } catch (e) {
+            console.warn(`[UploadRetry] 재전송 실패, 나중에 재시도: ${item.storagePath}`, e.message);
+            break;
+        }
+    }
+    _retryProcessing = false;
+}
+
+// 이미지 데이터 압축 헬퍼 (base64 data URL → 리사이즈+재압축 → base64 data URL)
+function _compressImageData(base64str, maxSize, quality) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > maxSize || h > maxSize) {
+                if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+                else { w = Math.round(w * maxSize / h); h = maxSize; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvasToOptimalDataURL(canvas, quality));
+        };
+        img.onerror = () => reject(new Error('Image load failed for compression'));
+        img.src = base64str;
+    });
 }
 
 // WebP 포맷 지원 감지 — canvas.toDataURL('image/webp') 결과로 판별
@@ -141,6 +198,9 @@ async function uploadImageToStorage(storagePath, base64str, onProgress) {
     // 지수 백오프 재시도 (최대 3회, 2s → 4s → 실패)
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 2000;
+    // 파일 크기 기반 적응형 타임아웃: 최소 120초, MB당 60초 추가
+    const TIMEOUT_MS = Math.max(120000, Math.ceil(blob.size / (1024 * 1024)) * 60000 + 60000);
+    _log('3-TIMEOUT', `adaptiveTimeout=${TIMEOUT_MS}ms for blobSize=${blob.size}`);
     let lastError;
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
@@ -149,8 +209,8 @@ async function uploadImageToStorage(storagePath, base64str, onProgress) {
                 const uploadTask = uploadBytesResumable(storageRef, blob, { contentType });
                 const timeout = setTimeout(() => {
                     uploadTask.cancel();
-                    reject(new Error('Upload timed out after 60s'));
-                }, 60000);
+                    reject(new Error(`Upload timed out after ${TIMEOUT_MS / 1000}s`));
+                }, TIMEOUT_MS);
                 uploadTask.on('state_changed',
                     (snapshot) => {
                         const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
@@ -371,6 +431,8 @@ function initOfflineDetection() {
             }).catch((e) => {
                 if (window.AppLogger) AppLogger.warn('[Firestore] 네트워크 재활성화 실패: ' + e.message);
             });
+            // 온라인 복귀 시 업로드 재전송 큐 처리
+            setTimeout(() => _processRetryQueue(), 3000);
             // SW에 온라인 복귀 알림
             if (navigator.serviceWorker && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({ type: 'ONLINE_RESTORED' });
@@ -404,7 +466,10 @@ function initOfflineDetection() {
                 if (window.AppLogger) AppLogger.warn('[Firestore] WebChannel transport error detected, reconnecting...');
                 disableNetwork(db)
                     .then(() => enableNetwork(db))
-                    .then(() => { if (window.AppLogger) AppLogger.info('[Firestore] WebChannel 복구 완료'); })
+                    .then(() => {
+                        if (window.AppLogger) AppLogger.info('[Firestore] WebChannel 복구 완료');
+                        setTimeout(() => _processRetryQueue(), 3000);
+                    })
                     .catch((e) => { if (window.AppLogger) AppLogger.warn('[Firestore] WebChannel 복구 실패: ' + e.message); });
             }
         });
@@ -4354,7 +4419,7 @@ function loadPlannerPhoto(e) {
             }
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            plannerPhotoData = canvasToOptimalDataURL(canvas, 0.7);
+            plannerPhotoData = canvasToOptimalDataURL(canvas, 0.65);
             const preview = document.getElementById('planner-photo-preview');
             const placeholder = document.getElementById('planner-photo-placeholder');
             const removeBtn = document.getElementById('planner-photo-remove');
@@ -4723,15 +4788,16 @@ async function postToReels() {
         const caption = (entry.caption || '').trim();
         const postTimestamp = Date.now();
 
-        // 릴스 사진을 Cloud Storage에 업로드
+        // 릴스 사진: 업로드 전 압축 (최대 800px, quality 0.7, < 2MB 보장)
         let finalPhotoURL = photoData;
         let uploadFailed = false;
         if (isBase64Image(photoData)) {
             try {
                 const uid = auth.currentUser.uid;
+                const compressedPhoto = await _compressImageData(photoData, 800, 0.7);
                 const reelsLang = AppState.currentLang || 'ko';
                 const reelsProgressCb = createUploadProgressCallback(reelsLang === 'ko' ? '릴스 사진 업로드 중...' : 'Uploading reel photo...');
-                finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}${getImageExtension()}`, photoData, reelsProgressCb);
+                finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}${getImageExtension()}`, compressedPhoto, reelsProgressCb);
                 hideUploadProgress();
             } catch (e) {
                 hideUploadProgress();
