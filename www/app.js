@@ -17,13 +17,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-// 플랫폼 감지: Capacitor 브릿지 + User-Agent WebView 마커 모두 확인
-const isNativePlatform = (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())
-    || /\bwv\b/.test(navigator.userAgent);  // Android WebView 마커
-if (window.AppLogger) window.AppLogger.info(`[Platform] isNativePlatform=${isNativePlatform}, UA=${navigator.userAgent.slice(0,80)}`);
+const isNativePlatform = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 const db = initializeFirestore(app, {
-    // Android WebView에서 WebChannel 전송이 실패하므로 항상 Long Polling 사용
-    experimentalForceLongPolling: true,
+    ...(isNativePlatform
+        ? { experimentalForceLongPolling: true }
+        : { experimentalAutoDetectLongPolling: true }),
     localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 const storage = getStorage(app);
