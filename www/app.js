@@ -1,7 +1,7 @@
 // --- Firebase SDK 초기화 ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 import { getStorage, ref, uploadBytesResumable, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
@@ -21,20 +21,10 @@ const isNativePlatform = window.Capacitor && window.Capacitor.isNativePlatform &
 const db = initializeFirestore(app, {
     ...(isNativePlatform
         ? { experimentalForceLongPolling: true }
-        : { experimentalAutoDetectLongPolling: true })
+        : { experimentalAutoDetectLongPolling: true }),
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
 const storage = getStorage(app);
-
-// Firestore 오프라인 지속성 활성화 — 네트워크 끊김 시에도 캐시된 데이터 사용 가능
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-        // 여러 탭이 열린 경우 — 첫 번째 탭만 지속성 사용 가능
-        console.warn('[Firestore] 오프라인 지속성: 다른 탭에서 이미 활성화됨');
-    } else if (err.code === 'unimplemented') {
-        // 브라우저가 IndexedDB를 지원하지 않는 경우
-        console.warn('[Firestore] 오프라인 지속성: IndexedDB 미지원 브라우저');
-    }
-});
 
 // Firebase Cloud Messaging 초기화 (웹 환경에서만)
 let messaging = null;
@@ -287,12 +277,21 @@ async function uploadImageToStorage(storagePath, base64str, onProgress) {
     return enqueueUpload(() => _uploadImageToStorageImpl(storagePath, base64str, onProgress));
 }
 
+// 동적 타임아웃 계산: 파일 크기 + 네트워크 품질 기반
+function _calcUploadTimeout(blobSize) {
+    const baseSec = 30 + Math.ceil(blobSize / (1024 * 1024)) * 60;
+    const capSec = Math.min(baseSec, 300);
+    const multiplier = NetworkMonitor.getQuality() === 'weak' ? 2 : 1;
+    return capSec * multiplier * 1000;
+}
+
 async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
 
-    // 제1원칙: 오프라인에서 업로드 시도는 배터리 낭비 — 즉시 큐에 넣고 종료
-    if (!navigator.onLine) {
-        _log('0-OFFLINE', 'Offline detected, queuing for later');
+    // 제1원칙: 오프라인이거나 네트워크 품질이 offline이면 즉시 큐에 넣고 종료
+    const netQuality = NetworkMonitor.getQuality();
+    if (!navigator.onLine || netQuality === 'offline') {
+        _log('0-OFFLINE', `Offline detected (onLine=${navigator.onLine}, quality=${netQuality}), queuing for later`);
         _addToRetryQueue(storagePath, base64str);
         const err = new Error('Device is offline — upload queued for retry');
         err.code = 'client/offline-queued';
@@ -344,37 +343,67 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
     const BASE_DELAY_MS = 2000;
     let lastError;
     const useSimpleUpload = blob.size < 100 * 1024; // 100KB 미만: 단일 PUT (uploadBytes)
+    const timeoutMs = _calcUploadTimeout(blob.size);
+    const timeoutSec = Math.round(timeoutMs / 1000);
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        // 재시도 전 네트워크 품질 재확인
+        if (attempt > 1) {
+            const retryQuality = NetworkMonitor.getQuality();
+            if (!navigator.onLine || retryQuality === 'offline') {
+                _log('4-RETRY-OFFLINE', `Network lost before attempt ${attempt}, queuing`);
+                _addToRetryQueue(storagePath, base64str);
+                throw new Error('Network lost during retry — upload queued');
+            }
+        }
         try {
             if (useSimpleUpload) {
-                _log('4-UPLOAD', `Using simple uploadBytes (${blob.size}B), attempt ${attempt}/${MAX_RETRIES}`);
+                _log('4-UPLOAD', `Using simple uploadBytes (${blob.size}B), attempt ${attempt}/${MAX_RETRIES}, timeout=${timeoutSec}s`);
                 const snapshot = await Promise.race([
                     uploadBytes(storageRef, blob, { contentType }),
-                    new Promise((_, rej) => setTimeout(() => rej(new Error('Upload timed out after 60s')), 60000))
+                    new Promise((_, rej) => setTimeout(() => rej(new Error(`Upload timed out after ${timeoutSec}s`)), timeoutMs))
                 ]);
                 if (onProgress) onProgress(100);
                 const downloadURL = await getDownloadURL(snapshot.ref);
                 _log('6-DONE', `downloadURL=${downloadURL.substring(0, 80)}...`);
                 return downloadURL;
             } else {
-                _log('4-UPLOAD', `Calling uploadBytesResumable... (attempt ${attempt}/${MAX_RETRIES})`);
+                _log('4-UPLOAD', `Calling uploadBytesResumable... (attempt ${attempt}/${MAX_RETRIES}, timeout=${timeoutSec}s)`);
                 const url = await new Promise((resolve, reject) => {
                     const uploadTask = uploadBytesResumable(storageRef, blob, { contentType });
+                    // Stall detection: 30초간 진행 없으면 취소
+                    const STALL_TIMEOUT_MS = 30000;
+                    let lastProgressTime = Date.now();
+                    let lastBytesTransferred = 0;
+                    const stallChecker = setInterval(() => {
+                        if (Date.now() - lastProgressTime > STALL_TIMEOUT_MS) {
+                            clearInterval(stallChecker);
+                            clearTimeout(timeout);
+                            uploadTask.cancel();
+                            reject(new Error(`Upload stalled — no progress for ${STALL_TIMEOUT_MS / 1000}s`));
+                        }
+                    }, 5000);
                     const timeout = setTimeout(() => {
+                        clearInterval(stallChecker);
                         uploadTask.cancel();
-                        reject(new Error('Upload timed out after 60s'));
-                    }, 60000);
+                        reject(new Error(`Upload timed out after ${timeoutSec}s`));
+                    }, timeoutMs);
                     uploadTask.on('state_changed',
                         (snapshot) => {
+                            if (snapshot.bytesTransferred > lastBytesTransferred) {
+                                lastProgressTime = Date.now();
+                                lastBytesTransferred = snapshot.bytesTransferred;
+                            }
                             const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
                             _log('4-PROGRESS', `${pct}% (${snapshot.bytesTransferred}/${snapshot.totalBytes})`);
                             if (onProgress) onProgress(pct);
                         },
                         (error) => {
+                            clearInterval(stallChecker);
                             clearTimeout(timeout);
                             reject(error);
                         },
                         async () => {
+                            clearInterval(stallChecker);
                             clearTimeout(timeout);
                             try {
                                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -4972,15 +5001,34 @@ async function postToReels() {
         const caption = (entry.caption || '').trim();
         const postTimestamp = Date.now();
 
-        // 릴스 사진을 Cloud Storage에 업로드
+        // 릴스 사진을 Cloud Storage에 업로드 (적응형 압축 후)
         let finalPhotoURL = photoData;
         let uploadFailed = false;
         if (isBase64Image(photoData)) {
             try {
                 const uid = auth.currentUser.uid;
                 const reelsLang = AppState.currentLang || 'ko';
+                // 적응형 압축: 1.8MB 이하 보장 (2MB 규칙에 안전 마진)
+                let compressedData = photoData;
+                try {
+                    const img = new Image();
+                    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = photoData; });
+                    const maxDim = 1080;
+                    let w = img.naturalWidth, h = img.naturalHeight;
+                    if (w > maxDim || h > maxDim) {
+                        const scale = maxDim / Math.max(w, h);
+                        w = Math.round(w * scale); h = Math.round(h * scale);
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = w; canvas.height = h;
+                    canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                    const { dataURL } = await compressToTargetSize(canvas, 1800 * 1024, 0.75, 0.3);
+                    compressedData = dataURL;
+                } catch (compErr) {
+                    console.warn('[Reels] 압축 실패, 원본 사용:', compErr.message);
+                }
                 const reelsProgressCb = createUploadProgressCallback(reelsLang === 'ko' ? '릴스 사진 업로드 중...' : 'Uploading reel photo...');
-                finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}${getImageExtension()}`, photoData, reelsProgressCb);
+                finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}${getImageExtension()}`, compressedData, reelsProgressCb);
                 hideUploadProgress();
             } catch (e) {
                 hideUploadProgress();
