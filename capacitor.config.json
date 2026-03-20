@@ -13,9 +13,6 @@
     }
   },
   "plugins": {
-    "CapacitorHttp": {
-      "enabled": true
-    },
     "SplashScreen": {
       "launchShowDuration": 2000,
       "backgroundColor": "#0a0a0f",
@@ -35,9 +32,6 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
       ]
-    },
-    "CapacitorHttp": {
-      "enabled": true
     },
     "PushNotifications": {
       "presentationOptions": ["badge", "sound", "alert"]
