@@ -329,6 +329,54 @@ async function uploadImageToStorage(storagePath, base64str, onProgress) {
     return enqueueUpload(() => _uploadImageToStorageImpl(storagePath, base64str, onProgress));
 }
 
+// Native REST API 업로드 — CapacitorHttp의 XHR Blob 직렬화 버그 우회
+// Firebase Storage JS SDK의 uploadBytes는 내부적으로 XHR + Blob body를 사용하는데,
+// CapacitorHttp가 XHR을 패치하면서 Blob body를 올바르게 직렬화하지 못해 storage/unknown 오류 발생.
+// 해결: REST API를 직접 호출하되, body를 Uint8Array로 전달 (CapacitorHttp가 올바르게 처리)
+async function _nativeRestUpload(storagePath, blob, contentType, _log) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Not authenticated for upload');
+
+    const token = await user.getIdToken();
+    const bucket = firebaseConfig.storageBucket;
+    const encodedPath = encodeURIComponent(storagePath);
+    const uploadUrl = `https://firebasestorage.googleapis.com/upload/storage/v1/b/${bucket}/o?uploadType=media&name=${encodedPath}`;
+
+    // Blob → Uint8Array 변환 (CapacitorHttp가 Blob보다 ArrayBuffer/Uint8Array를 더 잘 처리)
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    _log('4-REST', `Native REST upload: ${uploadUrl.substring(0, 80)}... (${uint8Array.length}B)`);
+
+    const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': contentType,
+        },
+        body: uint8Array
+    });
+
+    if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        const err = new Error(`REST upload failed: ${response.status} ${errText.substring(0, 200)}`);
+        err.code = 'storage/unknown';
+        throw err;
+    }
+
+    const metadata = await response.json();
+
+    // downloadTokens로 다운로드 URL 구성
+    if (metadata.downloadTokens) {
+        return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media&token=${metadata.downloadTokens}`;
+    }
+
+    // downloadTokens가 없으면 Firebase SDK로 URL 조회
+    _log('4-REST-FALLBACK', 'No downloadTokens in response, using getDownloadURL');
+    const storageRef = ref(storage, storagePath);
+    return await getDownloadURL(storageRef);
+}
+
 async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
     const _log = (step, msg) => { console.log(`[Upload:${step}] ${msg}`); if (window.AppLogger) AppLogger.info(`[Upload:${step}] ${msg}`); };
 
@@ -381,10 +429,10 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
         }
     }
 
-    // CORS preflight 검증 (네이티브 WebView에서 CORS 미설정 시 hang 방지)
-    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
-        // CapacitorHttp가 활성화되어 있으면 CORS 우회됨 — 검증 불필요
-        _log('3.8-NATIVE', 'Native platform detected (CapacitorHttp should bypass CORS)');
+    // 네이티브 플랫폼 감지 — REST API 직접 호출로 CapacitorHttp XHR Blob 버그 우회
+    const useNativeRest = isNativePlatform;
+    if (useNativeRest) {
+        _log('3.8-NATIVE', 'Native platform: using REST API (bypassing Firebase SDK uploadBytes)');
     }
 
     // 네트워크 품질 기반 동적 타임아웃 계산
@@ -407,7 +455,21 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
             throw err;
         }
         try {
-            if (useSimpleUpload) {
+            // 네이티브: REST API 직접 호출 (CapacitorHttp Blob 직렬화 버그 우회)
+            if (useNativeRest) {
+                _log('4-UPLOAD', `Native REST upload (${blob.size}B), attempt ${attempt}/${MAX_RETRIES}`);
+                const downloadURL = await Promise.race([
+                    _nativeRestUpload(storagePath, blob, contentType, _log),
+                    new Promise((_, rej) => setTimeout(() => {
+                        const err = new Error(`Upload timed out after ${uploadTimeoutMs / 1000}s (${blob.size}B)`);
+                        err.code = 'client/upload-timeout';
+                        rej(err);
+                    }, uploadTimeoutMs))
+                ]);
+                if (onProgress) onProgress(100);
+                _log('6-DONE', `downloadURL=${downloadURL.substring(0, 80)}...`);
+                return downloadURL;
+            } else if (useSimpleUpload) {
                 _log('4-UPLOAD', `Using simple uploadBytes (${blob.size}B), attempt ${attempt}/${MAX_RETRIES}`);
                 const snapshot = await Promise.race([
                     uploadBytes(storageRef, blob, { contentType }),
