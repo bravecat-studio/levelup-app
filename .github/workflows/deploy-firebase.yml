@@ -58,6 +58,9 @@ jobs:
       - name: Firebase CLI 설치
         run: npm install -g firebase-tools
 
+      - name: gcloud 서비스 계정 활성화
+        run: gcloud auth activate-service-account --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
+
       - name: Storage CORS 설정 적용
         continue-on-error: true
         run: |
@@ -192,6 +195,7 @@ jobs:
 
       - name: Storage CORS 설정 배포
         if: steps.detect.outputs.deploy_storage == 'true'
+        continue-on-error: true
         run: |
           echo "Applying CORS configuration to Storage bucket..."
           gsutil cors set cors.json gs://levelup-app-53d02.firebasestorage.app
