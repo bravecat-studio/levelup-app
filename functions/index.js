@@ -1,5 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { defineString } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -13,27 +14,30 @@ const messaging = getMessaging();
 // Callable 함수 공통 옵션 (Gen 2 Cloud Run 호환)
 const callableOpts = {
     region: "asia-northeast3",
-    cors: true,
+    cors: ["https://levelup-app-53d02.web.app", "https://levelup-app-53d02.firebaseapp.com"],
     invoker: "public"
 };
 
 // ─── Admin claim helper ───
 
-const ADMIN_EMAILS = ["nazi2k@gmail.com"];
+const adminEmailsParam = defineString("ADMIN_EMAILS", { default: "" });
+function getAdminEmails() {
+    return adminEmailsParam.value().split(",").map(e => e.trim()).filter(Boolean);
+}
 
 async function assertAdmin(request) {
     if (request.auth?.token?.admin) return;
 
     // Fallback: check admin email list + verify/repair custom claim
     const email = request.auth?.token?.email;
-    if (email && ADMIN_EMAILS.includes(email)) {
+    if (email && getAdminEmails().includes(email)) {
         // Token custom claim missing — re-verify from Auth server
         try {
             const user = await getAuth().getUser(request.auth.uid);
             if (user.customClaims?.admin) return; // claim exists server-side, token was stale
             // Claim not set yet — set it now for future requests
             await getAuth().setCustomUserClaims(request.auth.uid, { admin: true });
-            console.log("[assertAdmin] Auto-repaired admin claim for", email);
+            console.log("[assertAdmin] Auto-repaired admin claim for uid:", request.auth.uid);
         } catch (e) {
             console.error("[assertAdmin] Claim repair failed:", e.message);
         }
@@ -171,7 +175,7 @@ async function handleGetClientErrorLogs(request) {
 async function handleSendTestNotification(request) {
     const callerEmail = request.auth?.token?.email;
     const reqData = request.data || {};
-    console.log("[sendTestNotification] caller:", callerEmail, "data:", JSON.stringify(reqData));
+    console.log("[sendTestNotification] caller uid:", request.auth?.uid, "type:", reqData.type || "custom");
     await assertAdmin(request);
 
     const { token, topic, type, lang, customTitle, customBody } = reqData;
@@ -182,6 +186,8 @@ async function handleSendTestNotification(request) {
     let notification;
     if (type === "custom") {
         if (!customTitle || !customBody) throw new HttpsError("invalid-argument", "커스텀 알림은 제목과 본문이 필수입니다.");
+        if (String(customTitle).length > 100) throw new HttpsError("invalid-argument", "제목은 100자 이하여야 합니다.");
+        if (String(customBody).length > 500) throw new HttpsError("invalid-argument", "본문은 500자 이하여야 합니다.");
         notification = { title: String(customTitle), body: String(customBody) };
     } else {
         notification = getLocalizedMessage(type || "raid_start", lang || "ko");
@@ -480,13 +486,13 @@ async function handleRollbackUserData(request) {
 async function handleResetPassword(request) {
     await assertAdmin(request);
     const { uid } = request.data || {};
-    if (!uid) throw new HttpsError("invalid-argument", "uid는 필수입니다.");
+    if (!uid || typeof uid !== "string" || uid.length > 128) throw new HttpsError("invalid-argument", "uid는 128자 이하의 필수 문자열입니다.");
 
     const user = await getAuth().getUser(uid);
     if (!user.email) throw new HttpsError("failed-precondition", "이메일이 없는 계정입니다.");
 
     const link = await getAuth().generatePasswordResetLink(user.email);
-    console.log(`[resetPassword] Password reset link generated for ${user.email}`);
+    console.log(`[resetPassword] Password reset link generated for uid: ${uid}`);
     return { success: true, email: user.email, link };
 }
 
@@ -575,7 +581,7 @@ exports.ping = onCall(callableOpts, async (request) => {
     const result = {
         ok: true,
         ts: new Date().toISOString(),
-        auth: request.auth ? request.auth.token.email : null,
+        auth: !!request.auth,
         node: process.version,
         region: process.env.FUNCTION_REGION || "unknown",
         firestore: null,
@@ -606,7 +612,7 @@ exports.ping = onCall(callableOpts, async (request) => {
     // 진단 모드
     if (request.data && request.data.diag) {
         const diag = {};
-        diag.adminEmail = request.auth?.token?.email || null;
+        diag.adminUid = request.auth?.uid || null;
         diag.isAdmin = !!(request.auth?.token?.admin);
 
         try {

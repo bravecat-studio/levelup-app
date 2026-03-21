@@ -1,2 +1,28 @@
 node_modules/
 android/
+
+# Environment variables
+.env
+.env.*
+functions/.env
+functions/.env.*
+
+# Keys and certificates
+*.keystore
+*.jks
+*.key
+*.pem
+*.p12
+
+# Firebase service accounts
+*-service-account*.json
+
+# Platform-specific
+google-services.json
+GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store

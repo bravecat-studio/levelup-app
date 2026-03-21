@@ -1664,13 +1664,13 @@ function renderDiyQuestList() {
     container.innerHTML = defs.map(q => {
         const isDone = AppState.diyQuests.completedToday[q.id] || false;
         return `
-            <div class="quest-row ${isDone ? 'done' : ''}" onclick="window.toggleDiyQuest('${q.id}')">
+            <div class="quest-row ${isDone ? 'done' : ''}" onclick="window.toggleDiyQuest('${sanitizeAttr(q.id)}')">
                 <div>
                     <div class="quest-title"><span class="quest-stat-tag">${sanitizeText(q.stat)}</span>${sanitizeText(q.title)}</div>
                     <div class="quest-desc">${sanitizeText(q.desc)}</div>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="diy-quest-edit" onclick="event.stopPropagation(); window.showDiyQuestModal('${q.id}')">✎</span>
+                    <span class="diy-quest-edit" onclick="event.stopPropagation(); window.showDiyQuestModal('${sanitizeAttr(q.id)}')">✎</span>
                     <div class="quest-checkbox"></div>
                 </div>
             </div>
@@ -4989,11 +4989,12 @@ function renderLocationResults(results) {
     list.innerHTML = results.map(r => {
         const name = r.name || r.display_name?.split(',')[0] || '';
         const addr = r.display_name || '';
-        const lat = r.lat;
-        const lng = r.lon;
-        return `<div class="location-search-item" onclick="window.selectLocation('${name.replace(/'/g, "\\'")}', ${lat}, ${lng})">
-            <div class="location-search-item-name">📍 ${name}</div>
-            <div class="location-search-item-addr">${addr}</div>
+        const lat = parseFloat(r.lat);
+        const lng = parseFloat(r.lon);
+        if (!isFinite(lat) || !isFinite(lng)) return '';
+        return `<div class="location-search-item" onclick="window.selectLocation('${sanitizeAttr(name)}', ${lat}, ${lng})">
+            <div class="location-search-item-name">📍 ${sanitizeText(name)}</div>
+            <div class="location-search-item-addr">${sanitizeText(addr)}</div>
         </div>`;
     }).join('');
 }
