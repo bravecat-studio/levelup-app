@@ -1125,8 +1125,14 @@ async function loadUserDataFromDB(user) {
         if (docSnap.exists()) {
             const data = docSnap.data();
             if(data.stats) AppState.user.stats = data.stats;
-            if(data.level) AppState.user.level = data.level;
-            if(data.points) AppState.user.points = data.points;
+            if(data.level) {
+                const raw = Number(data.level);
+                AppState.user.level = Number.isFinite(raw) ? Math.max(1, Math.min(999, Math.floor(raw))) : 1;
+            }
+            if(data.points) {
+                const raw = Number(data.points);
+                AppState.user.points = Number.isFinite(raw) && raw >= 0 ? Math.floor(raw) : 0;
+            }
             if(data.titleHistoryStr) {
                 try { AppState.user.titleHistory = JSON.parse(data.titleHistoryStr); } catch(e) { AppState.user.titleHistory = [{level:1, title:{ko:"각성자"}}]; }
             }
@@ -2533,7 +2539,7 @@ function switchTab(tabId, el) {
 
 function updatePointUI() {
     const req = Math.floor(100 * Math.pow(1.5, AppState.user.level - 1));
-    document.getElementById('sys-level').innerText = `Lv. ${AppState.user.level}`;
+    document.getElementById('sys-level').innerText = `Lv. ${Math.floor(AppState.user.level)}`;
     document.getElementById('display-pts').innerText = AppState.user.points;
     document.getElementById('display-req-pts').innerText = req;
     document.getElementById('btn-levelup').disabled = AppState.user.points < req;
@@ -3622,7 +3628,7 @@ window.sharePlannerAsImage = async function() {
     // Lv + 무드
     ctx.fillStyle = '#aaaaaa';
     ctx.font = '12px Pretendard, sans-serif';
-    ctx.fillText('Lv.' + AppState.user.level + (moodEmoji ? ' ' + moodEmoji : ''), textX, avatarCenterY + 14);
+    ctx.fillText('Lv.' + Math.floor(AppState.user.level) + (moodEmoji ? ' ' + moodEmoji : ''), textX, avatarCenterY + 14);
 
     // 날짜 (우측)
     ctx.fillStyle = '#aaaaaa';
