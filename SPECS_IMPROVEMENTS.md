@@ -166,14 +166,29 @@ function supportsWebP() {
 
 ## Phase 2 (P2) — 중기 개선 (3-4주차)
 
-### P2-1. 데이터 모델 분리 (핫/콜드)
+### P2-1. 데이터 모델 분리 (핫/콜드) ✅ 구현 완료
 
 **출처:** Codex #8 + Gemini #3 통합 | **복잡도:** 높 | **임팩트:** 읽기 비용↓↓, 확장성↑↑
 
-`users/{uid}` 단일 문서(JSON 문자열 20개+)를 분리:
-- `users/{uid}` — 프로필/핵심 상태만
-- `users/{uid}/daily/{date}` — 일일 퀘스트/일기
-- `reels/{postId}` — 릴스 전용 (author 정보 비정규화 포함)
+~~`users/{uid}` 단일 문서(JSON 문자열 20개+)를 분리:~~ 핫/콜드 데이터 모델 분리 완료. 레거시 호환성 유지하며 점진적 마이그레이션 지원.
+
+**구현 내역:**
+| 파일 | 변경 내용 | 상태 |
+|------|-----------|------|
+| `firestore.rules` | `users/{uid}/cold_data/{docId}` 서브컬렉션 규칙 추가 (필드 화이트리스트 + 크기 제한) | ✅ |
+| `firestore.rules` | `reels/{postId}` 컬렉션 규칙 추가 (create/update/delete 권한 분리) | ✅ |
+| `firestore.rules` | 레거시 호환: users 문서에 콜드 필드 쓰기 허용 유지 (마이그레이션 완료 전) | ✅ |
+| `app.js` `_doSaveUserData()` | 핫 데이터(`users/{uid}`) + 콜드 데이터(`users/{uid}/cold_data/main`) 병렬 저장 | ✅ |
+| `app.js` `loadUserDataFromDB()` | 핫+콜드 데이터 병렬 로드, subcollection 우선 → 레거시 필드 폴백 | ✅ |
+| `app.js` `saveReelsToFirestore()` | `reels/{uid_timestamp}` 개별 문서로 저장 (기존 reelsStr 대체) | ✅ |
+| `app.js` `fetchAllReelsPosts()` | `reels` 컬렉션에서 timestamp 쿼리로 전환, 레거시 폴백 포함 | ✅ |
+| `app.js` `_restoreReelsFromFirestore()` | 로그인 시 reels 컬렉션에서 본인 포스트 복원 헬퍼 추가 | ✅ |
+| `functions/index.js` `cleanupExpiredReelsPhotos` | reels 컬렉션 만료 문서 삭제 + 레거시 reelsStr 폴백 확인 | ✅ |
+
+**데이터 모델:**
+- `users/{uid}` — 핫 데이터: 프로필, 레벨, 포인트, 스탯, 친구, 설정 등 (~2KB)
+- `users/{uid}/cold_data/main` — 콜드 데이터: questStr, diaryStr, dungeonStr, questHistoryStr 등 (~500KB)
+- `reels/{postId}` — 릴스 개별 문서: 작성자 정보 비정규화 포함 (24시간 TTL)
 
 ### P2-2. Observability 강화
 

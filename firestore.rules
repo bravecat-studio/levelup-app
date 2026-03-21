@@ -36,17 +36,17 @@ service cloud.firestore {
         && (!('rewardedSteps' in s) || (s.rewardedSteps is number && s.rewardedSteps >= 0));
     }
 
-    // users 문서 허용 필드 목록
+    // users 문서 허용 필드 목록 (핫 데이터만 — 콜드 데이터는 subcollection으로 분리)
     function allowedUserFields() {
       return [
         'name', 'level', 'points', 'photoURL', 'stats', 'pendingStats',
         'friends', 'fcmToken', 'syncEnabled', 'gpsEnabled', 'pushEnabled',
         'instaId', 'nameLastChanged', 'lastRouletteDate', 'lastReelsPostTs',
-        'stepData', 'streak',
+        'stepData', 'streak', 'streakStr',
+        'hasActiveReels', '_profileUploadFailed',
+        // ── 레거시 호환: 마이그레이션 완료 전까지 콜드 필드 쓰기 허용 ──
         'questStr', 'questWeekStart', 'diaryStr', 'reelsStr',
-        'dungeonStr', 'diyQuestsStr', 'questHistoryStr',
-        'titleHistoryStr', 'streakStr',
-        'hasActiveReels', '_profileUploadFailed'
+        'dungeonStr', 'diyQuestsStr', 'questHistoryStr', 'titleHistoryStr'
       ];
     }
 
@@ -125,6 +125,49 @@ service cloud.firestore {
       allow write: if request.auth != null
         && request.auth.uid == userId
         && isValidUserData();
+
+      // ── 콜드 데이터 서브컬렉션 (핫/콜드 분리) ──
+      // users/{uid}/cold_data/main — 대용량 JSON 문자열 (퀘스트, 일기, 던전 등)
+      match /cold_data/{docId} {
+        allow read: if request.auth != null
+          && request.auth.uid == userId;
+        allow write: if request.auth != null
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly([
+            'questStr', 'questWeekStart', 'diaryStr',
+            'dungeonStr', 'diyQuestsStr', 'questHistoryStr', 'titleHistoryStr'
+          ])
+          && (!('questStr' in request.resource.data) || (request.resource.data.questStr is string && request.resource.data.questStr.size() <= 10000))
+          && (!('diaryStr' in request.resource.data) || (request.resource.data.diaryStr is string && request.resource.data.diaryStr.size() <= 500000))
+          && (!('dungeonStr' in request.resource.data) || (request.resource.data.dungeonStr is string && request.resource.data.dungeonStr.size() <= 50000))
+          && (!('diyQuestsStr' in request.resource.data) || (request.resource.data.diyQuestsStr is string && request.resource.data.diyQuestsStr.size() <= 50000))
+          && (!('questHistoryStr' in request.resource.data) || (request.resource.data.questHistoryStr is string && request.resource.data.questHistoryStr.size() <= 200000))
+          && (!('titleHistoryStr' in request.resource.data) || (request.resource.data.titleHistoryStr is string && request.resource.data.titleHistoryStr.size() <= 50000))
+          && (!('questWeekStart' in request.resource.data) || (request.resource.data.questWeekStart is string && request.resource.data.questWeekStart.size() <= 10));
+      }
+    }
+
+    // ──────────────────────────────────────────────
+    // reels: 개별 릴스 포스트 (핫/콜드 분리 — 기존 reelsStr에서 이전)
+    // ──────────────────────────────────────────────
+    match /reels/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid
+        && request.resource.data.keys().hasOnly([
+          'uid', 'dateKST', 'timestamp', 'photo', 'caption',
+          'blocks', 'tasks', 'mood', 'userName', 'userPhoto',
+          'userLevel', 'location', 'userInstaId'
+        ])
+        && request.resource.data.uid is string
+        && request.resource.data.timestamp is number
+        && request.resource.data.caption is string
+        && request.resource.data.caption.size() <= 500;
+      allow update: if request.auth != null
+        && request.auth.uid == resource.data.uid;
+      allow delete: if request.auth != null
+        && (request.auth.uid == resource.data.uid
+            || request.auth.token.admin == true);
     }
 
     // ──────────────────────────────────────────────

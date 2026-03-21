@@ -697,26 +697,41 @@ exports.cleanupExpiredReelsPhotos = onSchedule({
     }
     console.log(`[Storage Cleanup] ${deletedCount}개 만료 릴스 사진 삭제 완료`);
 
+    // ── reels 컬렉션: 만료 포스트 문서 삭제 (핫/콜드 분리 대응) ──
+    const reelsCutoff = Date.now() - (25 * 60 * 60 * 1000);
+    const reelsSnap = await db.collection("reels").where("timestamp", "<", reelsCutoff).get();
+    let reelsDeletedCount = 0;
+    for (const reelDoc of reelsSnap.docs) {
+        await reelDoc.ref.delete();
+        reelsDeletedCount++;
+    }
+    console.log(`[Reels Cleanup] ${reelsDeletedCount}개 만료 reels 문서 삭제 완료`);
+
     // hasActiveReels 리셋: 활성 릴스가 없는 사용자 정리
     const usersSnap = await db.collection("users").where("hasActiveReels", "==", true).get();
     let resetCount = 0;
+    const activeCutoff = Date.now() - (24 * 60 * 60 * 1000);
     for (const userDoc of usersSnap.docs) {
-        const data = userDoc.data();
-        if (data.reelsStr) {
-            try {
-                const posts = JSON.parse(data.reelsStr);
-                const hasValid = posts.some(p => (Date.now() - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
-                if (!hasValid) {
-                    await userDoc.ref.update({ hasActiveReels: false });
-                    resetCount++;
-                }
-            } catch(e) {
+        // reels 컬렉션에서 해당 유저의 활성 포스트 존재 여부 확인
+        const userReels = await db.collection("reels")
+            .where("uid", "==", userDoc.id)
+            .where("timestamp", ">", activeCutoff)
+            .limit(1)
+            .get();
+        if (userReels.empty) {
+            // 레거시 reelsStr 폴백 확인
+            const data = userDoc.data();
+            let hasLegacyValid = false;
+            if (data.reelsStr) {
+                try {
+                    const posts = JSON.parse(data.reelsStr);
+                    hasLegacyValid = posts.some(p => (Date.now() - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
+                } catch(e) { /* ignore */ }
+            }
+            if (!hasLegacyValid) {
                 await userDoc.ref.update({ hasActiveReels: false });
                 resetCount++;
             }
-        } else {
-            await userDoc.ref.update({ hasActiveReels: false });
-            resetCount++;
         }
     }
     console.log(`[Reels Cleanup] ${resetCount}명 hasActiveReels 리셋 완료`);

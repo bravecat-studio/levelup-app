@@ -1072,16 +1072,13 @@ async function _doSaveUserData() {
         const normalizedPendingStats = normalizeStatsMapForFirestore(AppState.user.pendingStats);
         const normalizedFriends = normalizeStringArrayForFirestore(AppState.user.friends, 500);
 
-        const payload = {
+        // ── 핫 데이터: users/{uid} (프로필/핵심 상태) ──
+        const hotPayload = {
             name: normalizedName,
             stats: normalizedStats,
             pendingStats: normalizedPendingStats,
             level: normalizedLevel,
             points: normalizedPoints,
-            titleHistoryStr: JSON.stringify(AppState.user.titleHistory),
-            questStr: JSON.stringify(AppState.quest.completedState),
-            questWeekStart: AppState.quest.weekStart,
-            dungeonStr: JSON.stringify(AppState.dungeon),
             friends: normalizedFriends,
             photoURL: (_profileUploadInFlight || isBase64Image(AppState.user.photoURL)) ? null : (AppState.user.photoURL || null),
             syncEnabled: normalizeBooleanForFirestore(AppState.user.syncEnabled),
@@ -1092,21 +1089,42 @@ async function _doSaveUserData() {
             instaId: AppState.user.instaId || "",
             nameLastChanged: normalizedNameLastChanged,
             streakStr: JSON.stringify(AppState.user.streak),
-            diaryStr: getCleanDiaryStrForFirestore(),
+            streak: {
+                currentStreak: AppState.user.streak.currentStreak || 0,
+                lastActiveDate: AppState.user.streak.lastActiveDate || null,
+                multiplier: AppState.user.streak.multiplier || 1.0
+            },
             lastRouletteDate: localStorage.getItem('roulette_date') || '',
-            lastReelsPostTs: normalizedLastReelsPostTs,
+            lastReelsPostTs: normalizedLastReelsPostTs
+        };
+
+        // ── 콜드 데이터: users/{uid}/cold_data/main (대용량 JSON) ──
+        const coldPayload = {
+            titleHistoryStr: JSON.stringify(AppState.user.titleHistory),
+            questStr: JSON.stringify(AppState.quest.completedState),
+            questWeekStart: AppState.quest.weekStart,
+            dungeonStr: JSON.stringify(AppState.dungeon),
+            diaryStr: getCleanDiaryStrForFirestore(),
             diyQuestsStr: JSON.stringify(AppState.diyQuests),
             questHistoryStr: JSON.stringify(AppState.questHistory)
         };
+
         // 진단: 페이로드 크기 및 photoURL 상태 로그
-        const payloadSize = new Blob([JSON.stringify(payload)]).size;
-        const photoType = payload.photoURL ? (payload.photoURL.startsWith('data:') ? 'base64' : payload.photoURL.startsWith('http') ? 'url' : 'other') : 'null';
-        const photoLen = payload.photoURL ? payload.photoURL.length : 0;
-        console.log(`[SaveData] uid=${auth.currentUser.uid}, payloadSize=${payloadSize}bytes, photoURL.type=${photoType}, photoURL.len=${photoLen}`);
-        if (window.AppLogger) AppLogger.info(`[SaveData] size=${payloadSize}B, photo=${photoType}(${photoLen})`);
-        await setDoc(doc(db, "users", auth.currentUser.uid), payload, { merge: true });
-        console.log('[SaveData] setDoc OK');
-        if (window.AppLogger) AppLogger.info('[SaveData] Firestore 저장 성공');
+        const hotSize = new Blob([JSON.stringify(hotPayload)]).size;
+        const coldSize = new Blob([JSON.stringify(coldPayload)]).size;
+        const photoType = hotPayload.photoURL ? (hotPayload.photoURL.startsWith('data:') ? 'base64' : hotPayload.photoURL.startsWith('http') ? 'url' : 'other') : 'null';
+        const photoLen = hotPayload.photoURL ? hotPayload.photoURL.length : 0;
+        console.log(`[SaveData] uid=${auth.currentUser.uid}, hotSize=${hotSize}B, coldSize=${coldSize}B, photoURL.type=${photoType}, photoURL.len=${photoLen}`);
+        if (window.AppLogger) AppLogger.info(`[SaveData] hot=${hotSize}B, cold=${coldSize}B, photo=${photoType}(${photoLen})`);
+
+        const uid = auth.currentUser.uid;
+        // 핫/콜드 데이터 병렬 저장
+        await Promise.all([
+            setDoc(doc(db, "users", uid), hotPayload, { merge: true }),
+            setDoc(doc(db, "users", uid, "cold_data", "main"), coldPayload, { merge: true })
+        ]);
+        console.log('[SaveData] hot+cold setDoc OK');
+        if (window.AppLogger) AppLogger.info('[SaveData] Firestore 핫/콜드 저장 성공');
     } catch(e) {
         console.error("DB 저장 실패:", e);
         if (window.AppLogger) AppLogger.error('[DB] 저장 실패: ' + (e.code || '') + ' ' + (e.message || ''), e.stack || '');
@@ -1121,23 +1139,34 @@ async function _doSaveUserData() {
 
 async function loadUserDataFromDB(user) {
     try {
-        const docSnap = await getDoc(doc(db, "users", user.uid));
+        // 핫 데이터(프로필) + 콜드 데이터(퀘스트/일기 등) 병렬 로드
+        const [docSnap, coldSnap] = await Promise.all([
+            getDoc(doc(db, "users", user.uid)),
+            getDoc(doc(db, "users", user.uid, "cold_data", "main"))
+        ]);
         if (docSnap.exists()) {
             const data = docSnap.data();
+            // 콜드 데이터: subcollection 우선, 없으면 레거시 필드에서 폴백
+            const cold = coldSnap.exists() ? coldSnap.data() : {};
+            const getCold = (field) => cold[field] || data[field];
+
             if(data.stats) AppState.user.stats = data.stats;
             if(data.level) AppState.user.level = data.level;
             if(data.points) AppState.user.points = data.points;
-            if(data.titleHistoryStr) {
-                try { AppState.user.titleHistory = JSON.parse(data.titleHistoryStr); } catch(e) { AppState.user.titleHistory = [{level:1, title:{ko:"각성자"}}]; }
+            const titleHistoryRaw = getCold('titleHistoryStr');
+            if(titleHistoryRaw) {
+                try { AppState.user.titleHistory = JSON.parse(titleHistoryRaw); } catch(e) { AppState.user.titleHistory = [{level:1, title:{ko:"각성자"}}]; }
             }
-            if(data.questStr) {
-                const savedWeek = data.questWeekStart || "";
+            const questStrRaw = getCold('questStr');
+            if(questStrRaw) {
+                const savedWeek = getCold('questWeekStart') || "";
                 if(savedWeek === getWeekStartDate()) {
-                    AppState.quest.completedState = JSON.parse(data.questStr);
+                    AppState.quest.completedState = JSON.parse(questStrRaw);
                 }
             }
-            if(data.dungeonStr) {
-                AppState.dungeon = JSON.parse(data.dungeonStr);
+            const dungeonStrRaw = getCold('dungeonStr');
+            if(dungeonStrRaw) {
+                AppState.dungeon = JSON.parse(dungeonStrRaw);
                 if(!AppState.dungeon.maxParticipants) AppState.dungeon.maxParticipants = 5;
                 if(AppState.dungeon.hasContributed === undefined) AppState.dungeon.hasContributed = false;
                 if(!AppState.dungeon.bossMaxHP) AppState.dungeon.bossMaxHP = isBossRush() ? 10 : 5;
@@ -1145,12 +1174,14 @@ async function loadUserDataFromDB(user) {
                 AppState.dungeon.globalParticipants = 0;
                 AppState.dungeon.globalProgress = 0;
             }
-            if(data.diyQuestsStr) {
-                try { AppState.diyQuests = JSON.parse(data.diyQuestsStr); } catch(e) { AppState.diyQuests = { definitions: [], completedToday: {}, lastResetDate: null }; }
+            const diyQuestsRaw = getCold('diyQuestsStr');
+            if(diyQuestsRaw) {
+                try { AppState.diyQuests = JSON.parse(diyQuestsRaw); } catch(e) { AppState.diyQuests = { definitions: [], completedToday: {}, lastResetDate: null }; }
             }
-            if(data.questHistoryStr) {
+            const questHistoryRaw = getCold('questHistoryStr');
+            if(questHistoryRaw) {
                 try {
-                    AppState.questHistory = JSON.parse(data.questHistoryStr);
+                    AppState.questHistory = JSON.parse(questHistoryRaw);
                     const cutoff = new Date();
                     cutoff.setDate(cutoff.getDate() - 400);
                     const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,'0')}-${String(cutoff.getDate()).padStart(2,'0')}`;
@@ -1172,10 +1203,11 @@ async function loadUserDataFromDB(user) {
             }
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
-            if(data.diaryStr) {
+            const diaryStrRaw = getCold('diaryStr');
+            if(diaryStrRaw) {
                 try {
                     // 로컬 데이터가 더 최신일 수 있으므로 타임스탬프 기준으로 병합
-                    const dbDiaries = JSON.parse(data.diaryStr);
+                    const dbDiaries = JSON.parse(diaryStrRaw);
                     let localDiaries = {};
                     try { localDiaries = JSON.parse(localStorage.getItem('diary_entries') || '{}'); } catch(e) {}
                     const merged = Object.assign({}, dbDiaries);
@@ -1202,7 +1234,9 @@ async function loadUserDataFromDB(user) {
                     localStorage.removeItem('reels_reward_ts');
                 }
             }
-            // 릴스 포스트 데이터 복원 (Firestore → localStorage) — 24시간 이내 포스트만
+            // 릴스 포스트 데이터 복원 (reels 컬렉션 → localStorage) — 24시간 이내 포스트만
+            await _restoreReelsFromFirestore(user.uid, data);
+            // 레거시 reelsStr 폴백 (마이그레이션 완료 전)
             if (data.reelsStr) {
                 try {
                     const now = Date.now();
@@ -4841,65 +4875,114 @@ function updateLocalReelsProfileImage() {
     } catch(e) {}
 }
 
-// Firestore에 릴스 포스트 저장/로드
+// Firestore에 릴스 포스트 저장 — reels/{postId} 개별 문서로 분리
 async function saveReelsToFirestore(post) {
     if (!auth.currentUser) return;
     try {
-        const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-        let existingPosts = [];
-        if (userDoc.exists() && userDoc.data().reelsStr) {
-            try { existingPosts = JSON.parse(userDoc.data().reelsStr); } catch(e) {}
-        }
-        // 24시간 이내 포스트만 유지
-        const now = Date.now();
-        existingPosts = existingPosts.filter(p => (now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
-        // 기존 포스트의 프로필 이미지를 최신 값으로 갱신
-        const currentPhoto = AppState.user.photoURL || null;
-        existingPosts.forEach(p => { p.userPhoto = currentPhoto; });
-        existingPosts.push(post);
-        await setDoc(doc(db, "users", auth.currentUser.uid), {
-            reelsStr: JSON.stringify(existingPosts),
-            hasActiveReels: true
-        }, { merge: true });
+        // postId: uid_timestamp 형식으로 고유 ID 생성
+        const postId = `${auth.currentUser.uid}_${post.timestamp}`;
+        const reelDoc = {
+            uid: post.uid,
+            dateKST: post.dateKST,
+            timestamp: post.timestamp,
+            photo: post.photo || null,
+            caption: post.caption || '',
+            blocks: post.blocks || [],
+            tasks: post.tasks || [],
+            mood: post.mood || '',
+            userName: post.userName || AppState.user.name,
+            userPhoto: post.userPhoto || AppState.user.photoURL || null,
+            userLevel: post.userLevel || AppState.user.level,
+            userInstaId: AppState.user.instaId || '',
+            location: post.location || null
+        };
+        await Promise.all([
+            setDoc(doc(db, "reels", postId), reelDoc),
+            setDoc(doc(db, "users", auth.currentUser.uid), { hasActiveReels: true }, { merge: true })
+        ]);
     } catch(e) { AppLogger.error('[Reels] Firestore 저장 실패: ' + (e.message || e)); }
+}
+
+// 로그인 시 reels 컬렉션에서 본인 포스트를 localStorage로 복원
+async function _restoreReelsFromFirestore(uid, userData) {
+    try {
+        const now = Date.now();
+        const cutoff = now - 24 * 60 * 60 * 1000;
+        const q = query(collection(db, "reels"), where("uid", "==", uid));
+        const snap = await getDocs(q);
+        const activePosts = [];
+        snap.docs.forEach(d => {
+            const p = d.data();
+            if ((p.timestamp || 0) > cutoff) activePosts.push(p);
+        });
+        if (activePosts.length > 0) {
+            const reelsLocal = JSON.parse(localStorage.getItem('reels_posts') || '{}');
+            if (!reelsLocal.posts) reelsLocal.posts = [];
+            reelsLocal._lastDate = getTodayKST();
+            activePosts.forEach(fp => {
+                if (!reelsLocal.posts.find(lp => lp.uid === fp.uid && lp.timestamp === fp.timestamp)) {
+                    reelsLocal.posts.push(fp);
+                }
+            });
+            localStorage.setItem('reels_posts', JSON.stringify(reelsLocal));
+        }
+    } catch(e) {
+        console.warn('[Reels] reels 컬렉션 복원 실패, 레거시 폴백 사용:', e.message);
+    }
 }
 
 async function fetchAllReelsPosts() {
     const now = Date.now();
+    const cutoff = now - 24 * 60 * 60 * 1000;
     const posts = [];
     try {
-        const q = query(collection(db, "users"), where("hasActiveReels", "==", true));
+        // reels 컬렉션에서 24시간 이내 포스트 직접 쿼리 (핫/콜드 분리)
+        const q = query(collection(db, "reels"), where("timestamp", ">", cutoff));
         const snap = await getDocs(q);
         snap.docs.forEach(d => {
-            const data = d.data();
-            if (data.reelsStr) {
-                try {
-                    const userPosts = JSON.parse(data.reelsStr);
-                    let hasValidPost = false;
-                    userPosts.forEach(p => {
-                        // 업로드 후 24시간 이내 포스트만 표시
-                        if ((now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000) {
-                            hasValidPost = true;
-                            posts.push({
-                                ...p,
-                                uid: d.id,
-                                userName: data.name || '헌터',
-                                userPhoto: data.photoURL || null,
-                                userLevel: data.level || 1,
-                                userInstaId: data.instaId || ''
-                            });
-                        }
-                    });
-                    // 모든 릴스가 만료된 사용자는 hasActiveReels 리셋
-                    // 다른 유저 문서 직접 수정 불가 (보안 규칙: 본인 문서만 쓰기 허용)
-                    // 본인 문서만 클라이언트에서 리셋, 타인은 Cloud Functions에서 처리
-                    if (!hasValidPost && d.id === auth.currentUser?.uid) {
-                        setDoc(doc(db, "users", d.id), { hasActiveReels: false }, { merge: true }).catch(() => {});
-                    }
-                } catch(e) {}
-            }
+            const p = d.data();
+            posts.push({
+                ...p,
+                _docId: d.id  // 문서 ID 보존 (삭제 등에 활용)
+            });
         });
-    } catch(e) { AppLogger.error('[Reels] 피드 로드 실패: ' + (e.message || e)); }
+
+        // 본인의 만료 포스트 확인 후 hasActiveReels 리셋
+        if (auth.currentUser) {
+            const myPosts = posts.filter(p => p.uid === auth.currentUser.uid);
+            if (myPosts.length === 0) {
+                // reels 컬렉션에 본인 활성 포스트 없으면 hasActiveReels 리셋
+                setDoc(doc(db, "users", auth.currentUser.uid), { hasActiveReels: false }, { merge: true }).catch(() => {});
+            }
+        }
+    } catch(e) {
+        // reels 컬렉션 쿼리 실패 시 레거시 폴백 (users.reelsStr)
+        console.warn('[Reels] reels 컬렉션 쿼리 실패, 레거시 폴백:', e.message);
+        try {
+            const legacyQ = query(collection(db, "users"), where("hasActiveReels", "==", true));
+            const legacySnap = await getDocs(legacyQ);
+            legacySnap.docs.forEach(d => {
+                const data = d.data();
+                if (data.reelsStr) {
+                    try {
+                        const userPosts = JSON.parse(data.reelsStr);
+                        userPosts.forEach(p => {
+                            if ((now - (p.timestamp || 0)) < 24 * 60 * 60 * 1000) {
+                                posts.push({
+                                    ...p,
+                                    uid: d.id,
+                                    userName: data.name || '헌터',
+                                    userPhoto: data.photoURL || null,
+                                    userLevel: data.level || 1,
+                                    userInstaId: data.instaId || ''
+                                });
+                            }
+                        });
+                    } catch(e2) {}
+                }
+            });
+        } catch(e2) { AppLogger.error('[Reels] 레거시 피드 로드도 실패: ' + (e2.message || e2)); }
+    }
     // 최신순 정렬
     posts.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     return posts;
