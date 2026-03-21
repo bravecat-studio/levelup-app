@@ -13,7 +13,7 @@
 | 3 | **LQIP (블러 플레이스홀더)** | 도입 | — | **P2 격하** | 이미지 이미 600px 이하, 24시간 피드 특성상 체감 개선 미미 |
 | 4 | **클라이언트 크롭 UI** | react-easy-crop | — | **기각** | React 라이브러리 사용 불가 (Vanilla JS). 프로필은 이미 Canvas 150x150 처리 중 |
 | 5 | **Storage 경로 분리** | — | planner_photos/ vs reels_photos/ | **Codex ✓** | 동일 경로로 수명주기 정책 혼재. 분리 시 운영 안정성↑ |
-| 6 | **관리자 Custom Claims** | — | Custom Claims 전환 | **Codex ✓** | `nazi2k@gmail.com` 하드코딩 7곳+. Claims 전환으로 확장성/보안↑ |
+| 6 | **관리자 Custom Claims** | — | Custom Claims 전환 | **Codex ✓** | 관리자 이메일 하드코딩 제거. GitHub Secrets + Custom Claims로 보안↑ |
 | 7 | **base64 폴백 축소** | — | 재시도+백오프, 실패 큐 | **Codex ✓** | base64 폴백이 Firestore 문서 비대화 유발 |
 | 8 | **uploadBytesResumable** | — | 전환 + 진행률 UI | **Codex ✓** | 모바일 30s 타임아웃 단일 업로드 실패율↑ |
 | 9 | **Lifecycle Rule 정리** | — | 메타데이터 + Lifecycle | **Codex ✓ (변형)** | CF 완전 대체 대신 이중 안전망 |
@@ -39,7 +39,7 @@
 
 **출처:** Codex #2 | **복잡도:** 중 | **임팩트:** 보안↑, 유연성↑
 
-~~현재 `nazi2k@gmail.com` 문자열이 7곳 이상에 하드코딩되어 있다.~~ Firebase Auth Custom Claims (`admin: true`)로 전환 완료.
+~~관리자 이메일이 소스코드에 하드코딩되어 있었다.~~ Firebase Auth Custom Claims (`admin: true`)로 전환 완료. 관리자 이메일 목록은 GitHub Secrets (`ADMIN_EMAILS`)로 관리.
 
 **구현 내역:**
 | 파일 | 변경 내용 | 상태 |
