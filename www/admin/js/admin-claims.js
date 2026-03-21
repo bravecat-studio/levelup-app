@@ -4,8 +4,6 @@ import { ensureFreshToken, checkAdminClaim } from "./auth.js";
 import { tlog, tok, twarn, terror } from "./log-panel.js";
 import { esc, fmtDate } from "./utils.js";
 
-const KNOWN_ADMIN_EMAILS = ["nazi2k@gmail.com"];
-
 let _container = null;
 
 export function initAdminClaims(containerId) {
@@ -40,14 +38,9 @@ function render() {
         </div>
 
         <div class="card">
-            <h2>관리자 이메일 목록 (서버)</h2>
-            <p class="text-sub text-sm mb-8">Cloud Functions에 등록된 관리자 이메일:</p>
-            <ul style="margin-left: 16px; font-size: 0.85rem;">
-                ${KNOWN_ADMIN_EMAILS.map(e => `<li><code>${esc(e)}</code></li>`).join("")}
-            </ul>
-            <p class="text-sub text-sm mt-8">
-                이 목록은 <code>functions/index.js</code>의 <code>ADMIN_EMAILS</code>와 동기화 필요
-            </p>
+            <h2>관리자 인증 방식</h2>
+            <p class="text-sub text-sm mb-8">관리자 권한은 Firebase Custom Claims (<code>admin: true</code>)로 관리됩니다.</p>
+            <p class="text-sub text-sm">관리자 이메일 목록은 GitHub Secrets를 통해 서버에서만 관리됩니다.</p>
         </div>
     `;
     // Auto-load claim status
@@ -76,11 +69,6 @@ window._refreshClaimView = async function() {
             </td></tr>
             <tr><th>토큰 발급</th><td>${fmtDate(issued)}</td></tr>
             <tr><th>토큰 만료</th><td>${fmtDate(expires)}</td></tr>
-            <tr><th>서버 목록</th><td>
-                ${KNOWN_ADMIN_EMAILS.includes(user.email) ?
-                    '<span class="badge badge-ok">포함됨</span>' :
-                    '<span class="badge badge-warn">미포함</span>'}
-            </td></tr>
         </table>
     `;
 };

@@ -19,7 +19,9 @@ const callableOpts = {
 
 // ─── Admin claim helper ───
 
-const ADMIN_EMAILS = ["nazi2k@gmail.com"];
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS
+    ? process.env.ADMIN_EMAILS.split(",").map(e => e.trim()).filter(Boolean)
+    : [];
 
 async function assertAdmin(request) {
     if (request.auth?.token?.admin) return;

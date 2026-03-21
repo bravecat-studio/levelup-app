@@ -178,5 +178,5 @@ Firestore에 URL 저장
 ### 3-6. 인증 체계
 
 - **사용자:** Firebase Auth (이메일/비밀번호 + Google 로그인)
-- **관리자:** `nazi2k@gmail.com` 이메일로 식별 (Firestore rules + Cloud Functions 내 검증)
+- **관리자:** GitHub Secrets의 `ADMIN_EMAILS` 환경변수로 관리 (Firebase Custom Claims + Cloud Functions 내 검증)
 - **Storage 접근:** 읽기는 인증 사용자 전체, 쓰기는 본인 경로만 허용
