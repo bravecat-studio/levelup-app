@@ -1229,27 +1229,7 @@ async function loadUserDataFromDB(user) {
             }
             document.getElementById('sync-toggle').checked = AppState.user.syncEnabled;
             document.getElementById('gps-toggle').checked = AppState.user.gpsEnabled;
-            const loadedName = data.name || user.displayName || "신규 헌터";
-            // 기존 유저 닉네임 마이그레이션: usernames 컬렉션에 미등록 시 자동 예약
-            try {
-                const claimed = await claimUsername(loadedName, user.uid);
-                if (claimed) {
-                    AppState.user.name = loadedName;
-                    console.log(`[NameMigration] 닉네임 예약 성공: "${loadedName}"`);
-                } else {
-                    // 이미 다른 유저가 점유 → 고유 닉네임 생성
-                    const uniqueName = await generateUniqueName(loadedName, user.uid);
-                    await claimUsername(uniqueName, user.uid);
-                    AppState.user.name = uniqueName;
-                    console.log(`[NameMigration] 닉네임 충돌 → 변경: "${loadedName}" → "${uniqueName}"`);
-                    if (window.AppLogger) AppLogger.info(`[NameMigration] "${loadedName}" → "${uniqueName}"`);
-                    // 변경된 닉네임을 Firestore에 즉시 반영
-                    await setDoc(doc(db, "users", user.uid), { name: uniqueName }, { merge: true });
-                }
-            } catch (e) {
-                console.warn('[NameMigration] 닉네임 예약 실패 (무시):', e.message);
-                AppState.user.name = loadedName;
-            }
+            AppState.user.name = data.name || user.displayName || "신규 헌터";
             console.log(`[LoadData] photoURL in Firestore: ${data.photoURL ? (data.photoURL.startsWith('http') ? 'url' : data.photoURL.startsWith('data:') ? 'base64' : 'other') + '(' + data.photoURL.length + ')' : 'MISSING'}`);
             if (window.AppLogger) AppLogger.info(`[LoadData] photoURL=${data.photoURL ? (data.photoURL.substring(0, 60) + '...') : 'null'}`);
             if(data.photoURL) {
