@@ -76,11 +76,13 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
+      - name: 루트 ↔ www/ 양방향 동기화
+        run: bash sync-www.sh
+
       - name: 웹 빌드 디렉토리 준비
         run: |
           mkdir -p www
           cp app.html www/index.html
-          cp app.js style.css data.js logger.js www/
 
       - name: Google Web Client ID 주입
         if: env.GOOGLE_WEB_CLIENT_ID != ''
@@ -358,11 +360,13 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
+      - name: 루트 ↔ www/ 양방향 동기화
+        run: bash sync-www.sh
+
       - name: 웹 빌드 디렉토리 준비
         run: |
           mkdir -p www
           cp app.html www/index.html
-          cp app.js style.css data.js logger.js www/
 
       - name: Google Web Client ID 주입
         if: env.GOOGLE_WEB_CLIENT_ID != ''

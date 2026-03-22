@@ -20,6 +20,8 @@ jobs:
       # 1. 소스코드 체크아웃
       - name: 소스코드 체크아웃
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 전체 이력 — git 타임스탬프 기반 양방향 동기화에 필요
 
       # 2. Node.js 환경 셋업
       - name: Node.js 셋업
@@ -76,12 +78,15 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
-      # 7. 웹 빌드 디렉토리 준비
+      # 6-1. 루트 ↔ www/ 양방향 동기화 (git 타임스탬프 기반)
+      - name: 루트 ↔ www/ 양방향 동기화
+        run: bash sync-www.sh
+
+      # 7. 웹 빌드 디렉토리 준비 (Capacitor 엔트리포인트 + 보조 파일)
       - name: 웹 빌드 디렉토리 준비
         run: |
           mkdir -p www
           cp app.html www/index.html
-          cp app.js style.css data.js logger.js www/
           for f in ads.txt privacy.html terms.html usage-policy.html push-test.html; do
             [ -f "$f" ] && cp "$f" www/ && echo "  ✅ $f 복사됨"
           done
