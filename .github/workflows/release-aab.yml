@@ -4,13 +4,20 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: '버전 이름 (예: 1.0.0)'
-        required: true
-        default: '1.0.0'
+        description: '버전 이름 (예: 1.0.0) — 비워두면 VERSION 파일에서 읽음'
+        required: false
+        default: ''
       version_code:
         description: '버전 코드 (정수, 매 릴리즈마다 증가)'
         required: true
         default: '1'
+      changelog_entry:
+        description: '이번 릴리즈 변경사항 (CHANGELOG.md에 자동 추가)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
 
 jobs:
   build-release-aab:
@@ -21,7 +28,60 @@ jobs:
       - name: 소스코드 체크아웃
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 전체 이력 — git 타임스탬프 기반 양방향 동기화에 필요
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 1-1. 버전 결정 (입력값 우선, 없으면 VERSION 파일)
+      - name: 버전 결정
+        id: version
+        run: |
+          INPUT_VERSION="${{ github.event.inputs.version_name }}"
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+            echo "$VERSION" > VERSION
+            echo "📦 입력된 버전 사용: $VERSION"
+          else
+            VERSION=$(cat VERSION | tr -d '[:space:]')
+            echo "📦 VERSION 파일에서 읽음: $VERSION"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # 1-2. 버전 동기화 (package.json, sw.js 등)
+      - name: 버전 동기화
+        run: bash scripts/version-bump.sh
+
+      # 1-3. CHANGELOG.md 자동 업데이트
+      - name: CHANGELOG.md 업데이트
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CHANGELOG_ENTRY="${{ github.event.inputs.changelog_entry }}"
+          TODAY=$(date -u +%Y-%m-%d)
+
+          if grep -q "## \[$VERSION\]" CHANGELOG.md; then
+            echo "ℹ️ CHANGELOG.md에 v$VERSION 항목이 이미 존재합니다."
+          else
+            if [ -z "$CHANGELOG_ENTRY" ]; then
+              CHANGELOG_ENTRY="릴리즈 v$VERSION"
+            fi
+            # 첫 번째 ## 항목 앞에 새 버전 항목 삽입
+            sed -i "0,/^## \[/{s/^## \[/## [$VERSION] - $TODAY\n\n### 변경\n- $CHANGELOG_ENTRY\n\n## [/}" CHANGELOG.md
+            echo "✅ CHANGELOG.md에 v$VERSION 항목 추가됨"
+          fi
+
+      # 1-4. 버전 변경사항 커밋
+      - name: 버전 변경사항 커밋
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION CHANGELOG.md package.json sw.js www/sw.js functions/package.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "release: v${VERSION} 버전 업데이트 및 CHANGELOG 갱신"
+            git push
+            echo "✅ 버전 변경사항 커밋 완료"
+          else
+            echo "ℹ️ 버전 관련 변경사항 없음"
+          fi
 
       # 2. Node.js 환경 셋업
       - name: Node.js 셋업
@@ -218,7 +278,7 @@ jobs:
       - name: 버전 정보 주입
         run: |
           BUILD_GRADLE="android/app/build.gradle"
-          VERSION_NAME="${{ github.event.inputs.version_name }}"
+          VERSION_NAME="${{ steps.version.outputs.version }}"
           VERSION_CODE="${{ github.event.inputs.version_code }}"
           sed -i "s/versionCode [0-9]\+/versionCode ${VERSION_CODE}/" "$BUILD_GRADLE"
           sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" "$BUILD_GRADLE"
@@ -297,30 +357,58 @@ jobs:
             exit 1
           fi
 
+      # 21-1. AAB 파일명에 버전 반영
+      - name: AAB 파일명 버전 반영
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_CODE="${{ github.event.inputs.version_code }}"
+          AAB_DIR="android/app/build/outputs/bundle/release"
+          cp "${AAB_DIR}/app-release.aab" "${AAB_DIR}/levelup-reboot-v${VERSION}-(${VERSION_CODE})-release.aab"
+          echo "✅ AAB 파일명: levelup-reboot-v${VERSION}-(${VERSION_CODE})-release.aab"
+
       # 22. AAB 아티팩트 업로드
       - name: AAB 업로드 (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: levelup-reboot-release-v${{ github.event.inputs.version_name }}-(${{ github.event.inputs.version_code }})
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          name: levelup-reboot-v${{ steps.version.outputs.version }}-(${{ github.event.inputs.version_code }})-release
+          path: android/app/build/outputs/bundle/release/levelup-reboot-v${{ steps.version.outputs.version }}-(${{ github.event.inputs.version_code }})-release.aab
           retention-days: 90
+
+      # 22-1. 릴리즈 Git 태그 생성
+      - name: 릴리즈 Git 태그 생성
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_CODE="${{ github.event.inputs.version_code }}"
+          TAG="v${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "ℹ️ 태그 $TAG가 이미 존재합니다. 스킵."
+          else
+            git tag -a "$TAG" -m "릴리즈 v${VERSION} (versionCode: ${VERSION_CODE})"
+            git push origin "$TAG"
+            echo "✅ Git 태그 생성: $TAG"
+          fi
 
       # 23. 빌드 결과 요약
       - name: 빌드 결과 요약
         if: success()
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_CODE="${{ github.event.inputs.version_code }}"
           echo "## ✅ 플레이스토어 릴리즈 AAB 빌드 완료" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
           echo "| 앱 ID | \`com.levelup.reboot\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| 버전 이름 | \`${{ github.event.inputs.version_name }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| 버전 코드 | \`${{ github.event.inputs.version_code }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 버전 이름 | \`v${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 버전 코드 | \`${VERSION_CODE}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 빌드 유형 | Release AAB |" >> $GITHUB_STEP_SUMMARY
-          echo "| 아티팩트 | \`levelup-reboot-release-v${{ github.event.inputs.version_name }}-(${{ github.event.inputs.version_code }})\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 파일명 | \`levelup-reboot-v${VERSION}-(${VERSION_CODE})-release.aab\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Git 태그 | \`v${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 다음 단계" >> $GITHUB_STEP_SUMMARY
-          echo "1. 위 아티팩트에서 \`app-release.aab\` 파일을 다운로드하세요" >> $GITHUB_STEP_SUMMARY
+          echo "1. 위 아티팩트에서 AAB 파일을 다운로드하세요" >> $GITHUB_STEP_SUMMARY
           echo "2. Google Play Console → 프로덕션 트랙 → 새 릴리즈 만들기" >> $GITHUB_STEP_SUMMARY
           echo "3. AAB 파일을 업로드하세요" >> $GITHUB_STEP_SUMMARY
           echo "4. 출시 노트(한국어)를 작성하세요" >> $GITHUB_STEP_SUMMARY
