@@ -51,6 +51,18 @@ jobs:
           keytool -list -v -keystore ~/.android/debug.keystore \
             -alias androiddebugkey -storepass android 2>/dev/null | grep -E "SHA[-]?1:"
 
+      # 4-2. VERSION 파일에서 버전 읽기
+      - name: 버전 정보 읽기
+        id: version
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "📦 현재 앱 버전: $VERSION"
+
+      # 4-3. 버전 동기화 (package.json, sw.js 등)
+      - name: 버전 동기화
+        run: bash scripts/version-bump.sh
+
       # 5. 루트 ↔ www/ 양방향 동기화 (git 타임스탬프 기반 최신 파일 판별)
       - name: 루트 ↔ www/ 양방향 동기화
         run: |
@@ -343,6 +355,15 @@ jobs:
           cd android
           ./gradlew assembleDebug --stacktrace
 
+      # 9-0. APK 파일명에 버전 반영
+      - name: APK 파일명 버전 반영
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          APK_DIR="android/app/build/outputs/apk/debug"
+          cp "${APK_DIR}/app-debug.apk" "${APK_DIR}/levelup-reboot-v${VERSION}-debug.apk"
+          echo "✅ APK 파일명: levelup-reboot-v${VERSION}-debug.apk"
+          ls -lh "${APK_DIR}/"*.apk
+
       # 9-1. 디버그 키스토어 SHA-1 출력 (Firebase 등록용)
       - name: SHA-1 지문 출력 (Firebase 등록용)
         run: |
@@ -358,14 +379,21 @@ jobs:
       - name: APK 업로드 (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: levelup-reboot-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: levelup-reboot-v${{ steps.version.outputs.version }}-debug
+          path: android/app/build/outputs/apk/debug/levelup-reboot-v${{ steps.version.outputs.version }}-debug.apk
           retention-days: 30
 
       # 11. 빌드 결과 요약 출력
       - name: 빌드 결과 요약
         if: success()
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
           echo "✅ APK 빌드 성공!"
-          echo "📦 파일 위치: android/app/build/outputs/apk/debug/app-debug.apk"
-          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
+          echo "📦 파일: levelup-reboot-v${VERSION}-debug.apk"
+          echo ""
+          echo "## ✅ Debug APK 빌드 완료" >> $GITHUB_STEP_SUMMARY
+          echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 버전 | \`v${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 파일명 | \`levelup-reboot-v${VERSION}-debug.apk\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 아티팩트 | \`levelup-reboot-v${VERSION}-debug\` |" >> $GITHUB_STEP_SUMMARY

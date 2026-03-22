@@ -7,7 +7,9 @@
     "sync-www": "bash sync-www.sh",
     "sync": "bash sync-www.sh && cap sync android",
     "add-android": "cap add android",
-    "build-apk": "bash sync-www.sh && cd android && chmod +x ./gradlew && ./gradlew assembleDebug"
+    "build-apk": "bash sync-www.sh && cd android && chmod +x ./gradlew && ./gradlew assembleDebug",
+    "version-bump": "bash scripts/version-bump.sh",
+    "version-sync": "bash scripts/version-bump.sh"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",

@@ -73,6 +73,18 @@ jobs:
             fi
           fi
 
+      # 버전 정보 읽기
+      - name: 버전 정보 읽기
+        id: app_version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION | tr -d '[:space:]')
+          else
+            VERSION="unknown"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "📦 앱 버전: $VERSION"
+
       - name: npm 패키지 설치
         run: npm ci
 
@@ -203,6 +215,14 @@ jobs:
           cd android
           ./gradlew assembleDebug --stacktrace
 
+      # APK 파일명에 버전 반영
+      - name: APK 파일명 버전 반영
+        run: |
+          VERSION="${{ steps.app_version.outputs.version }}"
+          APK_DIR="android/app/build/outputs/apk/debug"
+          cp "${APK_DIR}/app-debug.apk" "${APK_DIR}/levelup-reboot-v${VERSION}-debug.apk"
+          echo "✅ APK 파일명: levelup-reboot-v${VERSION}-debug.apk"
+
       # 배포 버전 태그 생성 (자동 증가)
       - name: 배포 버전 태그 생성
         id: tag
@@ -224,8 +244,8 @@ jobs:
       - name: APK 업로드 (버전별 Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ steps.tag.outputs.version_tag }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: levelup-reboot-v${{ steps.app_version.outputs.version }}-${{ steps.tag.outputs.version_tag }}
+          path: android/app/build/outputs/apk/debug/levelup-reboot-v${{ steps.app_version.outputs.version }}-debug.apk
           retention-days: 90
 
       # 배포 메타데이터를 아티팩트로 저장 (롤백 시 참조)
@@ -265,10 +285,12 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| 항목 | 값 |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| 버전 | \`${{ steps.tag.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 앱 버전 | \`v${{ steps.app_version.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 배포 태그 | \`${{ steps.tag.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 커밋 | \`${{ steps.tag.outputs.commit_sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 브랜치 | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 실행자 | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| APK 파일명 | \`levelup-reboot-v${{ steps.app_version.outputs.version }}-debug.apk\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "롤백하려면 이 워크플로우를 **rollback** 액션으로 실행하세요." >> $GITHUB_STEP_SUMMARY
 
