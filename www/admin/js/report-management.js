@@ -28,8 +28,17 @@ function render() {
                 <span class="text-sub text-sm" id="rpt-count"></span>
             </div>
             <div id="rpt-filter-wrap" class="hidden" style="margin-top:12px;">
-                <input type="text" id="rpt-search" placeholder="작성자, 신고 사유로 검색...">
+                <input type="text" id="rpt-search" placeholder="작성자 이름으로 검색...">
                 <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <select id="rpt-reason-filter" style="padding:4px 8px; font-size:0.8rem; min-width:180px;">
+                        <option value="">전체 신고 사유</option>
+                        <option value="혐오/차별적/생명경시/욕설 표현입니다.">혐오/차별/욕설</option>
+                        <option value="스팸홍보/도배입니다.">스팸/도배</option>
+                        <option value="청소년에게 유해한 내용입니다.">청소년 유해</option>
+                        <option value="불법정보를 포함하고 있습니다.">불법정보</option>
+                        <option value="음란물입니다.">음란물</option>
+                        <option value="불쾌한 표현이 있습니다.">불쾌한 표현</option>
+                    </select>
                     <input type="text" id="rpt-text-screen" placeholder="텍스트 스크리닝 (캡션 내 특정 단어 필터)..." style="flex:1; min-width:200px;">
                 </div>
             </div>
@@ -86,12 +95,17 @@ async function loadReports() {
 
         function applyFilters() {
             const q = (document.getElementById("rpt-search").value || "").toLowerCase();
+            const reasonFilter = document.getElementById("rpt-reason-filter").value;
             const textScreen = (document.getElementById("rpt-text-screen").value || "").toLowerCase();
             let filtered = _reports;
             if (q) {
                 filtered = filtered.filter(r =>
-                    (r.ownerName || "").toLowerCase().includes(q) ||
-                    (r.reporters || []).some(rep => (rep.reason || "").toLowerCase().includes(q))
+                    (r.ownerName || "").toLowerCase().includes(q)
+                );
+            }
+            if (reasonFilter) {
+                filtered = filtered.filter(r =>
+                    (r.reporters || []).some(rep => (rep.reason || "") === reasonFilter)
                 );
             }
             if (textScreen) {
@@ -106,6 +120,7 @@ async function loadReports() {
         }
 
         document.getElementById("rpt-search").addEventListener("input", applyFilters);
+        document.getElementById("rpt-reason-filter").addEventListener("change", applyFilters);
         document.getElementById("rpt-text-screen").addEventListener("input", applyFilters);
     } catch (e) {
         terror("Reports", "신고 목록 로드 실패: " + e.message);
@@ -119,6 +134,7 @@ function renderReportTable(reports) {
             <th>사진</th>
             <th>작성자</th>
             <th>캡션</th>
+            <th>신고 사유</th>
             <th>신고 횟수</th>
             <th>최근 신고</th>
         </tr></thead>
@@ -134,10 +150,17 @@ function renderReportTable(reports) {
               + `<span class="text-sub" style="display:none">—</span>`
             : '<span class="text-sub">—</span>';
 
+        // 가장 최근 신고 사유 표시
+        const latestReason = (r.reporters || []).length > 0
+            ? escHtml((r.reporters[r.reporters.length - 1].reason || "—").substring(0, 15))
+              + ((r.reporters[r.reporters.length - 1].reason || "").length > 15 ? "..." : "")
+            : '—';
+
         html += `<tr class="rpt-row" data-post-id="${escHtml(r.postId)}" style="cursor:pointer;">
             <td>${thumbHtml}</td>
             <td>${escHtml(r.ownerName || "—")}</td>
             <td class="text-sm">${captionPreview || '<span class="text-sub">—</span>'}</td>
+            <td class="text-sm">${latestReason}</td>
             <td>${countBadge}</td>
             <td class="text-sub text-sm">${lastReported}</td>
         </tr>`;
@@ -169,7 +192,7 @@ function selectReport(postId) {
         return `<div style="padding:6px 0; border-bottom:1px solid var(--border);">
             <span class="text-sm" style="font-weight:600;">${escHtml(rep.name)}</span>
             <span class="text-sub text-sm" style="margin-left:8px;">${dt}</span>
-            ${rep.reason ? `<div class="text-sm" style="margin-top:4px; color:var(--warning);">사유: ${escHtml(rep.reason)}</div>` : ''}
+            ${rep.reason ? `<div class="text-sm" style="margin-top:4px; color:var(--warning);"><span style="background:rgba(255,193,7,0.12); padding:2px 8px; border-radius:4px;">📋 ${escHtml(rep.reason)}</span></div>` : ''}
         </div>`;
     }).join('');
 

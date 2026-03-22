@@ -6079,15 +6079,26 @@ async function toggleReportPost(postId) {
             return;
         }
 
-        const confirmMsg = i18n[lang].reels_report_confirm || '이 게시물을 신고하시겠습니까?\n\n부적절한 콘텐츠, 스팸, 혐오 표현 등을 신고할 수 있습니다.';
-        if (!confirm(confirmMsg)) return;
+        // 객관식 신고 사유 모달 표시
+        const reasons = i18n[lang].reels_report_reasons || [
+            "혐오/차별적/생명경시/욕설 표현입니다.",
+            "스팸홍보/도배입니다.",
+            "청소년에게 유해한 내용입니다.",
+            "불법정보를 포함하고 있습니다.",
+            "음란물입니다.",
+            "불쾌한 표현이 있습니다."
+        ];
+        const title = i18n[lang].reels_report_title || '사유선택';
+        const submitText = i18n[lang].reels_report_submit || '신고하기';
+        const cancelText = i18n[lang].reels_report_cancel || '취소';
 
-        const reason = prompt(i18n[lang].reels_report_reason_prompt || '신고 사유를 입력해주세요 (선택사항):') || '';
+        const reason = await showReportReasonModal(reasons, title, submitText, cancelText, lang);
+        if (!reason) return;
 
         reporters.push({
             uid: uid,
             name: AppState.user.name || '헌터',
-            reason: reason.substring(0, 200),
+            reason: reason,
             timestamp: Date.now()
         });
 
@@ -6112,6 +6123,63 @@ async function toggleReportPost(postId) {
         AppLogger.error('[Reels] 신고 실패: ' + (e.message || e));
         showToast(i18n[lang].reels_report_fail || '신고 처리에 실패했습니다.');
     }
+}
+
+// 신고 사유 선택 모달
+function showReportReasonModal(reasons, title, submitText, cancelText, lang) {
+    return new Promise((resolve) => {
+        // 기존 모달 제거
+        const existing = document.getElementById('report-reason-modal');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'report-reason-modal';
+        overlay.className = 'report-modal-overlay';
+
+        const reasonItems = reasons.map((r, i) => `
+            <label class="report-reason-item" for="report-reason-${i}">
+                <input type="radio" name="report-reason" id="report-reason-${i}" value="${r}">
+                <span class="report-reason-radio"></span>
+                <span class="report-reason-text">${r}</span>
+            </label>
+        `).join('');
+
+        overlay.innerHTML = `
+            <div class="report-modal-content">
+                <h3 class="report-modal-title">${title}</h3>
+                <div class="report-reason-list">
+                    ${reasonItems}
+                </div>
+                <div class="report-modal-actions">
+                    <button class="report-modal-btn report-modal-cancel">${cancelText}</button>
+                    <button class="report-modal-btn report-modal-submit">${submitText}</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('active'));
+
+        const cleanup = (value) => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 200);
+            resolve(value);
+        };
+
+        overlay.querySelector('.report-modal-cancel').addEventListener('click', () => cleanup(null));
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) cleanup(null);
+        });
+
+        overlay.querySelector('.report-modal-submit').addEventListener('click', () => {
+            const selected = overlay.querySelector('input[name="report-reason"]:checked');
+            if (!selected) {
+                showToast(i18n[lang].reels_report_select_reason || '신고 사유를 선택해주세요.');
+                return;
+            }
+            cleanup(selected.value);
+        });
+    });
 }
 
 // 신고 상태 로드
