@@ -376,6 +376,10 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
             <span class="tab-icon">💬</span>
             <span class="tab-label">Feedback</span>
         </button>
+        <button class="tab-btn" data-tab="permissions" onclick="switchTab('permissions')">
+            <span class="tab-icon">🔐</span>
+            <span class="tab-label">Permissions</span>
+        </button>
     </nav>
 
     <!-- ══════════════ Tab: Dashboard ══════════════ -->
@@ -708,6 +712,62 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
         </div>
     </div>
 
+    <!-- ══════════════ Tab: Permissions ══════════════ -->
+    <div class="tab-content" id="tab-permissions">
+        <div class="card" style="border-radius: 0 0 12px 12px; border-top: none;">
+            <h2>현재 사용자 Claim 상태</h2>
+            <div id="perm-claim-status">로그인 후 확인 가능합니다.</div>
+            <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="refreshPermClaimView()">상태 새로고침</button>
+        </div>
+
+        <div class="card" id="perm-admin-grant-card" style="display:none">
+            <h2>Admin Claim 부여</h2>
+            <p style="color:var(--text-sub); font-size:0.8rem; margin-bottom:8px;">대상 사용자의 UID를 입력하여 admin 권한을 부여합니다. <span class="badge badge-success">마스터 전용</span></p>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" id="perm-admin-uid" placeholder="대상 사용자 UID" style="flex:1">
+                <button class="btn btn-primary btn-sm" onclick="permGrantAdmin()">부여</button>
+            </div>
+            <div id="perm-admin-result" style="margin-top:8px"></div>
+        </div>
+
+        <div class="card" id="perm-operator-card" style="display:none">
+            <h2>관리자 페이지 운영 권한 관리</h2>
+            <p style="color:var(--text-sub); font-size:0.8rem; margin-bottom:8px;">관리자가 아닌 사용자에게 관리자 페이지 운영 권한을 부여/회수합니다. <span class="badge badge-success">마스터 전용</span></p>
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                <input type="text" id="perm-operator-uid" placeholder="대상 사용자 UID" style="flex:1">
+                <button class="btn btn-primary btn-sm" onclick="permGrantOperator()">권한 부여</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--error); border-color:var(--error);" onclick="permRevokeOperator()">권한 회수</button>
+            </div>
+            <div id="perm-operator-result" style="margin-top:8px"></div>
+            <hr style="border-color:var(--border); margin:16px 0">
+            <h3 style="font-size:0.95rem; margin-bottom:8px;">권한 보유자 목록</h3>
+            <button class="btn btn-ghost btn-sm" style="margin-bottom:8px" onclick="permLoadOperators()">목록 새로고침</button>
+            <div id="perm-operator-list">목록을 로드하려면 새로고침 버튼을 누르세요.</div>
+        </div>
+
+        <div class="card" id="perm-no-master-card" style="display:none">
+            <h2>권한 관리</h2>
+            <p style="color:var(--text-sub); font-size:0.8rem;">Admin Claim 부여 및 운영 권한 관리는 마스터 계정만 사용할 수 있습니다.</p>
+        </div>
+
+        <div class="card">
+            <h2>토큰 강제 갱신</h2>
+            <p style="color:var(--text-sub); font-size:0.8rem; margin-bottom:8px;">ID 토큰을 강제로 갱신하여 최신 claim을 반영합니다.</p>
+            <button class="btn btn-ghost btn-sm" onclick="permForceRefresh()">토큰 갱신</button>
+            <div id="perm-refresh-result" style="margin-top:8px"></div>
+        </div>
+
+        <div class="card">
+            <h2>관리자 인증 방식</h2>
+            <p style="color:var(--text-sub); font-size:0.8rem; margin-bottom:8px;">관리자 권한은 Firebase Custom Claims로 관리됩니다.</p>
+            <ul style="color:var(--text-sub); font-size:0.8rem; padding-left:18px; line-height:1.8;">
+                <li><code>master: true</code> — 마스터 계정 (모든 권한 + 권한 관리)</li>
+                <li><code>admin: true</code> — 관리자 (관리자 페이지 전체 접근)</li>
+                <li><code>adminOperator: true</code> — 운영자 (관리자 페이지 운영 권한, 마스터가 부여)</li>
+            </ul>
+        </div>
+    </div>
+
 </div><!-- /admin-section -->
 
 </div><!-- /container -->
@@ -887,6 +947,7 @@ onAuthStateChanged(auth, async (user) => {
         loadUsers();
         loadLogs();
         loadFeedback();
+        initPermissionsTab();
         updatePreview();
         refreshConditionsStatus();
     } else {
@@ -1390,6 +1451,175 @@ window.triggerCondition = async function(type, topic, btnEl) {
     btnEl.classList.remove("sending");
     btnEl.textContent = "Trigger";
     loadLogs();
+};
+
+// ─── Permissions Tab ───
+
+async function isMasterUser(user) {
+    if (!user) return false;
+    const tokenResult = await getIdTokenResult(user);
+    return tokenResult.claims.master === true;
+}
+
+async function initPermissionsTab() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const master = await isMasterUser(user);
+    document.getElementById("perm-admin-grant-card").style.display = master ? "block" : "none";
+    document.getElementById("perm-operator-card").style.display = master ? "block" : "none";
+    document.getElementById("perm-no-master-card").style.display = master ? "none" : "block";
+    refreshPermClaimView();
+}
+
+window.refreshPermClaimView = async function() {
+    const el = document.getElementById("perm-claim-status");
+    const user = auth.currentUser;
+    if (!user) {
+        el.innerHTML = '<span style="color:var(--error)">로그인되지 않았습니다.</span>';
+        return;
+    }
+    const tokenResult = await getIdTokenResult(user);
+    const isAdmin = tokenResult.claims.admin === true;
+    const isMasterClaim = tokenResult.claims.master === true;
+    const isOperator = tokenResult.claims.adminOperator === true;
+    const issued = new Date(tokenResult.issuedAtTime);
+    const expires = new Date(tokenResult.expirationTime);
+
+    let roleBadge = '';
+    if (isMasterClaim) roleBadge = '<span class="badge badge-success">MASTER</span>';
+    else if (isAdmin) roleBadge = '<span class="badge badge-success">ADMIN</span>';
+    else if (isOperator) roleBadge = '<span class="badge badge-warning">OPERATOR</span>';
+    else roleBadge = '<span class="badge badge-error">권한 없음</span>';
+
+    el.innerHTML = `
+        <table>
+            <tr><th style="width:140px">UID</th><td><code>${esc(user.uid)}</code></td></tr>
+            <tr><th>Email</th><td><code>${esc(user.email || "없음")}</code></td></tr>
+            <tr><th>역할</th><td>${roleBadge}</td></tr>
+            <tr><th>Master Claim</th><td>
+                <span class="badge ${isMasterClaim ? "badge-success" : "badge-error"}">${isMasterClaim ? "✓ true" : "✗ false"}</span>
+            </td></tr>
+            <tr><th>Admin Claim</th><td>
+                <span class="badge ${isAdmin ? "badge-success" : "badge-error"}">${isAdmin ? "✓ true" : "✗ false"}</span>
+            </td></tr>
+            <tr><th>Operator Claim</th><td>
+                <span class="badge ${isOperator ? "badge-success" : "badge-error"}">${isOperator ? "✓ true" : "✗ false"}</span>
+            </td></tr>
+            <tr><th>토큰 발급</th><td>${issued.toLocaleString("ko-KR", { hour12: false })}</td></tr>
+            <tr><th>토큰 만료</th><td>${expires.toLocaleString("ko-KR", { hour12: false })}</td></tr>
+        </table>
+    `;
+};
+
+window.permGrantAdmin = async function() {
+    const uid = document.getElementById("perm-admin-uid").value.trim();
+    const el = document.getElementById("perm-admin-result");
+    if (!uid) { el.innerHTML = '<span style="color:var(--error)">UID를 입력하세요.</span>'; return; }
+
+    tlog("Permissions", "setAdminClaim 호출: " + uid);
+    try {
+        const setAdminClaim = httpsCallable(functions, "setAdminClaim");
+        await setAdminClaim({ uid });
+        el.innerHTML = `<span style="color:var(--success)">✓ Admin claim이 부여되었습니다: <code>${esc(uid)}</code></span>`;
+        tok("Permissions", "Admin claim granted to " + uid);
+    } catch (e) {
+        el.innerHTML = `<span style="color:var(--error)">오류: ${esc(e.message)}</span>`;
+        terror("Permissions", "setAdminClaim error: " + e.message);
+    }
+};
+
+window.permGrantOperator = async function() {
+    const uid = document.getElementById("perm-operator-uid").value.trim();
+    const el = document.getElementById("perm-operator-result");
+    if (!uid) { el.innerHTML = '<span style="color:var(--error)">UID를 입력하세요.</span>'; return; }
+
+    tlog("Permissions", "setAdminOperator 호출: " + uid);
+    try {
+        const setAdminOperator = httpsCallable(functions, "setAdminOperator");
+        await setAdminOperator({ uid });
+        el.innerHTML = `<span style="color:var(--success)">✓ 운영 권한이 부여되었습니다: <code>${esc(uid)}</code></span>`;
+        tok("Permissions", "AdminOperator claim granted to " + uid);
+    } catch (e) {
+        el.innerHTML = `<span style="color:var(--error)">오류: ${esc(e.message)}</span>`;
+        terror("Permissions", "setAdminOperator error: " + e.message);
+    }
+};
+
+window.permRevokeOperator = async function() {
+    const uid = document.getElementById("perm-operator-uid").value.trim();
+    const el = document.getElementById("perm-operator-result");
+    if (!uid) { el.innerHTML = '<span style="color:var(--error)">UID를 입력하세요.</span>'; return; }
+
+    tlog("Permissions", "removeAdminOperator 호출: " + uid);
+    try {
+        const removeAdminOperator = httpsCallable(functions, "removeAdminOperator");
+        await removeAdminOperator({ uid });
+        el.innerHTML = `<span style="color:var(--success)">✓ 운영 권한이 회수되었습니다: <code>${esc(uid)}</code></span>`;
+        tok("Permissions", "AdminOperator claim removed from " + uid);
+    } catch (e) {
+        el.innerHTML = `<span style="color:var(--error)">오류: ${esc(e.message)}</span>`;
+        terror("Permissions", "removeAdminOperator error: " + e.message);
+    }
+};
+
+window.permLoadOperators = async function() {
+    const el = document.getElementById("perm-operator-list");
+    el.innerHTML = '<span style="color:var(--text-sub)">로딩 중...</span>';
+
+    try {
+        const ping = httpsCallable(functions, "ping");
+        const result = await ping({ action: "listAdminOperators" });
+        const ops = result.data.operators || [];
+
+        if (ops.length === 0) {
+            el.innerHTML = '<span style="color:var(--text-sub)">권한 보유자가 없습니다.</span>';
+            return;
+        }
+
+        let html = '<table style="width:100%;font-size:0.85rem"><thead><tr><th>UID</th><th>Email</th><th>역할</th><th>상태</th></tr></thead><tbody>';
+        for (const op of ops) {
+            const roles = [];
+            if (op.master) roles.push('<span class="badge badge-success">MASTER</span>');
+            if (op.admin) roles.push('<span class="badge badge-warning">ADMIN</span>');
+            if (op.adminOperator) roles.push('<span class="badge badge-warning">OPERATOR</span>');
+            html += `<tr>
+                <td><code style="font-size:0.75rem">${esc(op.uid.substring(0, 12))}...</code></td>
+                <td>${esc(op.email || "—")}</td>
+                <td>${roles.join(" ")}</td>
+                <td>${op.disabled ? '<span style="color:var(--error)">비활성</span>' : '<span style="color:var(--success)">활성</span>'}</td>
+            </tr>`;
+        }
+        html += '</tbody></table>';
+        el.innerHTML = html;
+        tok("Permissions", `${ops.length}명의 권한 보유자 조회 완료`);
+    } catch (e) {
+        el.innerHTML = `<span style="color:var(--error)">오류: ${esc(e.message)}</span>`;
+        terror("Permissions", "listAdminOperators error: " + e.message);
+    }
+};
+
+window.permForceRefresh = async function() {
+    const el = document.getElementById("perm-refresh-result");
+    el.innerHTML = '<span style="color:var(--text-sub)">갱신 중...</span>';
+
+    const beforeToken = await getIdTokenResult(auth.currentUser);
+    const beforeAdmin = beforeToken.claims.admin === true;
+
+    await ensureFreshToken();
+
+    const afterToken = await getIdTokenResult(auth.currentUser);
+    const afterAdmin = afterToken.claims.admin === true;
+
+    if (beforeAdmin !== afterAdmin) {
+        el.innerHTML = `<span style="color:var(--warning)">Claim 변경됨: <code>${beforeAdmin}</code> → <code>${afterAdmin}</code></span>`;
+        twarn("Permissions", "Token refresh revealed claim change");
+    } else {
+        el.innerHTML = `<span style="color:var(--success)">✓ 토큰 갱신 완료. admin: <code>${afterAdmin}</code></span>`;
+        tok("Permissions", "Token refreshed, admin=" + afterAdmin);
+    }
+
+    refreshPermClaimView();
+    initPermissionsTab();
 };
 </script>
 </body>
