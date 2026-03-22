@@ -506,7 +506,8 @@ function getInitialAppState() {
             stepData: { date: "", rewardedSteps: 0, totalSteps: 0 },
             instaId: "",
             streak: { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 },
-            nameLastChanged: null
+            nameLastChanged: null,
+            rareTitle: { unlocked: [] }
         },
         quest: {
             currentDayOfWeek: new Date().getDay(),
@@ -1100,7 +1101,8 @@ async function _doSaveUserData() {
             lastRouletteDate: localStorage.getItem('roulette_date') || '',
             lastReelsPostTs: normalizedLastReelsPostTs,
             diyQuestsStr: JSON.stringify(AppState.diyQuests),
-            questHistoryStr: JSON.stringify(AppState.questHistory)
+            questHistoryStr: JSON.stringify(AppState.questHistory),
+            rareTitleStr: JSON.stringify(AppState.user.rareTitle)
         };
         // 진단: 페이로드 크기 및 photoURL 상태 로그
         const payloadSize = new Blob([JSON.stringify(payload)]).size;
@@ -1179,6 +1181,9 @@ async function loadUserDataFromDB(user) {
             if(data.nameLastChanged) AppState.user.nameLastChanged = data.nameLastChanged;
             if(data.streakStr) {
                 try { AppState.user.streak = JSON.parse(data.streakStr); } catch(e) { AppState.user.streak = { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 }; }
+            }
+            if(data.rareTitleStr) {
+                try { const parsed = JSON.parse(data.rareTitleStr); AppState.user.rareTitle = { unlocked: parsed.unlocked || [] }; } catch(e) { AppState.user.rareTitle = { unlocked: [] }; }
             }
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
@@ -1387,6 +1392,8 @@ function updateStreak() {
         streakCh.progress = Math.min(streakCh.target, AppState.user.streak.currentStreak);
         localStorage.setItem('weekly_challenges', JSON.stringify(chData));
     }
+    // 스트릭 기반 희귀 호칭 체크
+    checkStreakRareTitles();
 }
 
 function renderStreakBadge() {
@@ -1404,6 +1411,149 @@ function renderStreakBadge() {
     } else {
         badge.classList.add('d-none');
     }
+}
+
+// --- ★ 희귀 호칭 시스템 ★ ---
+
+// 우선순위: rank_global > rank_stat > streak > steps (높을수록 우선)
+const _rarePriority = { rank_global: 40, rank_stat: 30, streak: 20, steps: 10 };
+
+// 우선순위에 따라 자동으로 가장 높은 희귀 호칭 반환
+function getBestRareTitle() {
+    const unlocked = AppState.user.rareTitle.unlocked;
+    if (unlocked.length === 0) return null;
+    const rarityOrder = ['uncommon', 'rare', 'epic', 'legendary'];
+    return [...unlocked].sort((a, b) => {
+        const pDiff = (_rarePriority[b.type] || 0) - (_rarePriority[a.type] || 0);
+        if (pDiff !== 0) return pDiff;
+        return rarityOrder.indexOf(b.rarity) - rarityOrder.indexOf(a.rarity);
+    })[0] || null;
+}
+
+// 스트릭 마일스톤 달성 시 희귀 호칭 해금 체크
+function checkStreakRareTitles() {
+    const streak = AppState.user.streak.currentStreak;
+    let newUnlock = false;
+    rareStreakTitles.forEach(rt => {
+        const titleId = `streak_${rt.days}`;
+        if (streak >= rt.days && !AppState.user.rareTitle.unlocked.find(u => u.id === titleId)) {
+            AppState.user.rareTitle.unlocked.push({
+                id: titleId, type: 'streak', rarity: rt.rarity, icon: rt.icon,
+                title: rt.title, unlockedAt: new Date().toISOString()
+            });
+            newUnlock = true;
+            AppLogger.info(`[RareTitle] 스트릭 희귀 호칭 해금: ${rt.title.ko} (${rt.days}일)`);
+        }
+    });
+    if (newUnlock) {
+        saveUserData();
+        updatePointUI();
+        const newest = AppState.user.rareTitle.unlocked[AppState.user.rareTitle.unlocked.length - 1];
+        showRareTitleNotification(newest);
+    }
+}
+
+// 걸음수 마일스톤 달성 시 희귀 호칭 해금 체크
+function checkStepRareTitles() {
+    const steps = Number(AppState.user.stepData?.totalSteps) || 0;
+    let newUnlock = false;
+    rareStepTitles.forEach(rt => {
+        const titleId = `steps_${rt.steps}`;
+        if (steps >= rt.steps && !AppState.user.rareTitle.unlocked.find(u => u.id === titleId)) {
+            AppState.user.rareTitle.unlocked.push({
+                id: titleId, type: 'steps', rarity: rt.rarity, icon: rt.icon,
+                title: rt.title, unlockedAt: new Date().toISOString()
+            });
+            newUnlock = true;
+            AppLogger.info(`[RareTitle] 걸음수 희귀 호칭 해금: ${rt.title.ko} (${rt.steps}보)`);
+        }
+    });
+    if (newUnlock) {
+        saveUserData();
+        updatePointUI();
+        const newest = AppState.user.rareTitle.unlocked[AppState.user.rareTitle.unlocked.length - 1];
+        showRareTitleNotification(newest);
+    }
+}
+
+// 소셜 랭킹 기반 희귀 호칭 평가 (fetchSocialData 후 호출)
+function checkRankRareTitles() {
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    const users = AppState.social.users.map(u => {
+        const s = u.stats;
+        const total = (Number(s.str)||0) + (Number(s.int)||0) + (Number(s.cha)||0) + (Number(s.vit)||0) + (Number(s.wlth)||0) + (Number(s.agi)||0);
+        return { ...u, total, str:Number(s.str)||0, int:Number(s.int)||0, cha:Number(s.cha)||0, vit:Number(s.vit)||0, wlth:Number(s.wlth)||0, agi:Number(s.agi)||0 };
+    });
+    if (users.length === 0) return;
+
+    let changed = false;
+
+    // 글로벌 종합 순위 체크
+    const globalSorted = [...users].sort((a, b) => b.total - a.total);
+    const myGlobalRank = globalSorted.findIndex(u => u.id === uid) + 1;
+
+    // 기존 글로벌 호칭 제거 후 해당 순위면 다시 추가
+    const hadGlobal = AppState.user.rareTitle.unlocked.filter(u => u.type === 'rank_global');
+    AppState.user.rareTitle.unlocked = AppState.user.rareTitle.unlocked.filter(u => u.type !== 'rank_global');
+    const myGlobalEntry = rareRankTitles.global.find(rt => rt.rank === myGlobalRank);
+    if (myGlobalEntry) {
+        AppState.user.rareTitle.unlocked.push({
+            id: `global_rank_${myGlobalEntry.rank}`, type: 'rank_global', rarity: myGlobalEntry.rarity, icon: myGlobalEntry.icon,
+            title: myGlobalEntry.title, unlockedAt: new Date().toISOString()
+        });
+        if (!hadGlobal.find(h => h.id === `global_rank_${myGlobalEntry.rank}`)) changed = true;
+    } else if (hadGlobal.length > 0) { changed = true; }
+
+    // 스탯별 1위 체크
+    statKeys.forEach(stat => {
+        const sorted = [...users].sort((a, b) => b[stat] - a[stat]);
+        const myRank = sorted.findIndex(u => u.id === uid) + 1;
+        const titleId = `stat_rank_${stat}`;
+        const had = AppState.user.rareTitle.unlocked.find(u => u.id === titleId);
+
+        if (myRank === 1 && sorted[0][stat] > 0) {
+            if (!had) {
+                AppState.user.rareTitle.unlocked.push({
+                    id: titleId, type: 'rank_stat', rarity: rareRankTitles.stat[stat].rarity,
+                    icon: rareRankTitles.stat[stat].icon, title: rareRankTitles.stat[stat].title,
+                    stat: stat, unlockedAt: new Date().toISOString()
+                });
+                changed = true;
+            }
+        } else if (had) {
+            AppState.user.rareTitle.unlocked = AppState.user.rareTitle.unlocked.filter(u => u.id !== titleId);
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        saveUserData();
+        updatePointUI();
+    }
+}
+
+// 현재 표시할 호칭 텍스트와 아이콘 반환 (기존 호칭 + 최고 우선순위 희귀 호칭 자동 병렬)
+function getDisplayTitle() {
+    const lang = AppState.currentLang;
+    const titleObj = AppState.user.titleHistory[AppState.user.titleHistory.length - 1]?.title;
+    const baseText = titleObj ? (typeof titleObj === 'object' ? titleObj[lang] || titleObj.ko : titleObj) : '각성자';
+    const baseIcon = getTitleIcon(baseText);
+    const best = getBestRareTitle();
+    if (best) {
+        const rareText = best.title[lang] || best.title.ko;
+        return { baseText, baseIcon, rareText, rareIcon: best.icon, rarity: best.rarity, isRare: true };
+    }
+    return { baseText, baseIcon, rareText: null, rareIcon: null, rarity: null, isRare: false };
+}
+
+// 희귀 호칭 해금 알림 표시
+function showRareTitleNotification(rareTitle) {
+    const lang = AppState.currentLang;
+    const titleText = rareTitle.title[lang] || rareTitle.title.ko;
+    const rarityLabel = rarityConfig[rareTitle.rarity]?.label[lang] || rareTitle.rarity;
+    const msg = `${rareTitle.icon} ${i18n[lang]?.rare_title_unlocked || '희귀 호칭 획득!'}\n[${rarityLabel}] ${titleText}`;
+    alert(msg);
 }
 
 // --- 크리티컬 히트 & 루트 드롭 ---
@@ -2306,11 +2456,23 @@ window.syncGlobalDungeon = async () => {
                             } catch(e) {}
                         }
                         const stats = data.stats || {};
+                        let rareTitle = null;
+                        if (data.rareTitleStr) {
+                            try {
+                                const rt = JSON.parse(data.rareTitleStr);
+                                const ul = rt.unlocked || [];
+                                if (ul.length > 0) {
+                                    const ro = ['uncommon','rare','epic','legendary'];
+                                    const pp = { rank_global:40, rank_stat:30, streak:20, steps:10 };
+                                    rareTitle = [...ul].sort((a,b) => { const pd=(pp[b.type]||0)-(pp[a.type]||0); return pd!==0?pd:ro.indexOf(b.rarity)-ro.indexOf(a.rarity); })[0];
+                                }
+                            } catch(e) {}
+                        }
                         participants.push({
                             id: doc.id,
                             name: data.name || '헌터',
                             photoURL: data.photoURL || null,
-                            title,
+                            title, rareTitle,
                             instaId: data.instaId || '',
                             hasContributed: !!dng.hasContributed,
                             statValue: Number(stats[AppState.dungeon.targetStat]) || 0,
@@ -2402,12 +2564,14 @@ function renderRaidParticipants(participants) {
     const t = i18n[lang];
     const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="color:#ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
 
-    const cards = participants.map(u => `
+    const cards = participants.map(u => {
+        const titleBadgeHTML = buildUserTitleBadgeHTML(u, '0.55rem');
+        return `
         <div class="user-card ${u.isMe ? 'my-rank' : ''}" style="padding:8px;">
             <div style="display:flex; align-items:center; flex-grow:1;">
                 ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:28px; height:28px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
                 <div>
-                    <div class="title-badge" style="font-size:0.55rem;">${getTitleIcon(u.title)} ${sanitizeText(u.title)}</div>
+                    ${titleBadgeHTML}
                     <div style="font-size:0.8rem; display:flex; align-items:center;">
                         ${sanitizeText(u.name)} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''}
                     </div>
@@ -2417,7 +2581,7 @@ function renderRaidParticipants(participants) {
                 ${u.hasContributed ? '⚔️ ' + (t.raid_contributed || '기여 완료') : '⏳ ' + (t.raid_waiting_contribute || '대기 중')}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     return `<div class="raid-participants-title">${t.raid_participants_title || '참여 헌터'} (${participants.length})</div>${cards}`;
 }
@@ -2670,9 +2834,16 @@ function updatePointUI() {
     document.getElementById('display-req-pts').innerText = req;
     document.getElementById('btn-levelup').disabled = AppState.user.points < req;
     
-    const titleObj = AppState.user.titleHistory[AppState.user.titleHistory.length - 1].title;
-    const titleText = typeof titleObj === 'object' ? titleObj[AppState.currentLang] || titleObj.ko : titleObj;
-    document.getElementById('prof-title-badge').innerHTML = `${getTitleIcon(titleText)} ${sanitizeText(titleText)} ℹ️`;
+    const display = getDisplayTitle();
+    const badgeEl = document.getElementById('prof-title-badge');
+    if (display.isRare) {
+        const rarityClass = rarityConfig[display.rarity]?.class || '';
+        badgeEl.className = 'title-badge-combined';
+        badgeEl.innerHTML = `<span class="title-badge" style="margin-bottom:0;">${display.baseIcon} ${sanitizeText(display.baseText)}</span><span class="title-badge ${rarityClass}" style="margin-bottom:0;">${display.rareIcon} ${sanitizeText(display.rareText)}</span> ℹ️`;
+    } else {
+        badgeEl.className = 'title-badge';
+        badgeEl.innerHTML = `${display.baseIcon} ${sanitizeText(display.baseText)} ℹ️`;
+    }
 }
 
 function processLevelUp() {
@@ -2787,9 +2958,24 @@ async function fetchSocialData() {
                     title = typeof last === 'object' ? last[AppState.currentLang] || last.ko : last;
                 } catch(e) {}
             }
-            return { id: d.id, ...data, title, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, stepData: data.stepData || { date: '', rewardedSteps: 0, totalSteps: 0 }, isFriend: (AppState.user.friends || []).includes(d.id), isMe: auth.currentUser?.uid === d.id };
+            // 희귀 호칭 파싱 (우선순위 기반 자동 선택)
+            let rareTitle = null;
+            if (data.rareTitleStr) {
+                try {
+                    const rt = JSON.parse(data.rareTitleStr);
+                    const ul = rt.unlocked || [];
+                    if (ul.length > 0) {
+                        const ro = ['uncommon', 'rare', 'epic', 'legendary'];
+                        const pp = { rank_global: 40, rank_stat: 30, streak: 20, steps: 10 };
+                        rareTitle = [...ul].sort((a, b) => { const pd = (pp[b.type]||0) - (pp[a.type]||0); return pd !== 0 ? pd : ro.indexOf(b.rarity) - ro.indexOf(a.rarity); })[0];
+                    }
+                } catch(e) {}
+            }
+            return { id: d.id, ...data, title, rareTitle, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, stepData: data.stepData || { date: '', rewardedSteps: 0, totalSteps: 0 }, isFriend: (AppState.user.friends || []).includes(d.id), isMe: auth.currentUser?.uid === d.id };
         });
         renderUsers(AppState.social.sortCriteria);
+        // 랭킹 기반 희귀 호칭 평가
+        checkRankRareTitles();
     } catch(e) {
         console.error("소셜 로드 에러", e);
         AppLogger.error('[Social] 데이터 로드 실패', e.stack || e.message);
@@ -2819,13 +3005,15 @@ function renderUsers(criteria, btn = null) {
 
     const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="color: #ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
 
-    container.innerHTML = list.map((u, i) => `
+    container.innerHTML = list.map((u, i) => {
+        const titleBadgeHTML = buildUserTitleBadgeHTML(u, '0.6rem');
+        return `
         <div class="user-card ${u.isMe ? 'my-rank' : ''}">
             <div style="width:25px; font-weight:bold; color:var(--text-sub);">${i+1}</div>
             <div style="display:flex; align-items:center; flex-grow:1; margin-left:10px;">
                 ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:30px; height:30px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
                 <div class="user-info" style="margin-left:0;">
-                    <div class="title-badge" style="font-size:0.6rem;">${getTitleIcon(u.title)} ${sanitizeText(u.title)}</div>
+                    ${titleBadgeHTML}
                     <div style="font-size:0.9rem; display:flex; align-items:center;">
                         ${sanitizeText(u.name)} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''}
                     </div>
@@ -2834,7 +3022,7 @@ function renderUsers(criteria, btn = null) {
             <div class="user-score" style="font-weight:900; color:var(--neon-blue);">${typeof u[criteria] === 'number' ? u[criteria].toLocaleString() : u[criteria]}</div>
             ${!u.isMe ? `<button class="btn-friend ${u.isFriend ? 'added' : ''}" onclick="window.toggleFriend('${sanitizeAttr(u.id)}')">${u.isFriend ? '친구✓' : '추가'}</button>` : ''}
         </div>
-    `).join('');
+    `}).join('');
 }
 
 window.fetchSocialData = fetchSocialData;
@@ -3101,6 +3289,27 @@ function getTitleIcon(titleText) {
     return titleIconMap[suffix] || '🏅';
 }
 
+// 유저 카드에 표시할 호칭 배지 HTML 생성 (기존 호칭 + 희귀 호칭 자동 병렬)
+function buildUserTitleBadgeHTML(u, fontSize) {
+    const lang = AppState.currentLang;
+    const baseIcon = getTitleIcon(u.title);
+    const baseText = u.title;
+    let rareInfo = null;
+
+    if (u.isMe) {
+        const best = getBestRareTitle();
+        if (best) rareInfo = { icon: best.icon, text: best.title[lang] || best.title.ko, rarity: best.rarity };
+    } else if (u.rareTitle) {
+        rareInfo = { icon: u.rareTitle.icon, text: u.rareTitle.title[lang] || u.rareTitle.title.ko, rarity: u.rareTitle.rarity };
+    }
+
+    if (rareInfo) {
+        const rarityClass = rarityConfig[rareInfo.rarity]?.class || '';
+        return `<div class="title-badge-combined"><span class="title-badge" style="margin-bottom:0;">${baseIcon} ${sanitizeText(baseText)}</span><span class="title-badge ${rarityClass}" style="margin-bottom:0;">${rareInfo.icon} ${sanitizeText(rareInfo.text)}</span></div>`;
+    }
+    return `<div class="title-badge">${baseIcon} ${sanitizeText(baseText)}</div>`;
+}
+
 // --- ★ 팝업 모달창 로직 (다국어 지원 호칭 표 포함) ★ ---
 function closeInfoModal() { 
     const m = document.getElementById('infoModal'); 
@@ -3114,9 +3323,87 @@ function closeTitleModal() {
     m.classList.remove('d-flex');
 }
 
+// 희귀 호칭 컬렉션 HTML 빌더 (장착/해제 없이 자동 우선순위)
+function buildRareTitleCollectionHTML(lang) {
+    const unlocked = AppState.user.rareTitle.unlocked;
+    const best = getBestRareTitle();
+    const li18n = i18n[lang] || i18n.ko;
+
+    // 공통 아이템 렌더링 헬퍼
+    function renderItem(rt, titleId, conditionLabel) {
+        const isUnlocked = unlocked.find(u => u.id === titleId);
+        const isBest = best?.id === titleId;
+        const rarityLabel = rarityConfig[rt.rarity]?.label[lang] || rt.rarity;
+        const titleText = rt.title[lang] || rt.title.ko;
+        if (isUnlocked) {
+            return `<div class="rare-title-item ${isBest ? 'equipped' : ''}">
+                <span class="rt-icon">${rt.icon}</span>
+                <div class="rt-info">
+                    <span class="rt-name">${titleText}</span>
+                    <span class="rt-rarity ${rt.rarity}">${rarityLabel}</span>
+                    ${isBest ? '<span class="rt-rarity legendary" style="margin-left:3px;">★</span>' : ''}
+                    <div style="font-size:0.6rem; color:var(--text-sub);">${conditionLabel}</div>
+                </div>
+            </div>`;
+        }
+        return `<div class="rare-title-item" style="opacity:0.4;">
+            <span class="rt-icon">🔒</span>
+            <div class="rt-info">
+                <span class="rt-name" style="color:var(--text-sub);">???</span>
+                <span class="rt-rarity ${rt.rarity}">${rarityLabel}</span>
+                <div style="font-size:0.6rem; color:var(--text-sub);">${conditionLabel}</div>
+            </div>
+        </div>`;
+    }
+
+    // 순서: 종합순위 > 스탯별1위 > 스트릭 > 걸음수
+    const rankGlobalHTML = rareRankTitles.global.map(rt =>
+        renderItem(rt, `global_rank_${rt.rank}`, `#${rt.rank} ${li18n.rare_title_global_rank || '종합 순위'}`)
+    ).join('');
+
+    const rankStatHTML = statKeys.map(stat =>
+        renderItem(rareRankTitles.stat[stat], `stat_rank_${stat}`, `${stat.toUpperCase()} #1`)
+    ).join('');
+
+    const streakHTML = rareStreakTitles.map(rt =>
+        renderItem(rt, `streak_${rt.days}`, `${rt.days}${li18n.streak_day || '일'} ${li18n.streak_label || '연속'}`)
+    ).join('');
+
+    const stepHTML = rareStepTitles.map(rt =>
+        renderItem(rt, `steps_${rt.steps}`, `${rt.steps.toLocaleString()}${li18n.rare_title_step_unit || '보'}`)
+    ).join('');
+
+    return `
+        <div style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">
+            <div style="font-size:0.9rem; font-weight:bold; color:var(--neon-gold); margin-bottom:10px;">
+                ${li18n.rare_title_guide || '희귀 호칭 가이드'}
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-sub); margin-bottom:12px; line-height:1.4;">
+                ${li18n.rare_title_guide_desc || '스트릭 달성 및 랭킹 상위권 진입 시 특별한 희귀 호칭이 부여됩니다.'}
+            </div>
+            <div style="font-size:0.8rem; font-weight:bold; color:var(--neon-blue); margin:10px 0 6px;">
+                👑 ${li18n.rare_title_rank_section || '랭킹 호칭'} — ${li18n.rare_title_global_rank || '종합 순위'}
+            </div>
+            ${rankGlobalHTML}
+            <div style="font-size:0.8rem; font-weight:bold; color:var(--neon-blue); margin:15px 0 6px;">
+                🏆 ${li18n.rare_title_rank_section || '랭킹 호칭'} — ${li18n.rare_title_stat_rank || '스탯별 1위'}
+            </div>
+            ${rankStatHTML}
+            <div style="font-size:0.8rem; font-weight:bold; color:var(--neon-blue); margin:15px 0 6px;">
+                🔥 ${li18n.rare_title_streak_section || '스트릭 달성 호칭'}
+            </div>
+            ${streakHTML}
+            <div style="font-size:0.8rem; font-weight:bold; color:var(--neon-blue); margin:15px 0 6px;">
+                🚶 ${li18n.rare_title_step_section || '걸음수 달성 호칭'}
+            </div>
+            ${stepHTML}
+        </div>
+    `;
+}
+
 function openTitleModal() {
     const container = document.getElementById('title-guide-container');
-    const lang = AppState.currentLang; 
+    const lang = AppState.currentLang;
 
     // 언어별 텍스트 데이터 정의
     const textData = {
@@ -3189,6 +3476,8 @@ function openTitleModal() {
             </tbody>
         </table>
         <div style="font-size:0.7rem; color:var(--text-sub); margin-top:10px; text-align:right;">${l.footer}</div>
+
+        ${buildRareTitleCollectionHTML(lang)}
     `;
 
     container.innerHTML = html;
@@ -6253,6 +6542,9 @@ async function syncHealthData(showMsg = false) {
 
     // 실제 총 걸음수 저장
     AppState.user.stepData.totalSteps = totalStepsToday;
+
+    // 걸음수 기반 희귀 호칭 체크
+    checkStepRareTitles();
 
     // 보상 계산
     const unrewardedSteps = totalStepsToday - AppState.user.stepData.rewardedSteps;

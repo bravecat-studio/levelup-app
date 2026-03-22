@@ -51,7 +51,7 @@ service cloud.firestore {
         'stepData', 'streak',
         'questStr', 'questWeekStart', 'diaryStr', 'reelsStr',
         'dungeonStr', 'diyQuestsStr', 'questHistoryStr',
-        'titleHistoryStr', 'streakStr',
+        'titleHistoryStr', 'streakStr', 'rareTitleStr',
         'hasActiveReels', '_profileUploadFailed'
       ];
     }
@@ -118,7 +118,8 @@ service cloud.firestore {
         && (!('diyQuestsStr' in d) || (d.diyQuestsStr is string && d.diyQuestsStr.size() <= 50000))
         && (!('questHistoryStr' in d) || (d.questHistoryStr is string && d.questHistoryStr.size() <= 200000))
         && (!('titleHistoryStr' in d) || (d.titleHistoryStr is string && d.titleHistoryStr.size() <= 50000))
-        && (!('streakStr' in d) || (d.streakStr is string && d.streakStr.size() <= 5000));
+        && (!('streakStr' in d) || (d.streakStr is string && d.streakStr.size() <= 5000))
+        && (!('rareTitleStr' in d) || (d.rareTitleStr is string && d.rareTitleStr.size() <= 10000));
     }
 
     // ──────────────────────────────────────────────
