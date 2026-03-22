@@ -1,6 +1,6 @@
 #!/bin/bash
-# sync-www.sh — 루트 웹 파일을 www/ 폴더로 동기화
-# 루트가 Single Source of Truth. 이 스크립트는 루트 → www/ 단방향 복사를 수행합니다.
+# sync-www.sh — 루트 ↔ www/ 양방향 파일 동기화
+# git 커밋 타임스탬프 기반으로 최신 수정사항을 판별하여 양방향 동기화합니다.
 # 사용법: bash sync-www.sh
 
 set -e
@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WWW_DIR="$SCRIPT_DIR/www"
 
-# 동기화 대상 파일 목록
+# 동기화 대상 파일 목록 (루트명:www명)
 FILES=(
   app.html
   app.js
@@ -23,27 +23,80 @@ FILES=(
   sw.js
 )
 
-CHANGED=0
-SYNCED=0
+# git 커밋 타임스탬프 조회 (없으면 0 반환)
+get_git_ts() {
+  local file="$1"
+  local ts
+  ts=$(git log -1 --format=%ct -- "$file" 2>/dev/null || true)
+  echo "${ts:-0}"
+}
+
+mkdir -p "$WWW_DIR"
+
+ROOT_UPDATED=0
+WWW_UPDATED=0
+SKIPPED=0
 
 for f in "${FILES[@]}"; do
   SRC="$SCRIPT_DIR/$f"
   DST="$WWW_DIR/$f"
 
-  if [ ! -f "$SRC" ]; then
-    echo "  SKIP  $f (루트에 없음)"
+  # Case 1: 루트만 존재
+  if [ -f "$SRC" ] && [ ! -f "$DST" ]; then
+    cp "$SRC" "$DST"
+    echo "  ROOT→WWW  $f (www에 없음)"
+    WWW_UPDATED=$((WWW_UPDATED + 1))
     continue
   fi
 
-  if [ -f "$DST" ] && cmp -s "$SRC" "$DST"; then
-    continue  # 이미 동일
+  # Case 2: www만 존재
+  if [ ! -f "$SRC" ] && [ -f "$DST" ]; then
+    cp "$DST" "$SRC"
+    echo "  WWW→ROOT  $f (루트에 없음)"
+    ROOT_UPDATED=$((ROOT_UPDATED + 1))
+    continue
   fi
 
-  cp "$SRC" "$DST"
-  echo "  SYNC  $f"
-  CHANGED=$((CHANGED + 1))
+  # Case 3: 양쪽 모두 없음
+  if [ ! -f "$SRC" ] && [ ! -f "$DST" ]; then
+    echo "  SKIP  $f (양쪽 모두 없음)"
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+
+  # Case 4: 양쪽 동일
+  if cmp -s "$SRC" "$DST"; then
+    SKIPPED=$((SKIPPED + 1))
+    continue
+  fi
+
+  # Case 5: 양쪽 다름 — git 타임스탬프로 최신 판별
+  ROOT_TS=$(get_git_ts "$f")
+  WWW_TS=$(get_git_ts "www/$f")
+
+  if [ "$ROOT_TS" -gt "$WWW_TS" ]; then
+    cp "$SRC" "$DST"
+    echo "  ROOT→WWW  $f (루트가 최신: root=$ROOT_TS > www=$WWW_TS)"
+    WWW_UPDATED=$((WWW_UPDATED + 1))
+  elif [ "$WWW_TS" -gt "$ROOT_TS" ]; then
+    cp "$DST" "$SRC"
+    echo "  WWW→ROOT  $f (www가 최신: www=$WWW_TS > root=$ROOT_TS)"
+    ROOT_UPDATED=$((ROOT_UPDATED + 1))
+  else
+    # 타임스탬프 동일 — 파일 크기 비교, 동일하면 루트 우선
+    ROOT_SIZE=$(stat -c%s "$SRC" 2>/dev/null || stat -f%z "$SRC")
+    WWW_SIZE=$(stat -c%s "$DST" 2>/dev/null || stat -f%z "$DST")
+    if [ "$WWW_SIZE" -gt "$ROOT_SIZE" ]; then
+      cp "$DST" "$SRC"
+      echo "  WWW→ROOT  $f (동일 타임스탬프, www가 더 큼: $WWW_SIZE > $ROOT_SIZE)"
+      ROOT_UPDATED=$((ROOT_UPDATED + 1))
+    else
+      cp "$SRC" "$DST"
+      echo "  ROOT→WWW  $f (동일 타임스탬프, 루트 우선)"
+      WWW_UPDATED=$((WWW_UPDATED + 1))
+    fi
+  fi
 done
 
-SYNCED=$((${#FILES[@]} - CHANGED))
 echo ""
-echo "완료: ${CHANGED}개 파일 동기화됨, ${SYNCED}개 이미 최신"
+echo "완료: www/ ${WWW_UPDATED}개 갱신, 루트 ${ROOT_UPDATED}개 갱신, ${SKIPPED}개 이미 동일"
