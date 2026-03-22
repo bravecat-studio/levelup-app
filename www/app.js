@@ -158,7 +158,7 @@ try {
 }
 
 // --- 프로필 이미지 기본값 & 안전한 로드 ---
-const DEFAULT_PROFILE_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+const DEFAULT_PROFILE_SVG = "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27%23555%27%3E%3Cpath d=%27M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%27/%3E%3C/svg%3E";
 
 function setProfilePreview(url) {
     const el = document.getElementById('profilePreview');
@@ -5132,7 +5132,16 @@ function loadPlannerForDate(dateStr) {
         const preview = document.getElementById('planner-photo-preview');
         const placeholder = document.getElementById('planner-photo-placeholder');
         const removeBtn = document.getElementById('planner-photo-remove');
-        if (preview) { preview.src = saved.photo; preview.classList.remove('d-none'); }
+        if (preview) {
+            preview.onerror = function() {
+                this.onerror = null;
+                this.classList.add('d-none');
+                if (placeholder) placeholder.classList.remove('d-none');
+                AppLogger.warn('[Planner] 사진 로드 실패: ' + (saved.photo || '').substring(0, 80));
+            };
+            preview.src = saved.photo;
+            preview.classList.remove('d-none');
+        }
         if (placeholder) placeholder.classList.add('d-none');
         if (removeBtn) removeBtn.classList.remove('d-none');
 
@@ -5893,7 +5902,7 @@ function renderReelsCards(posts, lang) {
 
         return `<div class="system-card reels-card" data-post-id="${postId}">
             <div class="reels-header">
-                <img class="reels-avatar" src="${profileSrc}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${DEFAULT_PROFILE_SVG}'" alt="">
+                <img class="reels-avatar" src="${profileSrc}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=&quot;${DEFAULT_PROFILE_SVG}&quot;" alt="">
                 <div class="reels-user-info">
                     <div class="reels-username">${sanitizeText(post.userName || '헌터')}${instaLink}${isMe ? ' <span style="color:var(--neon-gold); font-size:0.65rem;">(나)</span>' : ''}</div>
                     <div class="reels-user-meta">Lv.${post.userLevel} ${post.mood ? getMoodEmoji(post.mood) : ''}</div>
@@ -5901,7 +5910,7 @@ function renderReelsCards(posts, lang) {
                 </div>
                 <div class="reels-time">${formatReelsTime(post.timestamp)}</div>
             </div>
-            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(post.photo)}" alt="Timetable"></div>` : ''}
+            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(post.photo)}" alt="Timetable" onerror="this.onerror=null;this.parentElement.style.display=&quot;none&quot;"></div>` : ''}
             ${post.caption ? `<div class="reels-caption">${sanitizeText(post.caption).replace(/\n/g,'<br>')}</div>` : ''}
             <div class="reels-timetable">
                 <div class="reels-timetable-title" ${moreCount > 0 ? `onclick="toggleScheduleFold('${postId}')" style="cursor:pointer;"` : ''}>
@@ -6191,11 +6200,11 @@ function renderCommentsSection(postId, comments) {
         container.innerHTML = `<div class="reels-comment-empty">${i18n[lang].reels_comment_empty}</div>`;
     } else {
         container.innerHTML = comments.map(c => {
-            const cPhoto = c.photoURL ? sanitizeURL(c.photoURL) : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+            const cPhoto = c.photoURL ? sanitizeURL(c.photoURL) : DEFAULT_PROFILE_SVG;
             const instaBtn = c.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(c.instaId)}', '_blank')" class="reels-comment-insta-btn">${instaSvgSmall}</button>` : '';
             const timeAgo = getTimeAgo(c.timestamp, lang);
             return `<div class="reels-comment-item">
-                <img class="reels-comment-avatar" src="${cPhoto}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src='${DEFAULT_PROFILE_SVG}'" alt="">
+                <img class="reels-comment-avatar" src="${cPhoto}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.src=&quot;${DEFAULT_PROFILE_SVG}&quot;" alt="">
                 <div class="reels-comment-body">
                     <div class="reels-comment-meta">
                         <span class="reels-comment-name">${sanitizeText(c.name || '헌터')}</span>${instaBtn}

@@ -119,11 +119,21 @@
         });
 
         // 네트워크/리소스 로드 오류 (이미지·스크립트 등)
+        // 외부 광고/분석 스크립트 오류는 노이즈이므로 필터링
+        var IGNORED_RESOURCE_PATTERNS = [
+            'googlesyndication.com', 'adtrafficquality.google',
+            'doubleclick.net', 'google-analytics.com',
+            'apis.google.com/js/api.js'
+        ];
         window.addEventListener('error', function (event) {
             if (event.target && event.target !== window) {
-                const tag = event.target.tagName || 'unknown';
-                const src = event.target.src || event.target.href || '';
-                addEntry('WARN', `[ResourceError] <${tag}> 로드 실패: ${src}`, '');
+                var tag = event.target.tagName || 'unknown';
+                var src = event.target.src || event.target.href || '';
+                // 외부 광고/분석 리소스 무시
+                for (var k = 0; k < IGNORED_RESOURCE_PATTERNS.length; k++) {
+                    if (src.indexOf(IGNORED_RESOURCE_PATTERNS[k]) !== -1) return;
+                }
+                addEntry('WARN', '[ResourceError] <' + tag + '> 로드 실패: ' + src, '');
             }
         }, true /* capture */);
     }
