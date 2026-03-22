@@ -1535,18 +1535,22 @@ function equipRareTitle(titleId) {
     updateSocialUserData();
 }
 
-// 현재 표시할 호칭 텍스트와 아이콘 반환
+// 현재 표시할 호칭 텍스트와 아이콘 반환 (기존 호칭 + 희귀 호칭 병렬)
 function getDisplayTitle() {
     const lang = AppState.currentLang;
+    const titleObj = AppState.user.titleHistory[AppState.user.titleHistory.length - 1]?.title;
+    const baseText = titleObj ? (typeof titleObj === 'object' ? titleObj[lang] || titleObj.ko : titleObj) : '각성자';
+    const baseIcon = getTitleIcon(baseText);
     const equipped = AppState.user.rareTitle.equipped;
     if (equipped) {
-        const titleText = equipped.title[lang] || equipped.title.ko;
-        return { text: titleText, icon: equipped.icon, rarity: equipped.rarity, isRare: true };
+        const rareText = equipped.title[lang] || equipped.title.ko;
+        return {
+            baseText, baseIcon,
+            rareText, rareIcon: equipped.icon, rarity: equipped.rarity,
+            isRare: true
+        };
     }
-    const titleObj = AppState.user.titleHistory[AppState.user.titleHistory.length - 1]?.title;
-    if (!titleObj) return { text: '각성자', icon: '🏅', rarity: null, isRare: false };
-    const titleText = typeof titleObj === 'object' ? titleObj[lang] || titleObj.ko : titleObj;
-    return { text: titleText, icon: getTitleIcon(titleText), rarity: null, isRare: false };
+    return { baseText, baseIcon, rareText: null, rareIcon: null, rarity: null, isRare: false };
 }
 
 // 희귀 호칭 해금 알림 표시
@@ -2559,21 +2563,13 @@ function renderRaidParticipants(participants) {
     const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="color:#ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
 
     const cards = participants.map(u => {
-        let pIcon, pText, pRarityClass;
-        if (u.isMe && AppState.user.rareTitle.equipped) {
-            const eq = AppState.user.rareTitle.equipped;
-            pIcon = eq.icon; pText = eq.title[lang] || eq.title.ko; pRarityClass = rarityConfig[eq.rarity]?.class || '';
-        } else if (!u.isMe && u.rareTitle) {
-            pIcon = u.rareTitle.icon; pText = u.rareTitle.title[lang] || u.rareTitle.title.ko; pRarityClass = rarityConfig[u.rareTitle.rarity]?.class || '';
-        } else {
-            pIcon = getTitleIcon(u.title); pText = u.title; pRarityClass = '';
-        }
+        const titleBadgeHTML = buildUserTitleBadgeHTML(u, '0.55rem');
         return `
         <div class="user-card ${u.isMe ? 'my-rank' : ''}" style="padding:8px;">
             <div style="display:flex; align-items:center; flex-grow:1;">
                 ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:28px; height:28px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
                 <div>
-                    <div class="title-badge ${pRarityClass}" style="font-size:0.55rem;">${pIcon} ${sanitizeText(pText)}</div>
+                    ${titleBadgeHTML}
                     <div style="font-size:0.8rem; display:flex; align-items:center;">
                         ${sanitizeText(u.name)} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''}
                     </div>
@@ -2840,11 +2836,11 @@ function updatePointUI() {
     const badgeEl = document.getElementById('prof-title-badge');
     if (display.isRare) {
         const rarityClass = rarityConfig[display.rarity]?.class || '';
-        badgeEl.className = `title-badge ${rarityClass}`;
-        badgeEl.innerHTML = `${display.icon} ${sanitizeText(display.text)} ℹ️`;
+        badgeEl.className = 'title-badge-combined';
+        badgeEl.innerHTML = `<span class="title-badge" style="margin-bottom:0;">${display.baseIcon} ${sanitizeText(display.baseText)}</span><span class="title-badge ${rarityClass}" style="margin-bottom:0;">${display.rareIcon} ${sanitizeText(display.rareText)}</span> ℹ️`;
     } else {
         badgeEl.className = 'title-badge';
-        badgeEl.innerHTML = `${display.icon} ${sanitizeText(display.text)} ℹ️`;
+        badgeEl.innerHTML = `${display.baseIcon} ${sanitizeText(display.baseText)} ℹ️`;
     }
 }
 
@@ -3003,29 +2999,14 @@ function renderUsers(criteria, btn = null) {
     const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="color: #ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
 
     container.innerHTML = list.map((u, i) => {
-        // 본인이면 AppState 기반, 타인이면 Firestore에서 파싱한 rareTitle 사용
-        let titleIcon, titleText, titleRarityClass;
-        if (u.isMe && AppState.user.rareTitle.equipped) {
-            const eq = AppState.user.rareTitle.equipped;
-            titleIcon = eq.icon;
-            titleText = eq.title[AppState.currentLang] || eq.title.ko;
-            titleRarityClass = rarityConfig[eq.rarity]?.class || '';
-        } else if (!u.isMe && u.rareTitle) {
-            titleIcon = u.rareTitle.icon;
-            titleText = u.rareTitle.title[AppState.currentLang] || u.rareTitle.title.ko;
-            titleRarityClass = rarityConfig[u.rareTitle.rarity]?.class || '';
-        } else {
-            titleIcon = getTitleIcon(u.title);
-            titleText = u.title;
-            titleRarityClass = '';
-        }
+        const titleBadgeHTML = buildUserTitleBadgeHTML(u, '0.6rem');
         return `
         <div class="user-card ${u.isMe ? 'my-rank' : ''}">
             <div style="width:25px; font-weight:bold; color:var(--text-sub);">${i+1}</div>
             <div style="display:flex; align-items:center; flex-grow:1; margin-left:10px;">
                 ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:30px; height:30px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
                 <div class="user-info" style="margin-left:0;">
-                    <div class="title-badge ${titleRarityClass}" style="font-size:0.6rem;">${titleIcon} ${sanitizeText(titleText)}</div>
+                    ${titleBadgeHTML}
                     <div style="font-size:0.9rem; display:flex; align-items:center;">
                         ${sanitizeText(u.name)} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''}
                     </div>
@@ -3302,6 +3283,27 @@ function getTitleIcon(titleText) {
     return titleIconMap[suffix] || '🏅';
 }
 
+// 유저 카드에 표시할 호칭 배지 HTML 생성 (기존 호칭 + 희귀 호칭 병렬)
+function buildUserTitleBadgeHTML(u, fontSize) {
+    const lang = AppState.currentLang;
+    const baseIcon = getTitleIcon(u.title);
+    const baseText = u.title;
+    let rareInfo = null;
+
+    if (u.isMe && AppState.user.rareTitle.equipped) {
+        const eq = AppState.user.rareTitle.equipped;
+        rareInfo = { icon: eq.icon, text: eq.title[lang] || eq.title.ko, rarity: eq.rarity };
+    } else if (!u.isMe && u.rareTitle) {
+        rareInfo = { icon: u.rareTitle.icon, text: u.rareTitle.title[lang] || u.rareTitle.title.ko, rarity: u.rareTitle.rarity };
+    }
+
+    if (rareInfo) {
+        const rarityClass = rarityConfig[rareInfo.rarity]?.class || '';
+        return `<div class="title-badge-combined" style="font-size:${fontSize};"><span class="title-badge" style="margin-bottom:0; font-size:inherit;">${baseIcon} ${sanitizeText(baseText)}</span><span class="title-badge ${rarityClass}" style="margin-bottom:0; font-size:inherit;">${rareInfo.icon} ${sanitizeText(rareInfo.text)}</span></div>`;
+    }
+    return `<div class="title-badge" style="font-size:${fontSize};">${baseIcon} ${sanitizeText(baseText)}</div>`;
+}
+
 // --- ★ 팝업 모달창 로직 (다국어 지원 호칭 표 포함) ★ ---
 function closeInfoModal() { 
     const m = document.getElementById('infoModal'); 
@@ -3321,10 +3323,11 @@ function buildRareTitleCollectionHTML(lang) {
     const equipped = AppState.user.rareTitle.equipped;
     const li18n = i18n[lang] || i18n.ko;
 
-    // 일반 호칭 복귀 버튼
+    // 희귀 호칭 해제 버튼 (기존 호칭만 표시로 전환)
+    const unequipBtnLabel = { ko: '희귀 호칭 해제 (기존 호칭만 표시)', en: 'Unequip Rare Title (show base title only)', ja: '希少称号解除（基本称号のみ表示）' };
     const unequipBtn = equipped
         ? `<div style="text-align:right; margin-bottom:8px;">
-            <button onclick="window.equipRareTitle(null); openTitleModal();" style="padding:3px 10px; font-size:0.7rem; border:1px solid var(--text-sub); background:transparent; color:var(--text-sub); border-radius:4px; cursor:pointer;">${li18n.rare_title_unequip || '해제'} → ${li18n.rare_title_equip || '일반 호칭'}</button>
+            <button onclick="window.equipRareTitle(null); openTitleModal();" style="padding:3px 10px; font-size:0.7rem; border:1px solid var(--text-sub); background:transparent; color:var(--text-sub); border-radius:4px; cursor:pointer;">${unequipBtnLabel[lang] || unequipBtnLabel.ko}</button>
            </div>`
         : '';
 
