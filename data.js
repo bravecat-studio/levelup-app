@@ -163,7 +163,8 @@ const i18n = {
         forgot_pw: "비밀번호를 잊으셨나요?", forgot_pw_no_email: "비밀번호를 초기화할 이메일 주소를 입력해주세요.",
         forgot_pw_sent: "비밀번호 재설정 메일이 발송되었습니다. 받은편지함을 확인해주세요.",
         forgot_pw_error: "비밀번호 재설정 메일 발송에 실패했습니다.",
-        img_compressing: "이미지 최적화 중...", img_too_large: "이미지가 너무 큽니다. 다른 사진을 선택해주세요."
+        img_compressing: "이미지 최적화 중...", img_too_large: "이미지가 너무 큽니다. 다른 사진을 선택해주세요.",
+        login_terms_html: '계속하면 BRAVECAT의 <a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">소비자 약관</a> 및 <a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">이용 정책</a>에 동의하고, <a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">개인정보 처리방침</a>을 확인하는 것으로 간주됩니다.'
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -325,14 +326,15 @@ const i18n = {
         forgot_pw: "Forgot your password?", forgot_pw_no_email: "Please enter your email address to reset your password.",
         forgot_pw_sent: "Password reset email has been sent. Please check your inbox.",
         forgot_pw_error: "Failed to send password reset email.",
-        img_compressing: "Optimizing image...", img_too_large: "Image is too large. Please select a different photo."
+        img_compressing: "Optimizing image...", img_too_large: "Image is too large. Please select a different photo.",
+        login_terms_html: 'By continuing, you agree to BRAVECAT\'s <a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">Terms of Service</a> and <a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">Usage Policy</a>, and acknowledge the <a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">Privacy Policy</a>.'
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
         btn_google_login: "Googleで続ける", google_login_hint: "最も早い開始方法", login_or: "または",
         auth_toggle_signup: "アカウントをお持ちでない方はこちら", auth_toggle_login: "アカウントをお持ちの方はこちら",
-        ph_email: "이메일 (Email)", ph_pw: "비밀번호 (Password)", ph_pw_conf: "비밀번호 확인 (Confirm Password)",
-        pw_req_hint: "※ 비밀번호: 8자리 이상, 대문자 1개 이상, 특수문자 2개 이상 포함",
+        ph_email: "メールアドレス", ph_pw: "パスワード", ph_pw_conf: "パスワード確認",
+        pw_req_hint: "※ パスワード：8文字以上、大文字1つ以上、特殊文字2つ以上を含む",
         disclaimer_txt: "※ 가입 시 이용약관 및 면책사항에 동의하는 것으로 간주됩니다. 본 앱은 건강 보조 목적이며, 퀘스트 수행 중 발생하는 신체적 부상이나 손해에 대해 일절 책임지지 않습니다.",
         login_err_empty: "이메일과 비밀번호를 모두 입력해주세요.", login_err_email: "유효한 이메일 주소를 입력해주세요.", 
         login_err_pw_req: "비밀번호 조건(8자리 이상, 대문자 1개 이상, 특수문자 2개 이상)을 충족해주세요.", pw_mismatch: "비밀번호가 일치하지 않습니다.",
@@ -486,7 +488,8 @@ const i18n = {
         // パスワードリセット
         forgot_pw: "パスワードをお忘れですか？", forgot_pw_no_email: "パスワードをリセットするメールアドレスを入力してください。",
         forgot_pw_sent: "パスワードリセットメールを送信しました。受信トレイを確認してください。",
-        forgot_pw_error: "パスワードリセットメールの送信に失敗しました。"
+        forgot_pw_error: "パスワードリセットメールの送信に失敗しました。",
+        login_terms_html: '続行すると、BRAVECATの<a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">利用規約</a>および<a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">利用ポリシー</a>に同意し、<a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">プライバシーポリシー</a>を確認したものとみなされます。'
     }
 };
 
