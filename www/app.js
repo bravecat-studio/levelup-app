@@ -8078,6 +8078,22 @@ async function scheduleDDayNotifications() {
     const { LocalNotifications } = cap.Plugins;
 
     try {
+        // Android 알림 채널 생성 (없으면 알림 내용이 표시되지 않음)
+        if (cap.getPlatform && cap.getPlatform() === 'android') {
+            try {
+                await LocalNotifications.createChannel({
+                    id: 'dday-notifications',
+                    name: 'D-Day 알림',
+                    description: 'D-Day 당일 리마인더 알림',
+                    importance: 4,
+                    sound: 'default',
+                    visibility: 1
+                });
+            } catch (chErr) {
+                console.warn('[D-Day] 채널 생성 실패 (무시):', chErr);
+            }
+        }
+
         // 기존 D-Day 알림 모두 취소 (ID 범위: 9000~9002)
         const idsToCancel = [{ id: 9000 }, { id: 9001 }, { id: 9002 }];
         await LocalNotifications.cancel({ notifications: idsToCancel });
@@ -8099,7 +8115,9 @@ async function scheduleDDayNotifications() {
                 id: 9000 + idx,
                 schedule: { at: scheduleDate },
                 sound: 'default',
-                channelId: 'dday-notifications'
+                channelId: 'dday-notifications',
+                largeBody: `오늘은 [${dd.title}] D-Day 입니다! 목표를 향해 화이팅!`,
+                summaryText: 'D-Day'
             });
         });
 
