@@ -949,6 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updatePointUI();
             drawRadarChart();
             renderDDayList();
+            _loadLifeStatusFromLocal();
             renderLifeStatus();
             updateDungeonStatus();
             startRaidTimer();
@@ -1129,6 +1130,7 @@ function bindEvents() {
     document.getElementById('prof-title-badge').addEventListener('click', openTitleModal);
     document.getElementById('btn-history-close').addEventListener('click', closeTitleModal);
     document.getElementById('btn-status-info').addEventListener('click', openStatusInfoModal);
+    document.getElementById('btn-life-status-setting').addEventListener('click', openLifeStatusSettingModal);
     document.getElementById('btn-quest-info').addEventListener('click', openQuestInfoModal);
     document.getElementById('btn-dungeon-info').addEventListener('click', openDungeonInfoModal);
     document.getElementById('btn-planner-info').addEventListener('click', openPlannerInfoModal);
@@ -1350,9 +1352,7 @@ async function _doSaveUserData() {
             diyQuestsStr: JSON.stringify(AppState.diyQuests),
             questHistoryStr: JSON.stringify(AppState.questHistory),
             rareTitleStr: JSON.stringify(AppState.user.rareTitle),
-            ddaysStr: JSON.stringify(AppState.ddays || []),
-            birthday: AppState.user.birthday || null,
-            targetAge: AppState.user.targetAge || null
+            ddaysStr: JSON.stringify(AppState.ddays || [])
         };
         // 진단: 페이로드 크기 및 photoURL 상태 로그
         const payloadSize = new Blob([JSON.stringify(payload)]).size;
@@ -1438,8 +1438,6 @@ async function loadUserDataFromDB(user) {
             if(data.ddaysStr) {
                 try { AppState.ddays = JSON.parse(data.ddaysStr); } catch(e) { AppState.ddays = []; }
             }
-            if(data.birthday) AppState.user.birthday = data.birthday;
-            if(data.targetAge) AppState.user.targetAge = data.targetAge;
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
             if(data.diaryStr) {
@@ -8166,9 +8164,12 @@ function renderLifeStatus() {
     const lang = AppState.currentLang;
     const birthday = AppState.user.birthday;
 
+    const privacyNotice = i18n[lang]?.life_privacy_notice || '※ 입력한 정보는 기기에만 저장되며, 서버에 전송되지 않습니다.';
+
     if (!birthday) {
         container.innerHTML = `<div class="life-status-empty">
             ${i18n[lang]?.life_status_empty || '생년월일을 설정하여 나의 인생 현황을 확인하세요.'}
+            <div style="margin-top:6px; font-size:0.7rem; color:var(--text-sub); opacity:0.7;">🔒 ${privacyNotice}</div>
         </div>`;
         return;
     }
@@ -8303,10 +8304,14 @@ function openLifeStatusSettingModal() {
     const saveText = i18n[lang]?.life_save || '저장';
     const cancelText = i18n[lang]?.life_cancel || '취소';
     const removeTargetText = i18n[lang]?.life_remove_target || '설정 나이 해제';
+    const privacyText = i18n[lang]?.life_privacy_notice || '※ 입력한 정보는 기기에만 저장되며, 서버에 전송되지 않습니다.';
 
     overlay.innerHTML = `
     <div class="report-modal-content" style="max-width:340px; padding:20px;">
         <h3 style="margin:0 0 16px; font-size:1rem; color:var(--neon-blue);">⚙️ ${titleText}</h3>
+        <div style="margin-bottom:14px; padding:8px 10px; border-radius:6px; background:rgba(0,217,255,0.06); border:1px solid rgba(0,217,255,0.15);">
+            <div style="font-size:0.7rem; color:var(--text-sub);">🔒 ${privacyText}</div>
+        </div>
         <div style="margin-bottom:14px;">
             <label style="font-size:0.75rem; color:var(--text-sub); display:block; margin-bottom:4px;">${birthdayLabel}</label>
             <input id="life-status-birthday" type="date" value="${currentBirthday}"
@@ -8354,27 +8359,37 @@ function saveLifeStatusSetting() {
     }
 
     closeLifeStatusModal();
+    _saveLifeStatusToLocal();
     renderLifeStatus();
-    saveUserData();
 }
 
 function removeLifeStatusTargetAge() {
     AppState.user.targetAge = null;
     closeLifeStatusModal();
+    _saveLifeStatusToLocal();
     renderLifeStatus();
-    saveUserData();
+}
+
+function _saveLifeStatusToLocal() {
+    try {
+        localStorage.setItem('lifeStatus_birthday', AppState.user.birthday || '');
+        localStorage.setItem('lifeStatus_targetAge', AppState.user.targetAge ? String(AppState.user.targetAge) : '');
+    } catch(e) { console.warn('[LifeStatus] localStorage 저장 실패', e); }
+}
+
+function _loadLifeStatusFromLocal() {
+    try {
+        const b = localStorage.getItem('lifeStatus_birthday');
+        const t = localStorage.getItem('lifeStatus_targetAge');
+        if (b) AppState.user.birthday = b;
+        if (t) AppState.user.targetAge = parseInt(t) || null;
+    } catch(e) { console.warn('[LifeStatus] localStorage 로드 실패', e); }
 }
 
 function closeLifeStatusModal() {
     const overlay = document.getElementById('life-status-modal-overlay');
     if (overlay) overlay.remove();
 }
-
-// Life Status 버튼 이벤트 바인딩
-document.addEventListener('DOMContentLoaded', () => {
-    const settingBtn = document.getElementById('btn-life-status-setting');
-    if (settingBtn) settingBtn.addEventListener('click', openLifeStatusSettingModal);
-});
 
 // Life Status 함수들을 window에 노출
 window.openLifeStatusSettingModal = openLifeStatusSettingModal;

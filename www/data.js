@@ -203,7 +203,8 @@ const i18n = {
         life_birthday_label: "생년월일", life_target_age_label: "설정 나이 (선택)",
         life_target_age_hint: "목표 나이를 설정하면 추가 통계가 표시됩니다.",
         life_save: "저장", life_cancel: "취소", life_remove_target: "설정 나이 해제",
-        life_err_future: "미래 날짜는 설정할 수 없습니다."
+        life_err_future: "미래 날짜는 설정할 수 없습니다.",
+        life_privacy_notice: "※ 입력한 정보는 기기에만 저장되며, 서버에 전송되지 않습니다."
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -405,7 +406,8 @@ const i18n = {
         life_birthday_label: "Date of Birth", life_target_age_label: "Target Age (optional)",
         life_target_age_hint: "Set a target age to see additional statistics.",
         life_save: "Save", life_cancel: "Cancel", life_remove_target: "Remove Target Age",
-        life_err_future: "Cannot set a future date."
+        life_err_future: "Cannot set a future date.",
+        life_privacy_notice: "※ Your data is stored on this device only and is never sent to the server."
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -607,7 +609,8 @@ const i18n = {
         life_birthday_label: "生年月日", life_target_age_label: "設定年齢（任意）",
         life_target_age_hint: "目標年齢を設定すると追加の統計が表示されます。",
         life_save: "保存", life_cancel: "キャンセル", life_remove_target: "設定年齢を解除",
-        life_err_future: "未来の日付は設定できません。"
+        life_err_future: "未来の日付は設定できません。",
+        life_privacy_notice: "※ 入力した情報は端末にのみ保存され、サーバーには送信されません。"
     }
 };
 
