@@ -98,6 +98,69 @@
         <button onclick="AppLogger.export()" style="background:rgba(255,204,0,0.08);border:1px solid #ffcc00;color:#ffcc00;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.72rem;">파일 저장</button>
     </div>
 
+    <!-- 온보딩 가이드 (최초 1회 노출) -->
+    <div id="onboarding-guide" class="onboarding-guide d-none">
+        <button class="onboarding-close" id="onboarding-close" aria-label="Close">&times;</button>
+        <div class="onboarding-slides" id="onboarding-slides">
+            <div class="onboarding-slide" data-slide="0">
+                <div class="onboarding-emoji">⚔️</div>
+                <h2 class="onboarding-title" data-i18n="ob_title_1">나만의 캐릭터 성장</h2>
+                <p class="onboarding-desc" data-i18n="ob_desc_1">6가지 스탯을 키우고 레벨업하며<br>최고의 나를 만들어보세요</p>
+                <div class="onboarding-preview">
+                    <div class="ob-preview-stat"><span>💪 근력</span><span>🧠 지능</span><span>✨ 매력</span></div>
+                    <div class="ob-preview-stat"><span>❤️ 체력</span><span>💰 재력</span><span>⚡ 민첩</span></div>
+                </div>
+            </div>
+            <div class="onboarding-slide" data-slide="1">
+                <div class="onboarding-emoji">📋</div>
+                <h2 class="onboarding-title" data-i18n="ob_title_2">데일리 퀘스트</h2>
+                <p class="onboarding-desc" data-i18n="ob_desc_2">매일 주어지는 퀘스트를 완료하고<br>포인트와 스탯 보상을 받으세요</p>
+                <div class="onboarding-preview">
+                    <div class="ob-quest-item">☑️ <span data-i18n="ob_quest_ex1">운동 30분 하기</span></div>
+                    <div class="ob-quest-item">☑️ <span data-i18n="ob_quest_ex2">독서 20페이지</span></div>
+                    <div class="ob-quest-item">☑️ <span data-i18n="ob_quest_ex3">물 2리터 마시기</span></div>
+                </div>
+            </div>
+            <div class="onboarding-slide" data-slide="2">
+                <div class="onboarding-emoji">🐉</div>
+                <h2 class="onboarding-title" data-i18n="ob_title_3">던전 & 레이드</h2>
+                <p class="onboarding-desc" data-i18n="ob_desc_3">보스를 처치하고 전리품을 획득하세요<br>다른 플레이어와 함께 연합 레이드!</p>
+                <div class="onboarding-preview">
+                    <div class="ob-boss-bar">
+                        <div class="ob-boss-label">🔥 BOSS HP</div>
+                        <div class="ob-boss-gauge"><div class="ob-boss-fill"></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="onboarding-slide" data-slide="3">
+                <div class="onboarding-emoji">🗓️</div>
+                <h2 class="onboarding-title" data-i18n="ob_title_4">플래너 & Day1</h2>
+                <p class="onboarding-desc" data-i18n="ob_desc_4">하루 일정을 계획하고 기록하세요<br>Day1 피드에서 일상을 공유할 수 있어요</p>
+                <div class="onboarding-preview">
+                    <div class="ob-planner-row"><span class="ob-time">09:00</span><span data-i18n="ob_plan_ex1">아침 루틴</span></div>
+                    <div class="ob-planner-row"><span class="ob-time">14:00</span><span data-i18n="ob_plan_ex2">집중 공부</span></div>
+                    <div class="ob-planner-row"><span class="ob-time">19:00</span><span data-i18n="ob_plan_ex3">운동</span></div>
+                </div>
+            </div>
+            <div class="onboarding-slide" data-slide="4">
+                <div class="onboarding-emoji">🏆</div>
+                <h2 class="onboarding-title" data-i18n="ob_title_5">소셜 & 랭킹</h2>
+                <p class="onboarding-desc" data-i18n="ob_desc_5">글로벌 랭킹에서 경쟁하고<br>친구와 함께 성장하세요</p>
+                <div class="onboarding-preview">
+                    <div class="ob-rank-row"><span class="ob-rank-num">🥇</span><span>Lv.42</span><span class="ob-rank-score">Score 520</span></div>
+                    <div class="ob-rank-row"><span class="ob-rank-num">🥈</span><span>Lv.38</span><span class="ob-rank-score">Score 480</span></div>
+                    <div class="ob-rank-row"><span class="ob-rank-num">🥉</span><span>Lv.35</span><span class="ob-rank-score">Score 445</span></div>
+                </div>
+                <button class="onboarding-start-btn" id="onboarding-start-btn" data-i18n="ob_start_btn">시작하기</button>
+            </div>
+        </div>
+        <div class="onboarding-pagination">
+            <button class="onboarding-prev" id="onboarding-prev">&lsaquo;</button>
+            <span class="onboarding-page" id="onboarding-page">1 / 5</span>
+            <button class="onboarding-next" id="onboarding-next">&rsaquo;</button>
+        </div>
+    </div>
+
     <!-- 오프라인 상태 배너 -->
     <div id="offline-banner" class="offline-banner d-none">
         <span class="offline-icon">⚡</span>

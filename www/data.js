@@ -182,7 +182,16 @@ const i18n = {
         // 피트니스 동기화
         sync_complete_msg: "동기화 완료 ({source}): 총 {steps}보", sync_reward_msg: "추가 보상: +{points}P, STR +{str}",
         sync_no_steps: "걸음 수 기록이 없습니다. (0보)", sync_next_reward: "다음 보상까지 {n}보 남음",
-        login_terms_html: '계속하면 BRAVECAT의 <a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">소비자 약관</a> 및 <a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">이용 정책</a>에 동의하고, <a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">개인정보 처리방침</a>을 확인하는 것으로 간주됩니다.'
+        login_terms_html: '계속하면 BRAVECAT의 <a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">소비자 약관</a> 및 <a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">이용 정책</a>에 동의하고, <a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">개인정보 처리방침</a>을 확인하는 것으로 간주됩니다.',
+        // 온보딩 가이드
+        ob_title_1: "나만의 캐릭터 성장", ob_desc_1: "6가지 스탯을 키우고 레벨업하며<br>최고의 나를 만들어보세요",
+        ob_title_2: "데일리 퀘스트", ob_desc_2: "매일 주어지는 퀘스트를 완료하고<br>포인트와 스탯 보상을 받으세요",
+        ob_title_3: "던전 & 레이드", ob_desc_3: "보스를 처치하고 전리품을 획득하세요<br>다른 플레이어와 함께 연합 레이드!",
+        ob_title_4: "플래너 & Day1", ob_desc_4: "하루 일정을 계획하고 기록하세요<br>Day1 피드에서 일상을 공유할 수 있어요",
+        ob_title_5: "소셜 & 랭킹", ob_desc_5: "글로벌 랭킹에서 경쟁하고<br>친구와 함께 성장하세요",
+        ob_start_btn: "시작하기",
+        ob_quest_ex1: "운동 30분 하기", ob_quest_ex2: "독서 20페이지", ob_quest_ex3: "물 2리터 마시기",
+        ob_plan_ex1: "아침 루틴", ob_plan_ex2: "집중 공부", ob_plan_ex3: "운동"
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -363,7 +372,16 @@ const i18n = {
         // Fitness Sync
         sync_complete_msg: "Sync complete ({source}): {steps} steps total", sync_reward_msg: "Bonus: +{points}P, STR +{str}",
         sync_no_steps: "No step data recorded. (0 steps)", sync_next_reward: "{n} steps to next reward",
-        login_terms_html: 'By continuing, you agree to BRAVECAT\'s <a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">Terms of Service</a> and <a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">Usage Policy</a>, and acknowledge the <a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">Privacy Policy</a>.'
+        login_terms_html: 'By continuing, you agree to BRAVECAT\'s <a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">Terms of Service</a> and <a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">Usage Policy</a>, and acknowledge the <a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">Privacy Policy</a>.',
+        // Onboarding Guide
+        ob_title_1: "Build Your Character", ob_desc_1: "Grow 6 stats and level up<br>to become the best version of yourself",
+        ob_title_2: "Daily Quests", ob_desc_2: "Complete daily quests<br>to earn points and stat rewards",
+        ob_title_3: "Dungeons & Raids", ob_desc_3: "Defeat bosses and earn loot<br>Join forces with other players!",
+        ob_title_4: "Planner & Day1", ob_desc_4: "Plan and record your day<br>Share your daily life on the Day1 feed",
+        ob_title_5: "Social & Rankings", ob_desc_5: "Compete on global rankings<br>and grow together with friends",
+        ob_start_btn: "Get Started",
+        ob_quest_ex1: "Exercise 30 min", ob_quest_ex2: "Read 20 pages", ob_quest_ex3: "Drink 2L water",
+        ob_plan_ex1: "Morning routine", ob_plan_ex2: "Focus study", ob_plan_ex3: "Workout"
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -544,7 +562,16 @@ const i18n = {
         // フィットネス同期
         sync_complete_msg: "同期完了 ({source}): 合計 {steps}歩", sync_reward_msg: "追加報酬: +{points}P, STR +{str}",
         sync_no_steps: "歩数記録がありません。(0歩)", sync_next_reward: "次の報酬まで {n}歩",
-        login_terms_html: '続行すると、BRAVECATの<a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">利用規約</a>および<a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">利用ポリシー</a>に同意し、<a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">プライバシーポリシー</a>を確認したものとみなされます。'
+        login_terms_html: '続行すると、BRAVECATの<a href="#" onclick="event.preventDefault();openLegalModal(\'terms\')">利用規約</a>および<a href="#" onclick="event.preventDefault();openLegalModal(\'usage-policy\')">利用ポリシー</a>に同意し、<a href="#" onclick="event.preventDefault();openLegalModal(\'privacy\')">プライバシーポリシー</a>を確認したものとみなされます。',
+        // オンボーディングガイド
+        ob_title_1: "キャラクター育成", ob_desc_1: "6つのステータスを成長させレベルアップ<br>最高の自分を目指しましょう",
+        ob_title_2: "デイリークエスト", ob_desc_2: "毎日のクエストをクリアして<br>ポイントとステータス報酬をゲット",
+        ob_title_3: "ダンジョン＆レイド", ob_desc_3: "ボスを倒して戦利品を獲得<br>他のプレイヤーと連合レイド！",
+        ob_title_4: "プランナー＆Day1", ob_desc_4: "一日のスケジュールを計画・記録<br>Day1フィードで日常をシェア",
+        ob_title_5: "ソーシャル＆ランキング", ob_desc_5: "グローバルランキングで競い合い<br>友達と一緒に成長しよう",
+        ob_start_btn: "スタート",
+        ob_quest_ex1: "運動30分", ob_quest_ex2: "読書20ページ", ob_quest_ex3: "水2リットル飲む",
+        ob_plan_ex1: "朝のルーティン", ob_plan_ex2: "集中勉強", ob_plan_ex3: "ワークアウト"
     }
 };
 
