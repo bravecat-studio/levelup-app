@@ -1,7 +1,7 @@
 // --- Firebase SDK 초기화 ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithCredential, sendEmailVerification, sendPasswordResetEmail, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 import { getStorage, ref, uploadBytesResumable, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 import { getRemoteConfig, fetchAndActivate, getValue, getString } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-remote-config.js";
@@ -339,6 +339,20 @@ function getImageExtension() {
     return _supportsWebP ? '.webp' : '.jpg';
 }
 
+// 비용 최적화: Firebase Storage URL을 썸네일 URL로 변환
+// Cloud Function(generateThumbnail)이 업로드된 이미지에 대해 thumb_ prefix 파일을 자동 생성함
+// 피드/랭킹에서 원본(~2MB) 대신 썸네일(~100KB)을 로드하여 다운로드 비용 50~70% 절감
+function getThumbURL(url) {
+    if (!url || typeof url !== 'string') return url;
+    // Firebase Storage URL이 아니면 변환 불필요 (base64, Google 프로필 등)
+    if (!url.includes('firebasestorage.googleapis.com') && !url.includes('firebasestorage.app')) return url;
+    // 이미 썸네일 URL이면 그대로 반환
+    if (url.includes('%2Fthumb_') || url.includes('/thumb_')) return url;
+    // URL 경로의 마지막 파일명 앞에 thumb_ 추가
+    // "...%2Fprofile.webp?..." → "...%2Fthumb_profile.webp?..."
+    return url.replace(/%2F([^%/?]+)(\?|$)/, '%2Fthumb_$1$2');
+}
+
 // base64 이미지 압축 유틸리티 (maxDim: 최대 픽셀, quality: 0~1)
 function compressBase64Image(base64str, maxDim, quality) {
     return new Promise((resolve) => {
@@ -476,6 +490,16 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
         _log('3-SIZE-CHECK', err.message);
         throw err;
     }
+    // 비용 최적화: 이미지 유형별 Cache-Control 메타데이터 설정
+    // 브라우저/WebView가 이미지를 로컬 캐시하여 Storage 다운로드 비용 절감
+    const CACHE_CONTROL = {
+        'profile_images': 'public, max-age=604800',   // 7일 (프로필은 자주 변경 안 됨)
+        'reels_photos':   'public, max-age=86400',    // 24시간 (릴스 만료 주기와 동일)
+        'planner_photos': 'private, max-age=3600'     // 1시간 (개인 데이터)
+    };
+    const cacheControl = CACHE_CONTROL[pathPrefix] || 'no-cache';
+    const uploadMetadata = { contentType, cacheControl };
+
     const storageRef = ref(storage, storagePath);
 
     // 프로필 이미지: 기존 파일 삭제 후 업로드 (best-effort, 5초 타임아웃)
@@ -514,7 +538,7 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
             if (useSimpleUpload) {
                 _log('4-UPLOAD', `Using simple uploadBytes (${blob.size}B), attempt ${attempt}/${MAX_RETRIES}`);
                 const snapshot = await Promise.race([
-                    uploadBytes(storageRef, blob, { contentType }),
+                    uploadBytes(storageRef, blob, uploadMetadata),
                     new Promise((_, rej) => setTimeout(() => rej(new Error(`Upload timed out after ${uploadTimeoutMs / 1000}s`)), uploadTimeoutMs))
                 ]);
                 if (onProgress) onProgress(100);
@@ -524,7 +548,7 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
             } else {
                 _log('4-UPLOAD', `Calling uploadBytesResumable... (attempt ${attempt}/${MAX_RETRIES})`);
                 const url = await new Promise((resolve, reject) => {
-                    const uploadTask = uploadBytesResumable(storageRef, blob, { contentType });
+                    const uploadTask = uploadBytesResumable(storageRef, blob, uploadMetadata);
                     let lastProgressTime = Date.now();
                     const timeout = setTimeout(() => {
                         uploadTask.cancel();
@@ -3154,13 +3178,28 @@ async function renderQuote() {
 }
 
 // --- 소셜 탭 ---
+// 비용 최적화: 소셜 데이터 5분 캐싱 + 상위 100명 제한 (전체 컬렉션 스캔 방지)
+const SOCIAL_CACHE_TTL = 5 * 60 * 1000; // 5분
+
 async function fetchSocialData() {
     const container = document.getElementById('user-list-container');
+
+    // 5분 이내 재호출이면 캐시된 데이터 재렌더링 (Firestore 읽기 절감)
+    if (AppState.social.users.length > 0 &&
+        AppState.social.lastFetchTime &&
+        (Date.now() - AppState.social.lastFetchTime) < SOCIAL_CACHE_TTL) {
+        renderUsers(AppState.social.sortCriteria);
+        return;
+    }
+
     if (container && AppState.social.users.length === 0) {
         container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-sub); font-size:0.85rem;">데이터 로딩 중...</div>';
     }
     try {
-        const snap = await getDocs(collection(db, "users"));
+        // 비용 최적화: 레벨 기준 상위 100명만 조회 (유저 10만 명 기준 100K → 100 읽기)
+        const q = query(collection(db, "users"), orderBy("level", "desc"), limit(100));
+        const snap = await getDocs(q);
+        AppState.social.lastFetchTime = Date.now();
         AppState.social.users = snap.docs.map(d => {
             const data = d.data();
             let title = "각성자";
@@ -3224,7 +3263,7 @@ function renderUsers(criteria, btn = null) {
         <div class="user-card ${u.isMe ? 'my-rank' : ''}">
             <div style="width:25px; font-weight:bold; color:var(--text-sub);">${i+1}</div>
             <div style="display:flex; align-items:center; flex-grow:1; margin-left:10px;">
-                ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:30px; height:30px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
+                ${u.photoURL ? `<img src="${sanitizeURL(getThumbURL(u.photoURL))}" referrerpolicy="no-referrer" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display=''" style="width:30px; height:30px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:30px; height:30px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
                 <div class="user-info" style="margin-left:0;">
                     ${titleBadgeHTML}
                     <div style="font-size:0.9rem; display:flex; align-items:center;">
@@ -5983,6 +6022,7 @@ async function postToReels() {
         await saveUserData();
         resetLocationUI();
         alert(i18n[lang].reels_posted);
+        _reelsFeedLastFetch = 0; // 새 포스팅 후 캐시 무효화
         renderReelsFeed();
     } catch(e) {
         AppLogger.error('[Reels] 포스팅 오류: ' + (e.message || e));
@@ -5995,6 +6035,10 @@ async function postToReels() {
 // 릴스 피드 렌더링
 // _reelsFeedRendering: 중복 호출 방지 플래그
 // _reelsFeedLastKey: 마지막 렌더링 데이터 키 (불필요한 DOM 교체 방지)
+// 비용 최적화: 2분 캐시 TTL로 불필요한 Firestore 호출 방지
+const REELS_CACHE_TTL = 2 * 60 * 1000; // 2분
+let _reelsFeedLastFetch = 0;
+
 async function renderReelsFeed() {
     const container = document.getElementById('reels-feed');
     if (!container) return;
@@ -6024,12 +6068,19 @@ async function renderReelsFeed() {
         container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">로딩 중...</div>';
     }
 
+    // 비용 최적화: 캐시가 2분 이내이고 로컬 데이터가 있으면 Firestore 호출 스킵
+    if (_reelsFeedLastFetch && (Date.now() - _reelsFeedLastFetch) < REELS_CACHE_TTL && localPosts.length > 0) {
+        window._reelsFeedRendering = false;
+        return;
+    }
+
     // Firestore에서 최신 데이터 로드 (5초 타임아웃)
     try {
         const posts = await Promise.race([
             fetchAllReelsPosts(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
         ]);
+        _reelsFeedLastFetch = Date.now();
         if (posts.length === 0) {
             if (window._reelsFeedLastKey !== '') {
                 container.innerHTML = `<div class="system-card" style="text-align:center; padding:30px; color:var(--text-sub);">
@@ -6096,7 +6147,7 @@ function renderReelsCards(posts, lang) {
 
     const html = posts.map(post => {
         const postId = getPostId(post);
-        const profileSrc = post.userPhoto ? sanitizeURL(post.userPhoto) : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+        const profileSrc = post.userPhoto ? sanitizeURL(getThumbURL(post.userPhoto)) : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23555'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
         const isMe = post.uid === auth.currentUser?.uid;
         const instaLink = post.userInstaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(post.userInstaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex; vertical-align:middle;">${instaSvg}</button>` : '';
 
@@ -6121,7 +6172,7 @@ function renderReelsCards(posts, lang) {
                 </div>
                 <div class="reels-time">${formatReelsTime(post.timestamp)}</div>
             </div>
-            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(post.photo)}" alt="Timetable"></div>` : ''}
+            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(getThumbURL(post.photo))}" alt="Timetable"></div>` : ''}
             ${post.caption ? `<div class="reels-caption">${sanitizeText(post.caption).replace(/\n/g,'<br>')}</div>` : ''}
             <div class="reels-timetable">
                 <div class="reels-timetable-title" ${moreCount > 0 ? `onclick="toggleScheduleFold('${postId}')" style="cursor:pointer;"` : ''}>

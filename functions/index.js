@@ -1,10 +1,13 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const { getStorage } = require("firebase-admin/storage");
 const { getAuth } = require("firebase-admin/auth");
+const sharp = require("sharp");
+const path = require("path");
 
 initializeApp();
 const db = getFirestore();
@@ -1069,7 +1072,6 @@ exports.sendStreakWarnings = onSchedule({
     region: "asia-northeast3"
 }, async () => {
     const now = new Date();
-    const todayStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
 
     // pushEnabled이고 fcmToken이 있는 전체 유저 조회
     const usersSnap = await db.collection("users")
@@ -1079,6 +1081,10 @@ exports.sendStreakWarnings = onSchedule({
     let warningCount = 0;
     let brokenCount = 0;
     const invalidTokens = [];
+    // 비용 최적화: 메시지를 수집 후 sendEach로 배치 전송 (최대 500건씩)
+    const messages = [];
+    const messageDocIds = []; // sendEach 응답과 매칭하기 위한 doc ID 추적
+    const messageTypes = []; // warning/broken 구분
 
     for (const doc of usersSnap.docs) {
         const data = doc.data();
@@ -1105,7 +1111,7 @@ exports.sendStreakWarnings = onSchedule({
         const msgType = isWarning ? "streak_warning" : "streak_broken";
         const msg = getLocalizedMessage(msgType, lang);
 
-        const notification = {
+        messages.push({
             token: data.fcmToken,
             notification: {
                 title: msg.title,
@@ -1125,28 +1131,45 @@ exports.sendStreakWarnings = onSchedule({
                     sound: "default"
                 }
             }
-        };
+        });
+        messageDocIds.push(doc.id);
+        messageTypes.push(isWarning ? "warning" : "broken");
+    }
 
+    // sendEach로 배치 전송 (최대 500건씩)
+    for (let i = 0; i < messages.length; i += 500) {
+        const batch = messages.slice(i, i + 500);
+        const batchIds = messageDocIds.slice(i, i + 500);
+        const batchTypes = messageTypes.slice(i, i + 500);
         try {
-            await messaging.send(notification);
-            if (isWarning) warningCount++;
-            else brokenCount++;
+            const response = await messaging.sendEach(batch);
+            response.responses.forEach((resp, idx) => {
+                if (resp.success) {
+                    if (batchTypes[idx] === "warning") warningCount++;
+                    else brokenCount++;
+                } else if (resp.error &&
+                    (resp.error.code === "messaging/registration-token-not-registered" ||
+                     resp.error.code === "messaging/invalid-registration-token")) {
+                    invalidTokens.push(batchIds[idx]);
+                }
+            });
         } catch (e) {
-            // 유효하지 않은 토큰 수집 (앱 삭제 등)
-            if (e.code === "messaging/registration-token-not-registered" ||
-                e.code === "messaging/invalid-registration-token") {
-                invalidTokens.push(doc.id);
-            }
-            console.warn(`[스트릭 경고] ${doc.id} 발송 실패:`, e.code || e.message);
+            console.error(`[스트릭 경고] 배치 전송 실패 (${i}~${i + batch.length}):`, e.message);
         }
     }
 
-    // 유효하지 않은 토큰 정리
-    for (const uid of invalidTokens) {
-        await db.collection("users").doc(uid).update({
-            fcmToken: null,
-            pushEnabled: false
-        });
+    // 비용 최적화: 유효하지 않은 토큰 정리 — Firestore batch write
+    const BATCH_LIMIT = 500;
+    for (let i = 0; i < invalidTokens.length; i += BATCH_LIMIT) {
+        const writeBatch = db.batch();
+        const chunk = invalidTokens.slice(i, i + BATCH_LIMIT);
+        for (const uid of chunk) {
+            writeBatch.update(db.collection("users").doc(uid), {
+                fcmToken: null,
+                pushEnabled: false
+            });
+        }
+        await writeBatch.commit();
     }
 
     console.log(`[스트릭 경고] 경고: ${warningCount}명, 끊어짐: ${brokenCount}명, 토큰 정리: ${invalidTokens.length}건`);
@@ -1179,7 +1202,10 @@ exports.cleanupInactiveTokens = onSchedule({
         .where("pushEnabled", "==", true)
         .get();
 
+    // 비용 최적화: 개별 update 대신 Firestore batch write (최대 500건씩)
     let cleanedCount = 0;
+    let writeBatch = db.batch();
+    let batchCount = 0;
 
     for (const doc of usersSnap.docs) {
         const data = doc.data();
@@ -1196,12 +1222,23 @@ exports.cleanupInactiveTokens = onSchedule({
 
         const lastActive = new Date(streak.lastActiveDate);
         if (lastActive < thirtyDaysAgo) {
-            await db.collection("users").doc(doc.id).update({
+            writeBatch.update(db.collection("users").doc(doc.id), {
                 fcmToken: null,
                 pushEnabled: false
             });
+            batchCount++;
             cleanedCount++;
+
+            if (batchCount >= 500) {
+                await writeBatch.commit();
+                writeBatch = db.batch();
+                batchCount = 0;
+            }
         }
+    }
+
+    if (batchCount > 0) {
+        await writeBatch.commit();
     }
 
     console.log(`[토큰 정리] ${cleanedCount}건의 비활성 토큰 정리 완료`);
@@ -1427,38 +1464,137 @@ exports.cleanupExpiredReelsPhotos = onSchedule({
     const [files] = await bucket.getFiles({ prefix: "reels_photos/" });
     const cutoff = Date.now() - (25 * 60 * 60 * 1000);
 
+    // 비용 최적화: 파일 삭제 병렬 처리 (10개씩 동시 실행)
     let deletedCount = 0;
+    const deleteQueue = [];
     for (const file of files) {
         const filename = file.name.split("/").pop().replace(/\.(jpg|jpeg|webp|png)$/i, "");
         const ts = parseInt(filename, 10);
         if (!isNaN(ts) && ts < cutoff) {
-            await file.delete();
-            deletedCount++;
+            deleteQueue.push(file.delete().then(() => { deletedCount++; }).catch(e => {
+                console.warn(`[Storage Cleanup] 파일 삭제 실패: ${file.name}`, e.message);
+            }));
+            if (deleteQueue.length >= 10) {
+                await Promise.all(deleteQueue);
+                deleteQueue.length = 0;
+            }
         }
+    }
+    if (deleteQueue.length > 0) {
+        await Promise.all(deleteQueue);
     }
     console.log(`[Storage Cleanup] ${deletedCount}개 만료 릴스 사진 삭제 완료`);
 
     // hasActiveReels 리셋: 활성 릴스가 없는 사용자 정리
+    // 비용 최적화: Firestore batch write (최대 500건씩)
     const usersSnap = await db.collection("users").where("hasActiveReels", "==", true).get();
     let resetCount = 0;
+    let writeBatch = db.batch();
+    let batchCount = 0;
+
     for (const userDoc of usersSnap.docs) {
         const data = userDoc.data();
+        let shouldReset = false;
+
         if (data.reelsStr) {
             try {
                 const posts = JSON.parse(data.reelsStr);
                 const hasValid = posts.some(p => (Date.now() - (p.timestamp || 0)) < 24 * 60 * 60 * 1000);
-                if (!hasValid) {
-                    await userDoc.ref.update({ hasActiveReels: false });
-                    resetCount++;
-                }
+                if (!hasValid) shouldReset = true;
             } catch(e) {
-                await userDoc.ref.update({ hasActiveReels: false });
-                resetCount++;
+                shouldReset = true;
             }
         } else {
-            await userDoc.ref.update({ hasActiveReels: false });
+            shouldReset = true;
+        }
+
+        if (shouldReset) {
+            writeBatch.update(userDoc.ref, { hasActiveReels: false });
+            batchCount++;
             resetCount++;
+
+            if (batchCount >= 500) {
+                await writeBatch.commit();
+                writeBatch = db.batch();
+                batchCount = 0;
+            }
         }
     }
+
+    if (batchCount > 0) {
+        await writeBatch.commit();
+    }
+
     console.log(`[Reels Cleanup] ${resetCount}명 hasActiveReels 리셋 완료`);
+});
+
+// ─── 비용 최적화: 이미지 업로드 시 썸네일 자동 생성 ───
+// Storage 다운로드 비용 절감: 피드/랭킹에서 원본(~2MB) 대신 썸네일(~100KB) 사용
+// 트리거: profile_images/ 또는 reels_photos/ 에 이미지 업로드 시 자동 실행
+exports.generateThumbnail = onObjectFinalized({
+    region: "asia-northeast3",
+    memory: "512MiB",
+    timeoutSeconds: 60
+}, async (event) => {
+    const filePath = event.data.name;           // e.g., "reels_photos/uid/1234567890.webp"
+    const contentType = event.data.contentType;
+
+    // 이미 썸네일이면 스킵 (무한 루프 방지)
+    if (!filePath || filePath.includes("/thumb_")) return;
+    // 이미지가 아니면 스킵
+    if (!contentType || !contentType.startsWith("image/")) return;
+
+    // 대상 폴더만 처리 (profile_images, reels_photos)
+    const folder = filePath.split("/")[0];
+    if (!["profile_images", "reels_photos"].includes(folder)) return;
+
+    const bucket = getStorage().bucket(event.data.bucket);
+    const file = bucket.file(filePath);
+
+    let buffer;
+    try {
+        const [data] = await file.download();
+        buffer = data;
+    } catch (e) {
+        console.error(`[Thumbnail] 파일 다운로드 실패: ${filePath}`, e.message);
+        return;
+    }
+
+    // 썸네일 크기: 프로필 150x150(정사각), 릴스 480px 너비
+    const resizeOpts = folder === "profile_images"
+        ? { width: 150, height: 150, fit: "cover" }
+        : { width: 480, withoutEnlargement: true };
+
+    let thumbBuffer;
+    try {
+        thumbBuffer = await sharp(buffer)
+            .resize(resizeOpts)
+            .webp({ quality: 75 })
+            .toBuffer();
+    } catch (e) {
+        console.error(`[Thumbnail] 이미지 변환 실패: ${filePath}`, e.message);
+        return;
+    }
+
+    // thumb_ prefix 추가: "reels_photos/uid/1234.webp" → "reels_photos/uid/thumb_1234.webp"
+    const dir = path.dirname(filePath);
+    const base = path.basename(filePath);
+    const thumbName = `thumb_${base.replace(/\.[^.]+$/, ".webp")}`;
+    const thumbPath = `${dir}/${thumbName}`;
+
+    const cacheControl = folder === "profile_images"
+        ? "public, max-age=604800"
+        : "public, max-age=86400";
+
+    try {
+        await bucket.file(thumbPath).save(thumbBuffer, {
+            metadata: {
+                contentType: "image/webp",
+                cacheControl
+            }
+        });
+        console.log(`[Thumbnail] 생성 완료: ${thumbPath} (${thumbBuffer.length} bytes)`);
+    } catch (e) {
+        console.error(`[Thumbnail] 저장 실패: ${thumbPath}`, e.message);
+    }
 });
