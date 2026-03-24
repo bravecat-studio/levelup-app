@@ -905,6 +905,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const loginPanel = document.getElementById('login-log-panel');
             if (loginPanel) loginPanel.style.display = 'none';
 
+            // 최초 로그인 시 온보딩 가이드 표시
+            showOnboardingGuide();
+
             // 관리자/로그 표시 설정 (Custom Claims 기반)
             const tokenResult = await getIdTokenResult(user);
             const isDev = tokenResult.claims.admin === true;
@@ -1001,6 +1004,79 @@ function showEmailLoginFields() {
         document.getElementById('pw-hint').classList.remove('d-none');
     }
     ConversionTracker.track('funnel_email_field_focus');
+}
+
+// --- 온보딩 가이드 (최초 1회 노출) ---
+const ONBOARDING_STORAGE_KEY = 'levelup_onboarding_seen';
+const ONBOARDING_TOTAL_SLIDES = 5;
+let _obCurrentSlide = 0;
+
+function showOnboardingGuide() {
+    if (localStorage.getItem(ONBOARDING_STORAGE_KEY)) return;
+    const guide = document.getElementById('onboarding-guide');
+    if (!guide) return;
+    guide.classList.remove('d-none');
+    _obCurrentSlide = 0;
+    _obUpdateSlides();
+    _obBindEvents();
+    // 온보딩 언어 적용
+    if (typeof changeLanguage === 'function') changeLanguage(AppState.currentLang);
+}
+
+function dismissOnboardingGuide() {
+    const guide = document.getElementById('onboarding-guide');
+    if (guide) guide.classList.add('d-none');
+    localStorage.setItem(ONBOARDING_STORAGE_KEY, '1');
+}
+
+function _obUpdateSlides() {
+    const slides = document.querySelectorAll('#onboarding-slides .onboarding-slide');
+    slides.forEach((slide, i) => {
+        slide.style.transform = `translateX(${(i - _obCurrentSlide) * 100}%)`;
+    });
+    const pageEl = document.getElementById('onboarding-page');
+    if (pageEl) pageEl.textContent = `${_obCurrentSlide + 1} / ${ONBOARDING_TOTAL_SLIDES}`;
+    const prevBtn = document.getElementById('onboarding-prev');
+    const nextBtn = document.getElementById('onboarding-next');
+    if (prevBtn) prevBtn.disabled = _obCurrentSlide === 0;
+    if (nextBtn) nextBtn.disabled = _obCurrentSlide === ONBOARDING_TOTAL_SLIDES - 1;
+}
+
+function _obBindEvents() {
+    const closeBtn = document.getElementById('onboarding-close');
+    const prevBtn = document.getElementById('onboarding-prev');
+    const nextBtn = document.getElementById('onboarding-next');
+    const startBtn = document.getElementById('onboarding-start-btn');
+    const slidesContainer = document.getElementById('onboarding-slides');
+
+    if (closeBtn) closeBtn.addEventListener('click', dismissOnboardingGuide);
+    if (startBtn) startBtn.addEventListener('click', dismissOnboardingGuide);
+    if (prevBtn) prevBtn.addEventListener('click', () => {
+        if (_obCurrentSlide > 0) { _obCurrentSlide--; _obUpdateSlides(); }
+    });
+    if (nextBtn) nextBtn.addEventListener('click', () => {
+        if (_obCurrentSlide < ONBOARDING_TOTAL_SLIDES - 1) { _obCurrentSlide++; _obUpdateSlides(); }
+    });
+
+    // 터치 스와이프 지원
+    let touchStartX = 0;
+    let touchEndX = 0;
+    if (slidesContainer) {
+        slidesContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.changedTouches[0].screenX;
+        }, { passive: true });
+        slidesContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0 && _obCurrentSlide < ONBOARDING_TOTAL_SLIDES - 1) {
+                    _obCurrentSlide++; _obUpdateSlides();
+                } else if (diff < 0 && _obCurrentSlide > 0) {
+                    _obCurrentSlide--; _obUpdateSlides();
+                }
+            }
+        }, { passive: true });
+    }
 }
 
 function bindEvents() {
