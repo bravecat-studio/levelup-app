@@ -124,9 +124,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Google AdSense → 네트워크 전용 (광고는 캐싱 불가)
-    if (url.hostname.includes('googlesyndication.com') ||
-        url.hostname.includes('googleadservices.com') ||
+    // Google AdMob → 네트워크 전용 (광고는 캐싱 불가)
+    if (url.hostname.includes('googleadservices.com') ||
         url.hostname.includes('doubleclick.net')) {
         return;
     }
