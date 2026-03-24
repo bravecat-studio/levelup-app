@@ -1462,3 +1462,25 @@ exports.cleanupExpiredReelsPhotos = onSchedule({
     }
     console.log(`[Reels Cleanup] ${resetCount}명 hasActiveReels 리셋 완료`);
 });
+
+// 매일 04:00 KST — 만료된 플래너 사진 자동 삭제 (25시간 보존)
+exports.cleanupExpiredPlannerPhotos = onSchedule({
+    schedule: "0 4 * * *",
+    timeZone: "Asia/Seoul",
+    region: "asia-northeast3"
+}, async () => {
+    const bucket = getStorage().bucket();
+    const [files] = await bucket.getFiles({ prefix: "planner_photos/" });
+    const cutoffDate = new Date(Date.now() - (25 * 60 * 60 * 1000));
+    const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+
+    let deletedCount = 0;
+    for (const file of files) {
+        const filename = file.name.split("/").pop().replace(/\.(jpg|jpeg|webp|png)$/i, "");
+        if (/^\d{4}-\d{2}-\d{2}$/.test(filename) && filename < cutoffStr) {
+            await file.delete();
+            deletedCount++;
+        }
+    }
+    console.log(`[Storage Cleanup] ${deletedCount}개 만료 플래너 사진 삭제 완료`);
+});
