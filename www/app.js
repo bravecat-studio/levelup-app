@@ -1022,10 +1022,11 @@ function showOnboardingGuide() {
     if (!guide) return;
     guide.classList.remove('d-none');
     _obCurrentSlide = 0;
-    _obUpdateSlides();
-    _obBindEvents();
-    // 온보딩 언어 적용
+    // 온보딩 언어 적용 (슬라이드 업데이트 전에 텍스트 설정)
     if (typeof changeLanguage === 'function') changeLanguage(AppState.currentLang);
+    // DOM 레이아웃 완료 후 슬라이드 위치 적용
+    requestAnimationFrame(() => { _obUpdateSlides(); });
+    _obBindEvents();
 }
 
 function dismissOnboardingGuide() {
@@ -1042,7 +1043,14 @@ function dismissOnboardingGuide() {
 function _obUpdateSlides() {
     const slides = document.querySelectorAll('#onboarding-slides .onboarding-slide');
     slides.forEach((slide, i) => {
-        slide.style.transform = `translateX(${(i - _obCurrentSlide) * 100}%)`;
+        const offset = (i - _obCurrentSlide) * 100;
+        slide.style.transform = `translateX(${offset}%)`;
+        // 현재 + 인접 슬라이드 visible (전환 애니메이션용)
+        if (Math.abs(i - _obCurrentSlide) <= 1) {
+            slide.classList.add('active');
+        } else {
+            slide.classList.remove('active');
+        }
     });
     const pageEl = document.getElementById('onboarding-page');
     if (pageEl) pageEl.textContent = `${_obCurrentSlide + 1} / ${ONBOARDING_TOTAL_SLIDES}`;
