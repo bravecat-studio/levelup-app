@@ -94,6 +94,10 @@ const i18n = {
         bonus_exp_loading: "광고 로딩 중...",
         bonus_exp_not_ready: "광고를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.",
         bonus_exp_next: "다음 수령까지",
+        ri_spin_prompt: "광고를 시청하면 스핀 보상을 한 번 더 받을 수 있습니다. 시청하시겠습니까?",
+        ri_spin_bonus: "추가 보상 획득!",
+        ri_dungeon_prompt: "광고를 시청하면 추가 던전 보상을 받을 수 있습니다. 시청하시겠습니까?",
+        ri_dungeon_bonus: "추가 던전 보상!",
 
         // 릴스 탭
         nav_reels: "Day1", reels_title: "🎬 Day1", reels_post_btn: "Day1 포스팅",
@@ -295,6 +299,10 @@ const i18n = {
         bonus_exp_loading: "Loading ad...",
         bonus_exp_not_ready: "Ad not available. Please try again later.",
         bonus_exp_next: "Next claim in",
+        ri_spin_prompt: "Watch an ad to double your spin reward?",
+        ri_spin_bonus: "Bonus reward earned!",
+        ri_dungeon_prompt: "Watch an ad for extra dungeon rewards?",
+        ri_dungeon_bonus: "Extra dungeon reward!",
 
         // Reels tab
         nav_reels: "Reels", reels_title: "🎬 Reels", reels_post_btn: "Post Timetable",
@@ -496,6 +504,10 @@ const i18n = {
         bonus_exp_loading: "広告読み込み中...",
         bonus_exp_not_ready: "広告を読み込めません。しばらくしてから再試行してください。",
         bonus_exp_next: "次の受取まで",
+        ri_spin_prompt: "広告を視聴するとスピン報酬をもう一度受け取れます。視聴しますか？",
+        ri_spin_bonus: "追加報酬獲得！",
+        ri_dungeon_prompt: "広告を視聴すると追加ダンジョン報酬が受け取れます。視聴しますか？",
+        ri_dungeon_bonus: "追加ダンジョン報酬！",
 
         // リールタブ
         nav_reels: "リール", reels_title: "🎬 リール", reels_post_btn: "タイムテーブル投稿",

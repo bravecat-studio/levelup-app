@@ -3284,6 +3284,15 @@ window.completeDungeon = () => {
     updatePointUI();
     const lang = AppState.currentLang;
     alert(`[SYSTEM] ${i18n[lang]?.boss_defeated || 'Boss Defeated!'}\n+${pts} P\n${target.toUpperCase()} +${statInc}`);
+
+    // ★ 보상형 전면 광고 — 던전 클리어 추가 보상 (일일 제한)
+    if (_rewardedInterstitialReady && isNativePlatform && getRiDungeonCountToday() < RI_DUNGEON_DAILY_MAX) {
+        const watchAd = confirm(i18n[lang].ri_dungeon_prompt || '광고를 시청하면 추가 보상을 받을 수 있습니다. 시청하시겠습니까?');
+        if (watchAd) {
+            incrementRiDungeonCount();
+            showRewardedInterstitial('dungeon');
+        }
+    }
 };
 
 // --- 공통 UI ---
@@ -5291,6 +5300,15 @@ window.spinRoulette = function() {
         const rewardText = slot.label[lang] || slot.label.ko;
         alert(`${i18n[lang].roulette_result} ${rewardText}`);
 
+        // ★ 보상형 전면 광고 — 스핀 보상 2배 기회
+        localStorage.setItem('_ri_last_spin_idx', String(resultIdx));
+        if (_rewardedInterstitialReady && isNativePlatform) {
+            const watchAd = confirm(i18n[lang].ri_spin_prompt || '광고를 시청하면 보상을 한 번 더 받을 수 있습니다. 시청하시겠습니까?');
+            if (watchAd) {
+                showRewardedInterstitial('spin');
+            }
+        }
+
         // 캔버스 리셋 (애니메이션 후 각도 유지)
         canvas.style.transition = 'none';
         canvas.style.transform = `rotate(${targetAngle}deg)`;
@@ -5301,6 +5319,14 @@ window.spinRoulette = function() {
 const REWARDED_AD_UNIT_ID = 'ca-app-pub-6654057059754695/8552907541';
 const REWARDED_AD_TEST_ID = 'ca-app-pub-3940256099942544/5224354917';
 const BONUS_EXP_AMOUNT = 50;
+
+// --- ★ P5-B: 보상형 전면 광고 (AdMob Rewarded Interstitial) ★ ---
+const REWARDED_INTERSTITIAL_AD_UNIT_ID = 'ca-app-pub-6654057059754695/6916027284';
+let _rewardedInterstitialReady = false;
+let _rewardedInterstitialListenersRegistered = false;
+let _riRewardEarned = false;
+let _riContext = null; // 'spin' | 'dungeon'
+const RI_DUNGEON_DAILY_MAX = 2;
 
 // AdMob 초기화 상태
 let _admobInitialized = false;
@@ -5384,6 +5410,48 @@ async function initAdMob() {
         }
 
         preloadRewardedAd();
+
+        // ★ 보상형 전면 광고 리스너 등록
+        if (!_rewardedInterstitialListenersRegistered) {
+            _rewardedInterstitialListenersRegistered = true;
+
+            AdMob.addListener('onRewardedInterstitialAdLoaded', () => {
+                _rewardedInterstitialReady = true;
+                if (window.AppLogger) AppLogger.info('[AdMob] 보상형 전면 광고 로드 완료');
+            });
+
+            AdMob.addListener('onRewardedInterstitialAdFailedToLoad', (error) => {
+                _rewardedInterstitialReady = false;
+                if (window.AppLogger) AppLogger.warn('[AdMob] 보상형 전면 광고 로드 실패: ' + JSON.stringify(error));
+            });
+
+            AdMob.addListener('onRewardedInterstitialAdReward', (reward) => {
+                _riRewardEarned = true;
+                if (window.AppLogger) AppLogger.info('[AdMob] 보상형 전면 보상 획득: ' + JSON.stringify(reward));
+            });
+
+            AdMob.addListener('onRewardedInterstitialAdDismissed', () => {
+                _rewardedInterstitialReady = false;
+                preloadRewardedInterstitial._retryCount = 0;
+                preloadRewardedInterstitial();
+                if (_riRewardEarned) {
+                    _riRewardEarned = false;
+                    applyRewardedInterstitialBonus(_riContext);
+                }
+                _riContext = null;
+            });
+
+            AdMob.addListener('onRewardedInterstitialAdFailedToShow', (error) => {
+                if (window.AppLogger) AppLogger.warn('[AdMob] 보상형 전면 표시 실패: ' + JSON.stringify(error));
+                _rewardedInterstitialReady = false;
+                _riRewardEarned = false;
+                _riContext = null;
+                preloadRewardedInterstitial._retryCount = 0;
+                preloadRewardedInterstitial();
+            });
+        }
+
+        preloadRewardedInterstitial();
     } catch (e) {
         console.warn('[AdMob] 초기화 실패:', e);
         if (window.AppLogger) AppLogger.warn('[AdMob] 초기화 실패: ' + (e.message || ''));
@@ -5409,6 +5477,93 @@ async function preloadRewardedAd() {
             preloadRewardedAd._retryCount++;
             setTimeout(() => preloadRewardedAd(), 30000);
         }
+    }
+}
+
+// --- 보상형 전면 광고 (Rewarded Interstitial) 함수 ---
+async function preloadRewardedInterstitial() {
+    if (!_admobInitialized) return;
+    try {
+        const { AdMob } = window.Capacitor.Plugins;
+        if (!AdMob) return;
+        await AdMob.prepareRewardInterstitialAd({
+            adId: REWARDED_INTERSTITIAL_AD_UNIT_ID,
+            isTesting: false,
+        });
+    } catch (e) {
+        _rewardedInterstitialReady = false;
+        console.warn('[AdMob] 보상형 전면 프리로드 실패:', e);
+        if (window.AppLogger) AppLogger.warn('[AdMob] 보상형 전면 프리로드 실패: ' + (e.message || ''));
+        if (!preloadRewardedInterstitial._retryCount) preloadRewardedInterstitial._retryCount = 0;
+        if (preloadRewardedInterstitial._retryCount < 3) {
+            preloadRewardedInterstitial._retryCount++;
+            setTimeout(() => preloadRewardedInterstitial(), 30000);
+        }
+    }
+}
+
+async function showRewardedInterstitial(context) {
+    if (!_rewardedInterstitialReady || !_admobInitialized) return false;
+    try {
+        const { AdMob } = window.Capacitor.Plugins;
+        if (!AdMob) return false;
+        _riContext = context;
+        _riRewardEarned = false;
+        await AdMob.showRewardInterstitialAd();
+        return true;
+    } catch (e) {
+        console.warn('[AdMob] 보상형 전면 표시 실패:', e);
+        _riContext = null;
+        _rewardedInterstitialReady = false;
+        preloadRewardedInterstitial._retryCount = 0;
+        preloadRewardedInterstitial();
+        return false;
+    }
+}
+
+function getRiDungeonCountToday() {
+    const today = getTodayKST();
+    return parseInt(localStorage.getItem('_ri_dungeon_' + today) || '0');
+}
+
+function incrementRiDungeonCount() {
+    const today = getTodayKST();
+    const key = '_ri_dungeon_' + today;
+    localStorage.setItem(key, String(getRiDungeonCountToday() + 1));
+}
+
+function applyRewardedInterstitialBonus(context) {
+    const lang = AppState.currentLang;
+    if (context === 'spin') {
+        const lastSlotIdx = parseInt(localStorage.getItem('_ri_last_spin_idx') || '0');
+        const slot = rouletteSlots[lastSlotIdx];
+        if (slot) {
+            if (slot.reward.type === 'points') {
+                AppState.user.points += slot.reward.value;
+            } else if (slot.reward.type === 'stat') {
+                if (slot.reward.stat === 'all') {
+                    statKeys.forEach(k => { AppState.user.pendingStats[k] += slot.reward.value; });
+                } else {
+                    AppState.user.pendingStats[slot.reward.stat] += slot.reward.value;
+                }
+            }
+            saveUserData();
+            updatePointUI();
+            const rewardText = slot.label[lang] || slot.label.ko;
+            alert(`${i18n[lang].ri_spin_bonus || '추가 보상 획득!'} ${rewardText}`);
+        }
+        try { fbLogEvent(analytics, 'ri_ad_spin_bonus', { slot: lastSlotIdx }); } catch {}
+    } else if (context === 'dungeon') {
+        const target = AppState.dungeon.targetStat;
+        const rewardMult = getBossRewardMultiplier();
+        const bonusPts = Math.floor(100 * rewardMult);
+        const bonusStat = 1.0 * rewardMult;
+        AppState.user.points += bonusPts;
+        AppState.user.pendingStats[target] += bonusStat;
+        saveUserData();
+        updatePointUI();
+        alert(`${i18n[lang].ri_dungeon_bonus || '추가 보상!'}\n+${bonusPts} P\n${target.toUpperCase()} +${bonusStat}`);
+        try { fbLogEvent(analytics, 'ri_ad_dungeon_bonus', { pts: bonusPts, stat: target }); } catch {}
     }
 }
 
