@@ -167,6 +167,7 @@ jobs:
               echo 'import com.levelup.reboot.plugins.GoogleFitPlugin;'
               echo 'import com.levelup.reboot.plugins.HealthConnectPlugin;'
               echo 'import com.levelup.reboot.plugins.FCMPlugin;'
+              echo 'import com.levelup.reboot.plugins.NativeAdPlugin;'
               echo 'public class MainActivity extends BridgeActivity {'
               echo '    @Override'
               echo '    public void onCreate(android.os.Bundle savedInstanceState) {'
@@ -174,6 +175,7 @@ jobs:
               echo '        registerPlugin(GoogleFitPlugin.class);'
               echo '        registerPlugin(HealthConnectPlugin.class);'
               echo '        registerPlugin(FCMPlugin.class);'
+              echo '        registerPlugin(NativeAdPlugin.class);'
               echo '        super.onCreate(savedInstanceState);'
               echo '    }'
               echo '}'
@@ -195,6 +197,12 @@ jobs:
           # === Firebase Messaging 의존성 (FCMPlugin 네이티브 푸시 알림) ===
           ! grep -q "firebase-messaging" "$BUILD_GRADLE" && \
             sed -i '/^dependencies {/a\    implementation "com.google.firebase:firebase-messaging:24.0.0"' "$BUILD_GRADLE"
+
+          # === AdMob 의존성 (NativeAdPlugin 네이티브 광고) ===
+          if ! grep -q "play-services-ads" "$BUILD_GRADLE"; then
+            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-ads:23.6.0"' "$BUILD_GRADLE"
+          fi
+
           if grep -q "compileSdk\s*=\s*3[0-3]" "$BUILD_GRADLE" || grep -q "compileSdkVersion\s*3[0-3]" "$BUILD_GRADLE"; then
             sed -i 's/compileSdk\s*=\s*3[0-3]/compileSdk = 34/' "$BUILD_GRADLE"
             sed -i 's/compileSdkVersion\s*3[0-3]/compileSdkVersion 34/' "$BUILD_GRADLE"
@@ -460,6 +468,7 @@ jobs:
               echo 'import com.levelup.reboot.plugins.GoogleFitPlugin;'
               echo 'import com.levelup.reboot.plugins.HealthConnectPlugin;'
               echo 'import com.levelup.reboot.plugins.FCMPlugin;'
+              echo 'import com.levelup.reboot.plugins.NativeAdPlugin;'
               echo 'public class MainActivity extends BridgeActivity {'
               echo '    @Override'
               echo '    public void onCreate(android.os.Bundle savedInstanceState) {'
@@ -467,6 +476,7 @@ jobs:
               echo '        registerPlugin(GoogleFitPlugin.class);'
               echo '        registerPlugin(HealthConnectPlugin.class);'
               echo '        registerPlugin(FCMPlugin.class);'
+              echo '        registerPlugin(NativeAdPlugin.class);'
               echo '        super.onCreate(savedInstanceState);'
               echo '    }'
               echo '}'
@@ -487,6 +497,12 @@ jobs:
           # Firebase Messaging 의존성 (FCMPlugin 네이티브 푸시 알림)
           ! grep -q "firebase-messaging" "$BUILD_GRADLE" && \
             sed -i '/^dependencies {/a\    implementation "com.google.firebase:firebase-messaging:24.0.0"' "$BUILD_GRADLE"
+
+          # AdMob 의존성 (NativeAdPlugin 네이티브 광고)
+          if ! grep -q "play-services-ads" "$BUILD_GRADLE"; then
+            sed -i '/^dependencies {/a\    implementation "com.google.android.gms:play-services-ads:23.6.0"' "$BUILD_GRADLE"
+          fi
+
           if grep -q "compileSdk\s*=\s*3[0-3]" "$BUILD_GRADLE" || grep -q "compileSdkVersion\s*3[0-3]" "$BUILD_GRADLE"; then
             sed -i 's/compileSdk\s*=\s*3[0-3]/compileSdk = 34/' "$BUILD_GRADLE"
             sed -i 's/compileSdkVersion\s*3[0-3]/compileSdkVersion 34/' "$BUILD_GRADLE"
