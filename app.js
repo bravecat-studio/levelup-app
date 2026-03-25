@@ -8176,9 +8176,9 @@ function openDDayCaptionEdit() {
     const currentCaption = AppState.ddayCaption || '';
     const overlay = document.createElement('div');
     overlay.id = 'dday-caption-modal-overlay';
-    overlay.className = 'modal-overlay active';
+    overlay.className = 'report-modal-overlay';
     overlay.innerHTML = `
-        <div class="modal-content" style="max-width:360px; padding:24px;">
+        <div class="report-modal-content" style="max-width:360px; padding:24px;">
             <h3 style="margin:0 0 16px 0; font-size:1rem; color:var(--neon-blue);">목표 / 좌우명</h3>
             <textarea id="dday-caption-input" class="dday-caption-input-field" maxlength="100" placeholder="나의 목표 또는 좌우명을 입력하세요...">${sanitize(currentCaption)}</textarea>
             <div style="font-size:0.7rem; color:var(--text-sub); margin-top:4px; text-align:right;">
@@ -8191,6 +8191,7 @@ function openDDayCaptionEdit() {
         </div>
     `;
     document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('active'));
 
     const input = document.getElementById('dday-caption-input');
     input.focus();
