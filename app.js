@@ -5559,12 +5559,24 @@ let _nativeAdObserver = null;
  */
 async function loadAndShowNativeAd() {
     if (!isNativePlatform) return;
+
+    // ★ 소셜탭이 활성 상태인지 확인 — 다른 탭에서 로드 방지
+    const socialSection = document.getElementById('social');
+    if (!socialSection || !socialSection.classList.contains('active')) {
+        return;
+    }
+
     if (!_admobInitialized) {
         await initAdMob();
     }
 
     const placeholder = document.getElementById('native-ad-placeholder');
     if (!placeholder) return;
+
+    // ★ 로드 시작 전 다시 한번 소셜탭 활성 확인 (initAdMob 대기 중 탭 전환 가능)
+    if (!document.getElementById('social')?.classList.contains('active')) {
+        return;
+    }
 
     try {
         const { NativeAd } = window.Capacitor.Plugins;
@@ -5584,6 +5596,13 @@ async function loadAndShowNativeAd() {
         });
 
         if (result && result.loaded) {
+            // ★ 로드 완료 후 소셜탭 활성 확인 (로드 중 탭 전환 시 즉시 파괴)
+            if (!document.getElementById('social')?.classList.contains('active')) {
+                NativeAd.destroyAd().catch(() => {});
+                _nativeAdLoaded = false;
+                return;
+            }
+
             _nativeAdLoaded = true;
             if (window.AppLogger) AppLogger.info('[NativeAd] 소셜탭 네이티브 광고 로드 완료');
 
@@ -5607,16 +5626,22 @@ async function positionNativeAd() {
     const placeholder = document.getElementById('native-ad-placeholder');
     if (!placeholder || !_nativeAdLoaded) return;
 
+    // ★ 소셜탭이 아니면 표시하지 않음
+    if (!document.getElementById('social')?.classList.contains('active')) return;
+
     try {
         const { NativeAd } = window.Capacitor.Plugins;
         if (!NativeAd) return;
 
         const rect = placeholder.getBoundingClientRect();
+        const stickyHeader = document.querySelector('.social-sticky-header');
+        const clipTop = stickyHeader ? stickyHeader.getBoundingClientRect().bottom : 0;
         await NativeAd.showAd({
             x: rect.left,
             y: rect.top,
             width: rect.width,
             height: rect.height,
+            clipTop,
         });
         _nativeAdVisible = true;
     } catch (e) {
@@ -5658,6 +5683,9 @@ function setupNativeAdScrollSync() {
     _nativeAdObserver.observe(placeholder);
 
     // scroll 이벤트: requestAnimationFrame 스로틀링으로 Y좌표 동기화
+    // sticky header 하단 좌표를 clipTop으로 전달하여 광고가 헤더 위로 올라가지 않도록 클리핑
+    const stickyHeader = document.querySelector('.social-sticky-header');
+
     function onScroll() {
         if (_nativeAdScrollRAF) return;
         _nativeAdScrollRAF = requestAnimationFrame(() => {
@@ -5665,9 +5693,10 @@ function setupNativeAdScrollSync() {
             if (!_nativeAdLoaded || !_nativeAdVisible) return;
 
             const rect = placeholder.getBoundingClientRect();
+            const clipTop = stickyHeader ? stickyHeader.getBoundingClientRect().bottom : 0;
             const { NativeAd } = window.Capacitor.Plugins;
             if (NativeAd) {
-                NativeAd.updatePosition({ y: rect.top }).catch(() => {});
+                NativeAd.updatePosition({ y: rect.top, clipTop }).catch(() => {});
             }
         });
     }
