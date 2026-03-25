@@ -1466,7 +1466,7 @@ async function _doSaveUserData() {
             streakStr: JSON.stringify(AppState.user.streak),
             diaryStr: getCleanDiaryStrForFirestore(),
             lastRouletteDate: localStorage.getItem('roulette_date') || '',
-            lastBonusExpDate: localStorage.getItem('bonus_exp_date') || '',
+            lastBonusExpDate: localStorage.getItem(_bonusExpKey()) || '',
             lastReelsPostTs: normalizedLastReelsPostTs,
             diyQuestsStr: JSON.stringify(AppState.diyQuests),
             questHistoryStr: JSON.stringify(AppState.questHistory),
@@ -1584,7 +1584,7 @@ async function loadUserDataFromDB(user) {
             }
             // 보너스 EXP 수령 날짜 복원
             if (data.lastBonusExpDate) {
-                localStorage.setItem('bonus_exp_date', data.lastBonusExpDate);
+                localStorage.setItem(`bonus_exp_date_${user.uid}`, data.lastBonusExpDate);
             }
             // 릴스 포스팅 타임스탬프 복원 (로그아웃 후에도 비활성화 유지)
             if (data.lastReelsPostTs) {
@@ -5284,7 +5284,9 @@ async function initAdMob() {
                     _rewardEarned = false;
                     applyBonusExpReward();
                 } else {
-                    // 중도 이탈 — 보상 미지급
+                    // 중도 이탈 — 선점 마킹 롤백, 보상 미지급
+                    localStorage.removeItem(_bonusExpKey());
+                    _bonusExpInProgress = false;
                     const lang = AppState.currentLang;
                     alert(i18n[lang].bonus_exp_fail);
                     renderBonusExp();
@@ -5295,8 +5297,11 @@ async function initAdMob() {
             AdMob.addListener('onRewardedVideoAdFailedToShow', (error) => {
                 console.warn('[AdMob] 광고 표시 실패:', error);
                 if (window.AppLogger) AppLogger.warn('[AdMob] 표시 실패: ' + JSON.stringify(error));
+                // 선점 마킹 롤백
+                localStorage.removeItem(_bonusExpKey());
                 _rewardedAdReady = false;
                 _rewardEarned = false;
+                _bonusExpInProgress = false;
                 preloadRewardedAd._retryCount = 0;
                 preloadRewardedAd();
                 const lang = AppState.currentLang;
@@ -5347,13 +5352,22 @@ async function preloadRewardedAd() {
     }
 }
 
+function _bonusExpKey() {
+    const uid = auth.currentUser ? auth.currentUser.uid : '_anon';
+    return `bonus_exp_date_${uid}`;
+}
+
 function canClaimBonusExp() {
     const today = getTodayKST();
-    if (localStorage.getItem('bonus_exp_date') === today) return 'used';
+    // 인메모리 잠금 (광고 진행 중)
+    if (_bonusExpInProgress) return 'used';
+    // localStorage 체크 (유저별 키)
+    if (localStorage.getItem(_bonusExpKey()) === today) return 'used';
     return 'ready';
 }
 
 let _bonusExpTimerInterval = null;
+let _bonusExpInProgress = false; // 광고 진행 중 잠금
 
 function startBonusExpTimer() {
     stopBonusExpTimer();
@@ -5414,9 +5428,14 @@ window.claimBonusExp = async function() {
     const lang = AppState.currentLang;
     const btn = document.getElementById('btn-bonus-exp');
 
+    // ★ 즉시 잠금 — 중복 클릭/이벤트 방지
+    _bonusExpInProgress = true;
+    if (btn) { btn.disabled = true; btn.textContent = i18n[lang].bonus_exp_loading; }
+
     // 네이티브가 아닌 경우 (웹 테스트) — 광고 없이 바로 보상 지급
     if (!isNativePlatform) {
         applyBonusExpReward();
+        _bonusExpInProgress = false;
         return;
     }
 
@@ -5426,13 +5445,13 @@ window.claimBonusExp = async function() {
 
     const { AdMob } = window.Capacitor.Plugins;
     if (!AdMob) {
+        _bonusExpInProgress = false;
         alert(i18n[lang].bonus_exp_not_ready);
+        renderBonusExp();
         return;
     }
 
     if (!_rewardedAdReady) {
-        // 광고 로딩 시도
-        if (btn) { btn.disabled = true; btn.textContent = i18n[lang].bonus_exp_loading; }
         try {
             await AdMob.prepareRewardVideoAd({
                 adId: REWARDED_AD_UNIT_ID,
@@ -5440,24 +5459,30 @@ window.claimBonusExp = async function() {
             });
             _rewardedAdReady = true;
         } catch (e) {
+            _bonusExpInProgress = false;
             alert(i18n[lang].bonus_exp_not_ready);
             renderBonusExp();
             return;
         }
     }
 
-    // 광고 표시 — 이후 처리는 이벤트 리스너(Rewarded, Dismissed, FailedToShow)에서 수행
-    if (btn) { btn.disabled = true; btn.textContent = i18n[lang].bonus_exp_loading; }
+    // ★ 광고 표시 전 localStorage에 선점 마킹 (광고 시청 중 앱 강제 종료 대비)
+    const today = getTodayKST();
+    localStorage.setItem(_bonusExpKey(), today);
+
     _rewardEarned = false;
 
     try {
         await AdMob.showRewardVideoAd();
-        // showRewardVideoAd resolve 후 — 이벤트 리스너가 보상/닫힘을 처리
+        // 이후 처리는 이벤트 리스너(Rewarded, Dismissed, FailedToShow)에서 수행
     } catch (e) {
         console.warn('[AdMob] 보상형 광고 표시 실패:', e);
         if (window.AppLogger) AppLogger.warn('[AdMob] 광고 표시 실패: ' + (e.message || ''));
+        // 광고 표시 실패 시 선점 마킹 롤백
+        localStorage.removeItem(_bonusExpKey());
         _rewardedAdReady = false;
         _rewardEarned = false;
+        _bonusExpInProgress = false;
         preloadRewardedAd._retryCount = 0;
         preloadRewardedAd();
         alert(i18n[lang].bonus_exp_fail);
@@ -5465,13 +5490,31 @@ window.claimBonusExp = async function() {
     }
 };
 
-function applyBonusExpReward() {
+async function applyBonusExpReward() {
     const lang = AppState.currentLang;
     const today = getTodayKST();
-    localStorage.setItem('bonus_exp_date', today);
+
+    // ★ localStorage에 확정 마킹 (claimBonusExp에서 선점 마킹 이미 완료)
+    localStorage.setItem(_bonusExpKey(), today);
 
     // EXP(포인트) +50 지급
     AppState.user.points += BONUS_EXP_AMOUNT;
+
+    // ★ Firestore에 즉시 저장 (await — 로그아웃 전 반드시 완료)
+    if (auth.currentUser) {
+        try {
+            await setDoc(doc(db, "users", auth.currentUser.uid), {
+                lastBonusExpDate: today,
+                points: AppState.user.points
+            }, { merge: true });
+            if (window.AppLogger) AppLogger.info('[BonusEXP] Firestore 즉시 저장 완료');
+        } catch (e) {
+            console.warn('[BonusEXP] Firestore 즉시 저장 실패:', e);
+        }
+    }
+
+    // ★ 잠금 해제
+    _bonusExpInProgress = false;
 
     saveUserData();
     updatePointUI();
