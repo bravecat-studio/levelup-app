@@ -300,6 +300,9 @@ public class NativeAdPlugin extends Plugin {
      */
     @PluginMethod()
     public void destroyAd(PluginCall call) {
+        // 즉시 상태 플래그 리셋 (JS 측에서 중복 호출 방지)
+        adLoaded = false;
+        adVisible = false;
         destroyAdInternal();
         call.resolve();
     }
