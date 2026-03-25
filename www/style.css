@@ -515,6 +515,54 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 .dday-type-btn { transition: all 0.2s; }
 .dday-type-btn.active { border-color: var(--neon-blue) !important; color: var(--neon-blue) !important; background: rgba(0,217,255,0.1) !important; }
 
+/* D-Day 캡션 (목표/좌우명) */
+.dday-caption-card {
+    padding: 12px 14px !important;
+    border-top: none !important;
+    border-radius: 0 0 12px 12px !important;
+}
+.dday-card {
+    border-radius: 12px 12px 0 0 !important;
+}
+.dday-caption-display {
+    text-align: center;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.dday-caption-text {
+    font-size: 0.85rem;
+    color: var(--neon-gold);
+    font-weight: bold;
+    line-height: 1.4;
+    word-break: keep-all;
+}
+.dday-caption-placeholder {
+    font-size: 0.78rem;
+    color: var(--text-sub);
+    opacity: 0.5;
+    font-style: italic;
+}
+.dday-caption-input-field {
+    width: 100%;
+    min-height: 60px;
+    max-height: 100px;
+    padding: 10px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-size: 0.85rem;
+    resize: vertical;
+    font-family: inherit;
+    line-height: 1.4;
+}
+.dday-caption-input-field:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+}
+
 /* ★ 추가됨: 소셜 탭 인스타그램 아이콘 스타일 ★ */
 .social-insta-btn {
     font-size: 1rem; margin-left: 5px; cursor: pointer; transition: transform 0.2s; display: inline-block; vertical-align: middle;

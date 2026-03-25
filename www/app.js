@@ -639,6 +639,7 @@ function getInitialAppState() {
         diyQuests: { definitions: [], completedToday: {}, lastResetDate: null },
         questHistory: {},
         ddays: [],
+        ddayCaption: '',
     };
 }
 
@@ -947,6 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updatePointUI();
             drawRadarChart();
             renderDDayList();
+            renderDDayCaption();
             updateDungeonStatus();
             startRaidTimer();
             renderQuestList();
@@ -1347,7 +1349,8 @@ async function _doSaveUserData() {
             diyQuestsStr: JSON.stringify(AppState.diyQuests),
             questHistoryStr: JSON.stringify(AppState.questHistory),
             rareTitleStr: JSON.stringify(AppState.user.rareTitle),
-            ddaysStr: JSON.stringify(AppState.ddays || [])
+            ddaysStr: JSON.stringify(AppState.ddays || []),
+            ddayCaption: AppState.ddayCaption || ''
         };
         // 진단: 페이로드 크기 및 photoURL 상태 로그
         const payloadSize = new Blob([JSON.stringify(payload)]).size;
@@ -1432,6 +1435,9 @@ async function loadUserDataFromDB(user) {
             }
             if(data.ddaysStr) {
                 try { AppState.ddays = JSON.parse(data.ddaysStr); } catch(e) { AppState.ddays = []; }
+            }
+            if(data.ddayCaption !== undefined) {
+                AppState.ddayCaption = data.ddayCaption || '';
             }
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
@@ -3120,7 +3126,7 @@ function switchTab(tabId, el) {
     const mainEl = document.querySelector('main');
     if(tabId === 'status') {
         mainEl.style.overflowY = 'auto';
-        drawRadarChart(); updatePointUI(); renderQuote(); renderDDayList(); renderLifeStatus();
+        drawRadarChart(); updatePointUI(); renderQuote(); renderDDayList(); renderDDayCaption(); renderLifeStatus();
     } else {
         mainEl.style.overflowY = 'auto';
     }
@@ -3203,6 +3209,7 @@ function changeLanguage(langCode) {
         renderPlannerCalendar();
         renderQuote();
         renderDDayList();
+        renderDDayCaption();
         updatePointUI();
         updateDungeonStatus();
         loadPlayerName();
@@ -8139,6 +8146,8 @@ async function scheduleDDayNotifications() {
 document.addEventListener('DOMContentLoaded', () => {
     const addBtn = document.getElementById('btn-add-dday');
     if (addBtn) addBtn.addEventListener('click', openDDayAddModal);
+    const captionCard = document.getElementById('dday-caption-card');
+    if (captionCard) captionCard.addEventListener('click', openDDayCaptionEdit);
 });
 
 // D-Day 함수들을 window에 노출 (type="module" 대응)
@@ -8148,6 +8157,76 @@ window.selectDDayType = selectDDayType;
 window.saveDDayFromModal = saveDDayFromModal;
 window.deleteDDay = deleteDDay;
 window.closeDDayModal = closeDDayModal;
+
+// ===================== D-DAY 캡션 (목표/좌우명) =====================
+
+function renderDDayCaption() {
+    const display = document.getElementById('dday-caption-display');
+    if (!display) return;
+    const caption = AppState.ddayCaption || '';
+    if (caption) {
+        display.innerHTML = '<span class="dday-caption-text">' + sanitizeText(caption) + '</span>';
+    } else {
+        display.innerHTML = '<span class="dday-caption-placeholder">나의 목표 / 좌우명을 입력하세요</span>';
+    }
+}
+
+function openDDayCaptionEdit() {
+    const existing = document.getElementById('dday-caption-modal-overlay');
+    if (existing) existing.remove();
+
+    const currentCaption = AppState.ddayCaption || '';
+    const overlay = document.createElement('div');
+    overlay.id = 'dday-caption-modal-overlay';
+    overlay.className = 'report-modal-overlay';
+    overlay.innerHTML = `
+        <div class="report-modal-content" style="max-width:360px; padding:24px;">
+            <h3 style="margin:0 0 16px 0; font-size:1rem; color:var(--neon-blue);">목표 / 좌우명</h3>
+            <textarea id="dday-caption-input" class="dday-caption-input-field" maxlength="100" placeholder="나의 목표 또는 좌우명을 입력하세요...">${sanitizeText(currentCaption)}</textarea>
+            <div style="font-size:0.7rem; color:var(--text-sub); margin-top:4px; text-align:right;">
+                <span id="dday-caption-char-count">${currentCaption.length}</span> / 100
+            </div>
+            <div style="display:flex; gap:8px; margin-top:16px;">
+                <button class="btn-info-sm" style="flex:1; padding:10px;" onclick="window.closeDDayCaptionModal()">취소</button>
+                <button class="btn-info-sm" style="flex:1; padding:10px; background:var(--neon-blue); color:#000; font-weight:bold;" onclick="window.saveDDayCaption()">저장</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('active'));
+
+    const input = document.getElementById('dday-caption-input');
+    input.focus();
+    input.addEventListener('input', function() {
+        document.getElementById('dday-caption-char-count').textContent = this.value.length;
+    });
+
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeDDayCaptionModal();
+    });
+}
+
+function saveDDayCaption() {
+    const input = document.getElementById('dday-caption-input');
+    if (!input) return;
+    AppState.ddayCaption = input.value.trim();
+    closeDDayCaptionModal();
+    renderDDayCaption();
+    saveUserData();
+}
+
+function closeDDayCaptionModal() {
+    const overlay = document.getElementById('dday-caption-modal-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 300);
+    }
+}
+
+window.openDDayCaptionEdit = openDDayCaptionEdit;
+window.saveDDayCaption = saveDDayCaption;
+window.closeDDayCaptionModal = closeDDayCaptionModal;
+window.renderDDayCaption = renderDDayCaption;
 
 // ===================== LIFE STATUS 기능 =====================
 
