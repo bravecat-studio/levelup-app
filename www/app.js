@@ -5486,7 +5486,7 @@ async function preloadRewardedInterstitial() {
     try {
         const { AdMob } = window.Capacitor.Plugins;
         if (!AdMob) return;
-        await AdMob.prepareRewardedInterstitialAd({
+        await AdMob.prepareRewardInterstitialAd({
             adId: REWARDED_INTERSTITIAL_AD_UNIT_ID,
             isTesting: false,
         });
@@ -5509,7 +5509,7 @@ async function showRewardedInterstitial(context) {
         if (!AdMob) return false;
         _riContext = context;
         _riRewardEarned = false;
-        await AdMob.showRewardedInterstitialAd();
+        await AdMob.showRewardInterstitialAd();
         return true;
     } catch (e) {
         console.warn('[AdMob] 보상형 전면 표시 실패:', e);
