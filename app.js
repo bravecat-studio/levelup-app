@@ -5559,12 +5559,24 @@ let _nativeAdObserver = null;
  */
 async function loadAndShowNativeAd() {
     if (!isNativePlatform) return;
+
+    // ★ 소셜탭이 활성 상태인지 확인 — 다른 탭에서 로드 방지
+    const socialSection = document.getElementById('social');
+    if (!socialSection || !socialSection.classList.contains('active')) {
+        return;
+    }
+
     if (!_admobInitialized) {
         await initAdMob();
     }
 
     const placeholder = document.getElementById('native-ad-placeholder');
     if (!placeholder) return;
+
+    // ★ 로드 시작 전 다시 한번 소셜탭 활성 확인 (initAdMob 대기 중 탭 전환 가능)
+    if (!document.getElementById('social')?.classList.contains('active')) {
+        return;
+    }
 
     try {
         const { NativeAd } = window.Capacitor.Plugins;
@@ -5584,6 +5596,13 @@ async function loadAndShowNativeAd() {
         });
 
         if (result && result.loaded) {
+            // ★ 로드 완료 후 소셜탭 활성 확인 (로드 중 탭 전환 시 즉시 파괴)
+            if (!document.getElementById('social')?.classList.contains('active')) {
+                NativeAd.destroyAd().catch(() => {});
+                _nativeAdLoaded = false;
+                return;
+            }
+
             _nativeAdLoaded = true;
             if (window.AppLogger) AppLogger.info('[NativeAd] 소셜탭 네이티브 광고 로드 완료');
 
@@ -5606,6 +5625,9 @@ async function loadAndShowNativeAd() {
 async function positionNativeAd() {
     const placeholder = document.getElementById('native-ad-placeholder');
     if (!placeholder || !_nativeAdLoaded) return;
+
+    // ★ 소셜탭이 아니면 표시하지 않음
+    if (!document.getElementById('social')?.classList.contains('active')) return;
 
     try {
         const { NativeAd } = window.Capacitor.Plugins;
