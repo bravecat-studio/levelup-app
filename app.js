@@ -5644,9 +5644,15 @@ async function positionNativeAd(tabId) {
         if (!NativeAd) return;
 
         const rect = placeholder.getBoundingClientRect();
-        // 소셜탭은 sticky header 있음, Day1탭은 없음
-        const stickyHeader = tabId === 'social' ? document.querySelector('.social-sticky-header') : null;
-        const clipTop = stickyHeader ? stickyHeader.getBoundingClientRect().bottom : 0;
+        // 소셜탭: sticky header 기준 클리핑, Day1탭: 앱 header 기준 클리핑
+        let clipTop = 0;
+        if (tabId === 'social') {
+            const sh = document.querySelector('.social-sticky-header');
+            if (sh) clipTop = sh.getBoundingClientRect().bottom;
+        } else {
+            const appHeader = document.querySelector('header');
+            if (appHeader) clipTop = appHeader.getBoundingClientRect().bottom;
+        }
         await NativeAd.showAd({
             x: rect.left,
             y: rect.top,
@@ -5696,8 +5702,10 @@ function setupNativeAdScrollSync(tabId) {
     _nativeAdObserver.observe(placeholder);
 
     // scroll 이벤트: requestAnimationFrame 스로틀링으로 Y좌표 동기화
-    // 소셜탭은 sticky header 클리핑 필요, Day1탭은 불필요
-    const stickyHeader = tabId === 'social' ? document.querySelector('.social-sticky-header') : null;
+    // 소셜탭: sticky header 클리핑, Day1탭: 앱 header 클리핑
+    const clipRef = tabId === 'social'
+        ? document.querySelector('.social-sticky-header')
+        : document.querySelector('header');
 
     function onScroll() {
         if (_nativeAdScrollRAF) return;
@@ -5706,7 +5714,7 @@ function setupNativeAdScrollSync(tabId) {
             if (!_nativeAdLoaded || !_nativeAdVisible) return;
 
             const rect = placeholder.getBoundingClientRect();
-            const clipTop = stickyHeader ? stickyHeader.getBoundingClientRect().bottom : 0;
+            const clipTop = clipRef ? clipRef.getBoundingClientRect().bottom : 0;
             const { NativeAd } = window.Capacitor.Plugins;
             if (NativeAd) {
                 NativeAd.updatePosition({ y: rect.top, clipTop }).catch(() => {});
