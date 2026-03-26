@@ -65,7 +65,8 @@ function renderDashboard() {
                 <h2>스크리닝 대시보드</h2>
                 <div style="display:flex; gap:8px;">
                     <button class="btn btn-outline btn-sm" id="btn-refresh-stats">통계 새로고침</button>
-                    <button class="btn btn-primary btn-sm" id="btn-batch-screen">일괄 스크리닝 실행</button>
+                    <button class="btn btn-primary btn-sm" id="btn-batch-screen">스크리닝</button>
+                    <button class="btn btn-outline btn-sm" id="btn-batch-screen-full" style="border-color:var(--accent);">스크리닝(전체)</button>
                 </div>
             </div>
             <div id="as-stats-area">
@@ -75,7 +76,8 @@ function renderDashboard() {
     `;
 
     document.getElementById("btn-refresh-stats").addEventListener("click", loadStats);
-    document.getElementById("btn-batch-screen").addEventListener("click", batchScreen);
+    document.getElementById("btn-batch-screen").addEventListener("click", () => batchScreen(false));
+    document.getElementById("btn-batch-screen-full").addEventListener("click", () => batchScreen(true));
 }
 
 async function loadStats() {
@@ -195,20 +197,27 @@ function renderCategoryBars(data) {
     `).join("");
 }
 
-async function batchScreen() {
-    if (!confirm("전체 활성 포스트에 대해 일괄 스크리닝을 실행하시겠습니까?\n\n이미 스크리닝된 포스트는 건너뜁니다.")) return;
+async function batchScreen(forceRescan = false) {
+    const modeLabel = forceRescan ? "전체 스크리닝 (전수조사)" : "스크리닝";
+    const confirmMsg = forceRescan
+        ? "전체 활성 포스트를 처음부터 다시 스크리닝합니다.\n\n기존 스크리닝 결과를 삭제하고 전수조사합니다."
+        : "활성 포스트에 대해 스크리닝을 실행합니다.\n\n이미 스크리닝된 포스트는 건너뜁니다.";
 
-    tlog("AutoScreen", "일괄 스크리닝 실행 중...");
+    if (!confirm(confirmMsg)) return;
+
+    tlog("AutoScreen", `${modeLabel} 실행 중...`);
     const btn = document.getElementById("btn-batch-screen");
+    const btnFull = document.getElementById("btn-batch-screen-full");
     btn.disabled = true;
-    btn.textContent = "스크리닝 중...";
+    btnFull.disabled = true;
+    (forceRescan ? btnFull : btn).textContent = "스크리닝 중...";
 
     try {
-        const result = await callAdmin("batchScreenPosts");
+        const result = await callAdmin("batchScreenPosts", { forceRescan });
         const d = result.detail || {};
 
         // 요약 로그
-        tok("AutoScreen", `일괄 스크리닝 완료: ${result.screenedCount}건 스캔, ${result.flaggedCount}건 플래그`);
+        tok("AutoScreen", `${modeLabel} 완료: ${result.screenedCount}건 스캔, ${result.flaggedCount}건 플래그`);
 
         // 스킵 정보
         if (result.skippedCount > 0) {
@@ -252,7 +261,7 @@ async function batchScreen() {
         }
 
         // alert에도 상세 정보 포함
-        let alertMsg = `스크리닝 완료!\n\n` +
+        let alertMsg = `${modeLabel} 완료!\n\n` +
             `스캔: ${result.screenedCount}건 | 플래그: ${result.flaggedCount}건\n` +
             `자동 삭제: ${result.autoDeletedCount}건 | 자동 숨김: ${result.autoHiddenCount}건`;
         if (result.skippedCount > 0) alertMsg += `\n스킵: ${result.skippedCount}건 (이미 검사됨)`;
@@ -265,11 +274,13 @@ async function batchScreen() {
         alert(alertMsg);
         loadStats();
     } catch (e) {
-        terror("AutoScreen", "일괄 스크리닝 실패: " + e.message);
-        alert("일괄 스크리닝 실패: " + e.message);
+        terror("AutoScreen", `${modeLabel} 실패: ` + e.message);
+        alert(`${modeLabel} 실패: ` + e.message);
     } finally {
         btn.disabled = false;
-        btn.textContent = "일괄 스크리닝 실행";
+        btnFull.disabled = false;
+        btn.textContent = "스크리닝";
+        btnFull.textContent = "스크리닝(전체)";
     }
 }
 

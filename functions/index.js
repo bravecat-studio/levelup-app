@@ -2041,6 +2041,7 @@ async function handleAutoScreenPost(request) {
 async function handleBatchScreenPosts(request) {
     await assertAdmin(request);
 
+    const { forceRescan } = request.data || {};
     const config = await getScreeningConfig();
     const usersSnap = await db.collection("users").where("hasActiveReels", "==", true).get();
     const now = Date.now();
@@ -2075,10 +2076,13 @@ async function handleBatchScreenPosts(request) {
             const age = now - (post.timestamp || 0);
             if (age >= 24 * 60 * 60 * 1000) continue;
 
-            // 이미 스크리닝된 포스트는 스킵
+            // 이미 스크리닝된 포스트는 스킵 (forceRescan 시 기존 결과 삭제 후 재검사)
             const postId = `${userDoc.id}_${post.timestamp}`;
             const existingDoc = await db.collection("screening_results").doc(postId).get();
-            if (existingDoc.exists) { skippedCount++; continue; }
+            if (existingDoc.exists) {
+                if (!forceRescan) { skippedCount++; continue; }
+                await db.collection("screening_results").doc(postId).delete();
+            }
 
             screenedCount++;
             const result = await executeScreening({
