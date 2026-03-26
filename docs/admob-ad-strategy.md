@@ -513,17 +513,17 @@ const TEST_AD_UNITS = {
 | **개인정보처리방침** | AdMob 데이터 수집 명시 | ✅ 완료 (privacy.html) |
 | **이용약관** | 광고 표시 조항 포함 | ✅ 완료 (terms.html) |
 | **ads.txt** | 퍼블리셔 ID 등록 | ✅ 완료 (ads.txt) |
-| **GDPR (유럽)** | UMP SDK 동의 양식 | 🔲 구현 필요 |
-| **COPPA (미국)** | 13세 미만 대상 여부 설정 | 🔲 AdMob 콘솔 설정 필요 |
-| **Google Play 광고 정책** | 광고 배치 가이드라인 준수 | 🔲 출시 전 검토 필요 |
+| **GDPR (유럽)** | UMP SDK 동의 양식 | ✅ 완료 (initAdMob → requestConsentInfo + showConsentForm) |
+| **COPPA (미국)** | 13세 미만 대상 여부 설정 | ✅ 완료 (tagForChildDirectedTreatment: false, 만 18세 이상 서비스) |
+| **Google Play 광고 정책** | 광고 배치 가이드라인 준수 | ✅ 완료 (아래 7.2 체크리스트 검토 완료) |
 
 ### 7.2 Google Play 정책 체크리스트
 
-- [ ] 광고가 앱 콘텐츠를 가리지 않음
-- [ ] 실수로 광고를 클릭하기 어려운 배치
-- [ ] 전면 광고에 닫기 버튼 명확히 표시
-- [ ] 보상형 광고 시청이 앱 핵심 기능 이용의 전제 조건이 아님
-- [ ] 아동 대상 콘텐츠에 맞춤 광고 미표시 (해당 시)
+- [x] 광고가 앱 콘텐츠를 가리지 않음 — 배너: BOTTOM_CENTER + margin 65px (네비 바 위), 콘텐츠 영역 미침범
+- [x] 실수로 광고를 클릭하기 어려운 배치 — 배너 하단 고정, 보상형/전면 광고는 사용자 버튼 클릭으로만 트리거
+- [x] 전면 광고에 닫기 버튼 명확히 표시 — 강제 전면 광고 없음 (보상형만 사용), AdMob SDK 자체 닫기 버튼 제공
+- [x] 보상형 광고 시청이 앱 핵심 기능 이용의 전제 조건이 아님 — 보너스 EXP/스핀 2배 등 추가 보상 전용
+- [x] 아동 대상 콘텐츠에 맞춤 광고 미표시 (해당 시) — 만 18세 이상 서비스, COPPA tagForChildDirectedTreatment: false 설정
 
 ---
 
