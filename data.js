@@ -206,7 +206,18 @@ const i18n = {
         ob_title_5: "소셜 & 랭킹", ob_desc_5: "글로벌 랭킹에서 경쟁하고<br>친구와 함께 성장하세요",
         ob_start_btn: "시작하기",
         ob_quest_ex1: "운동 30분 하기", ob_quest_ex2: "독서 20페이지", ob_quest_ex3: "물 2리터 마시기",
-        ob_plan_ex1: "아침 루틴", ob_plan_ex2: "집중 공부", ob_plan_ex3: "운동"
+        ob_plan_ex1: "아침 루틴", ob_plan_ex2: "집중 공부", ob_plan_ex3: "운동",
+
+        // 뽀모도로 타이머
+        pomo_title: "POMODORO", pomo_focus: "집중", pomo_break: "휴식", pomo_long_break: "긴 휴식",
+        pomo_start: "시작", pomo_pause: "일시정지", pomo_reset: "초기화", pomo_resume: "재개",
+        pomo_complete: "뽀모도로 완료!", pomo_break_over: "휴식 종료!",
+        pomo_notif_focus_title: "🍅 집중 시간 종료!", pomo_notif_focus_body: "잘했어요! 휴식 시간입니다.",
+        pomo_notif_break_title: "⏰ 휴식 종료!", pomo_notif_break_body: "다시 집중할 시간입니다!",
+        pomo_notif_done_title: "🎉 뽀모도로 4세트 완료!", pomo_notif_done_body: "대단해요! 긴 휴식을 가지세요.",
+        pomo_settings_title: "뽀모도로 설정",
+        pomo_focus_min: "집중 시간 (분)", pomo_break_min: "휴식 시간 (분)", pomo_long_break_min: "긴 휴식 (분)",
+        pomo_save: "저장", pomo_reward: "4세트 완료: +10P & AGI +0.3"
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -411,7 +422,18 @@ const i18n = {
         ob_title_5: "Social & Rankings", ob_desc_5: "Compete on global rankings<br>and grow together with friends",
         ob_start_btn: "Get Started",
         ob_quest_ex1: "Exercise 30 min", ob_quest_ex2: "Read 20 pages", ob_quest_ex3: "Drink 2L water",
-        ob_plan_ex1: "Morning routine", ob_plan_ex2: "Focus study", ob_plan_ex3: "Workout"
+        ob_plan_ex1: "Morning routine", ob_plan_ex2: "Focus study", ob_plan_ex3: "Workout",
+
+        // Pomodoro Timer
+        pomo_title: "POMODORO", pomo_focus: "Focus", pomo_break: "Break", pomo_long_break: "Long Break",
+        pomo_start: "Start", pomo_pause: "Pause", pomo_reset: "Reset", pomo_resume: "Resume",
+        pomo_complete: "Pomodoro complete!", pomo_break_over: "Break over!",
+        pomo_notif_focus_title: "🍅 Focus Time Over!", pomo_notif_focus_body: "Well done! Time for a break.",
+        pomo_notif_break_title: "⏰ Break Over!", pomo_notif_break_body: "Time to focus again!",
+        pomo_notif_done_title: "🎉 4 Pomodoros Complete!", pomo_notif_done_body: "Great job! Take a long break.",
+        pomo_settings_title: "Pomodoro Settings",
+        pomo_focus_min: "Focus (min)", pomo_break_min: "Break (min)", pomo_long_break_min: "Long Break (min)",
+        pomo_save: "Save", pomo_reward: "4 sets done: +10P & AGI +0.3"
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -616,7 +638,18 @@ const i18n = {
         ob_title_5: "ソーシャル＆ランキング", ob_desc_5: "グローバルランキングで競い合い<br>友達と一緒に成長しよう",
         ob_start_btn: "スタート",
         ob_quest_ex1: "運動30分", ob_quest_ex2: "読書20ページ", ob_quest_ex3: "水2リットル飲む",
-        ob_plan_ex1: "朝のルーティン", ob_plan_ex2: "集中勉強", ob_plan_ex3: "ワークアウト"
+        ob_plan_ex1: "朝のルーティン", ob_plan_ex2: "集中勉強", ob_plan_ex3: "ワークアウト",
+
+        // ポモドーロタイマー
+        pomo_title: "POMODORO", pomo_focus: "集中", pomo_break: "休憩", pomo_long_break: "長い休憩",
+        pomo_start: "開始", pomo_pause: "一時停止", pomo_reset: "リセット", pomo_resume: "再開",
+        pomo_complete: "ポモドーロ完了！", pomo_break_over: "休憩終了！",
+        pomo_notif_focus_title: "🍅 集中時間終了！", pomo_notif_focus_body: "よく頑張りました！休憩しましょう。",
+        pomo_notif_break_title: "⏰ 休憩終了！", pomo_notif_break_body: "集中する時間です！",
+        pomo_notif_done_title: "🎉 ポモドーロ4セット完了！", pomo_notif_done_body: "素晴らしい！長い休憩をとりましょう。",
+        pomo_settings_title: "ポモドーロ設定",
+        pomo_focus_min: "集中時間（分）", pomo_break_min: "休憩時間（分）", pomo_long_break_min: "長い休憩（分）",
+        pomo_save: "保存", pomo_reward: "4セット完了: +10P & AGI +0.3"
     }
 };
 
