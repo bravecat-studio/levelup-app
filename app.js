@@ -5435,8 +5435,27 @@ async function initAdMob() {
     try {
         const { AdMob } = window.Capacitor.Plugins;
         if (!AdMob) return;
+
+        // ★ GDPR/UMP 동의 상태 확인 및 동의 양식 표시
+        try {
+            const consentInfo = await AdMob.requestConsentInfo();
+            if (consentInfo.status === 'REQUIRED') {
+                await AdMob.showConsentForm();
+                if (window.AppLogger) AppLogger.info('[AdMob] GDPR 동의 양식 표시 완료');
+            }
+            if (window.AppLogger) AppLogger.info('[AdMob] 동의 상태: ' + consentInfo.status);
+        } catch (consentErr) {
+            // 동의 확인 실패 시에도 광고 초기화는 계속 진행
+            if (window.AppLogger) AppLogger.warn('[AdMob] 동의 확인 실패: ' + (consentErr.message || ''));
+        }
+
         await AdMob.initialize({
             initializeForTesting: false,
+            // ★ COPPA: 13세 미만 대상 아님 (만 18세 이상 서비스)
+            tagForChildDirectedTreatment: false,
+            // ★ 만 18세 미만 사용자 대상 아님
+            tagForUnderAgeOfConsent: false,
+            maxAdContentRating: 'G',
         });
         _admobInitialized = true;
         if (window.AppLogger) AppLogger.info('[AdMob] 초기화 완료');
