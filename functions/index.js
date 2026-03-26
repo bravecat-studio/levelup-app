@@ -1798,11 +1798,12 @@ async function screenImageAzure(photoUrl) {
 // 2차: Azure Content Safety (유료, 전체 카테고리 감지)
 //   → Sexual, Violence, Hate, SelfHarm 정밀 분석
 
-async function screenImage(photoUrl, settings) {
+async function screenImage(photoUrl, settings, meta) {
     if (!photoUrl) return null;
 
     // 1차: NSFWJS 로컬 스크리닝
     const localResult = await screenImageLocal(photoUrl);
+    if (localResult && meta) meta.nsfwjsRan = true;
 
     if (localResult) {
         // 명확한 부적절 이미지 → 즉시 플래그 (Azure 호출 불필요)
@@ -1830,6 +1831,7 @@ async function screenImage(photoUrl, settings) {
 
     // 2차: Azure Content Safety 정밀 스크리닝 (NSFWJS 실패 시에도 fallback)
     if (settings?.azureEnabled) {
+        if (meta) meta.azureRan = true;
         const azureResult = await screenImageAzure(photoUrl);
         if (azureResult) {
             azureResult._source = "azure";
@@ -1882,22 +1884,44 @@ async function executeScreening(post, config) {
     const { settings, keywords } = config;
     const postId = `${post.ownerUid}_${post.timestamp}`;
 
+    // 실제 실행 추적 메타데이터
+    const meta = {
+        textScreened: false,
+        imageScreened: false,
+        nsfwjsRan: false,
+        azureRan: false,
+    };
+
     // 텍스트 스크리닝
     let textFlags = [];
     if (settings.textScreeningEnabled) {
+        meta.textScreened = true;
         textFlags = screenCaption(post.caption, keywords.categories);
     }
 
     // 이미지 스크리닝 (하이브리드: NSFWJS 1차 → Azure 2차)
     let imageFlags = null;
     if (settings.imageScreeningEnabled && post.photo) {
-        imageFlags = await screenImage(post.photo, settings);
+        meta.imageScreened = true;
+        imageFlags = await screenImage(post.photo, settings, meta);
     }
 
     const overallSeverity = getOverallSeverity(textFlags, imageFlags);
 
-    // 플래그가 없으면 결과 저장하지 않음
-    if (!overallSeverity) return null;
+    // 플래그 없음 → "clean" 상태로 저장 (재스캔 방지)
+    if (!overallSeverity) {
+        await db.collection("screening_results").doc(postId).set({
+            postId,
+            ownerUid: post.ownerUid,
+            ownerName: post.ownerName || "",
+            screenedAt: Date.now(),
+            status: "clean",
+            overallSeverity: null,
+            textFlags: [],
+            imageFlags: null,
+        });
+        return { status: "clean", _meta: meta };
+    }
 
     // 자동 조치 결정
     let status = "pending";
@@ -1937,6 +1961,7 @@ async function executeScreening(post, config) {
         }
     }
 
+    screeningResult._meta = meta;
     return screeningResult;
 }
 
@@ -2007,7 +2032,8 @@ async function handleAutoScreenPost(request) {
         photo: post.photo || "",
     }, config);
 
-    return { result, flagged: !!result };
+    const flagged = result && result.status !== "clean";
+    return { result: flagged ? result : null, flagged };
 }
 
 // ─── 자동 스크리닝: 핸들러 — 일괄 스크리닝 ───
@@ -2024,7 +2050,7 @@ async function handleBatchScreenPosts(request) {
     let autoHiddenCount = 0;
     let skippedCount = 0;
 
-    // 상세 통계
+    // 실제 실행 기반 상세 통계
     let textScreenedCount = 0;
     let textFlaggedCount = 0;
     let imageScreenedCount = 0;
@@ -2063,36 +2089,32 @@ async function handleBatchScreenPosts(request) {
                 photo: post.photo || "",
             }, config);
 
-            // 상세 통계 집계
-            if (textEnabled && post.caption) textScreenedCount++;
-            if (imageEnabled && post.photo) {
-                imageScreenedCount++;
-                nsfwjsCount++; // NSFWJS는 이미지 스크리닝 시 항상 1차로 실행
+            // _meta 기반 실제 실행 통계 집계
+            if (result && result._meta) {
+                const m = result._meta;
+                if (m.textScreened) textScreenedCount++;
+                if (m.imageScreened) imageScreenedCount++;
+                if (m.nsfwjsRan) nsfwjsCount++;
+                if (m.azureRan) azureCount++;
             }
 
-            if (result) {
+            // 플래그 통계 (clean이 아닌 경우만)
+            if (result && result.status !== "clean") {
                 flaggedCount++;
                 if (result.status === "auto_deleted") autoDeletedCount++;
                 if (result.status === "auto_hidden") autoHiddenCount++;
                 if (result.textFlags && result.textFlags.length > 0) textFlaggedCount++;
                 if (result.imageFlags) {
                     imageFlaggedCount++;
-                    if (result.imageFlags._source === "azure") {
-                        azureCount++;
-                        azureFlaggedCount++;
-                    } else {
-                        nsfwjsFlaggedCount++;
-                    }
+                    if (result.imageFlags._source === "azure") azureFlaggedCount++;
+                    else nsfwjsFlaggedCount++;
                 }
             }
         }
     }
 
-    // Azure 2차 호출은 NSFWJS 애매한 결과에서만 발생하므로 별도 추적
-    // azureCount는 실제 Azure 플래그 결과가 있는 경우만 카운트됨
-
     const adminEmail = request.auth.token.email || request.auth.uid;
-    console.log(`[batchScreenPosts] Admin ${adminEmail}: screened=${screenedCount}, flagged=${flaggedCount}, autoDeleted=${autoDeletedCount}, autoHidden=${autoHiddenCount}`);
+    console.log(`[batchScreenPosts] Admin ${adminEmail}: screened=${screenedCount}, flagged=${flaggedCount}, skipped=${skippedCount}, autoDeleted=${autoDeletedCount}, autoHidden=${autoHiddenCount}`);
 
     return {
         screenedCount,
@@ -2129,7 +2151,10 @@ async function handleGetScreeningResults(request) {
     q = q.limit(maxResults || 100);
 
     const snap = await q.get();
-    const results = snap.docs.map(doc => doc.data());
+    // status 필터가 없으면 "clean" 레코드 제외 (플래그된 것만 표시)
+    const results = snap.docs
+        .map(doc => doc.data())
+        .filter(r => status ? true : r.status !== "clean");
 
     return { results };
 }
@@ -2211,12 +2236,13 @@ async function handleGetScreeningStats(request) {
     await assertAdmin(request);
 
     const snap = await db.collection("screening_results").get();
-    let total = 0, pending = 0, approved = 0, rejected = 0, autoDeleted = 0, autoHidden = 0;
+    let total = 0, pending = 0, approved = 0, rejected = 0, autoDeleted = 0, autoHidden = 0, clean = 0;
     let byCategory = {};
     let bySeverity = { low: 0, medium: 0, high: 0 };
 
     for (const doc of snap.docs) {
         const data = doc.data();
+        if (data.status === "clean") { clean++; continue; } // clean은 플래그 통계에서 제외
         total++;
         switch (data.status) {
             case "pending": pending++; break;
@@ -2243,7 +2269,7 @@ async function handleGetScreeningStats(request) {
         }
     } catch (e) { /* ignore */ }
 
-    return { total, pending, approved, rejected, autoDeleted, autoHidden, byCategory, bySeverity, azureRateLimited };
+    return { total, pending, approved, rejected, autoDeleted, autoHidden, clean, byCategory, bySeverity, azureRateLimited };
 }
 
 // --- 만료 릴스 사진 정리 (매일 04:00 KST) ---

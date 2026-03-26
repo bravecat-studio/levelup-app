@@ -101,6 +101,14 @@ async function loadStats() {
             ${rateLimitAlert}
             <div class="stats-grid">
                 <div class="stat-card">
+                    <div class="stat-value">${(_stats.total || 0) + (_stats.clean || 0)}</div>
+                    <div class="stat-label">총 스캔</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color:var(--success);">${_stats.clean || 0}</div>
+                    <div class="stat-label">정상 (Clean)</div>
+                </div>
+                <div class="stat-card">
                     <div class="stat-value">${_stats.total || 0}</div>
                     <div class="stat-label">총 플래그</div>
                 </div>
@@ -204,7 +212,7 @@ async function batchScreen() {
 
         // 스킵 정보
         if (result.skippedCount > 0) {
-            tlog("AutoScreen", `기스크리닝 스킵: ${result.skippedCount}건 (이미 검사됨)`);
+            tlog("AutoScreen", `기 스크리닝 스킵: ${result.skippedCount}건 (이미 검사됨)`);
         }
 
         // 텍스트 스크리닝 상세
