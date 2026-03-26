@@ -1366,3 +1366,34 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 }
 .onboarding-prev:active, .onboarding-next:active { background: rgba(0,217,255,0.15); }
 .onboarding-prev:disabled, .onboarding-next:disabled { opacity: 0.3; pointer-events: none; }
+
+/* 뽀모도로 타이머 */
+#pomo-progress-ring { transition: stroke-dashoffset 1s linear, stroke 0.3s; }
+.pomo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border-color); transition: background 0.3s, box-shadow 0.3s;
+}
+.pomo-dot.completed { background: var(--neon-red); box-shadow: 0 0 6px rgba(255,60,60,0.5); }
+.pomo-dot.active { background: var(--neon-gold); box-shadow: 0 0 8px rgba(255,204,0,0.6); animation: pomoPulse 1.5s ease-in-out infinite; }
+@keyframes pomoPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+.pomo-break #pomo-progress-ring { stroke: var(--neon-blue); }
+.pomo-break #pomo-phase-label { color: var(--neon-blue); }
+.pomo-settings-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
+    background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.3s;
+}
+.pomo-settings-overlay.active { opacity: 1; }
+.pomo-settings-modal {
+    background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 20px; width: 280px; max-width: 90%;
+}
+.pomo-settings-modal label {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; font-size: 0.8rem; color: var(--text-main);
+}
+.pomo-settings-modal input[type="number"] {
+    width: 60px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);
+    background: rgba(255,255,255,0.05); color: var(--text-main); font-size: 0.85rem; text-align: center;
+}
+[data-theme="light"] .pomo-settings-modal input[type="number"] { background: rgba(0,0,0,0.04); }
