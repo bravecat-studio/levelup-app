@@ -226,27 +226,55 @@ async function batchScreen(forceRescan = false) {
 
         // 텍스트 스크리닝 상세
         if (d.textEnabled) {
-            const textMsg = `텍스트 스크리닝: ${d.textScreenedCount}건 검사 → ${d.textFlaggedCount}건 플래그`;
-            d.textFlaggedCount > 0 ? twarn("Text", textMsg) : tok("Text", textMsg);
+            if (d.textScreenedCount > 0) {
+                const textMsg = `텍스트 스크리닝: ${d.textScreenedCount}건 검사 → ${d.textFlaggedCount}건 플래그`;
+                d.textFlaggedCount > 0 ? twarn("Text", textMsg) : tok("Text", textMsg);
+            } else {
+                tlog("Text", "텍스트 스크리닝: 대상 없음 (0건)");
+            }
         } else {
             tlog("Text", "텍스트 스크리닝: 비활성화 상태");
         }
 
         // 이미지 스크리닝 상세
         if (d.imageEnabled) {
-            const imgMsg = `이미지 스크리닝: ${d.imageScreenedCount}건 검사 → ${d.imageFlaggedCount}건 플래그`;
-            d.imageFlaggedCount > 0 ? twarn("Image", imgMsg) : tok("Image", imgMsg);
+            if (d.imageScreenedCount > 0) {
+                const imgMsg = `이미지 스크리닝: ${d.imageScreenedCount}건 검사 → ${d.imageFlaggedCount}건 플래그`;
+                d.imageFlaggedCount > 0 ? twarn("Image", imgMsg) : tok("Image", imgMsg);
 
-            // NSFWJS 상세
-            const nsfwMsg = `NSFWJS 1차: ${d.nsfwjsCount}건 분석 → ${d.nsfwjsFlaggedCount}건 플래그`;
-            d.nsfwjsFlaggedCount > 0 ? twarn("NSFWJS", nsfwMsg) : tok("NSFWJS", nsfwMsg);
+                // NSFWJS 판정별 상세
+                if (d.nsfwjsCount > 0) {
+                    const parts = [];
+                    if (d.nsfwjsSafeCount) parts.push(`안전 ${d.nsfwjsSafeCount}`);
+                    if (d.nsfwjsAmbiguousCount) parts.push(`애매 ${d.nsfwjsAmbiguousCount}`);
+                    if (d.nsfwjsFlaggedCount) parts.push(`플래그 ${d.nsfwjsFlaggedCount}`);
+                    if (d.nsfwjsErrorCount) parts.push(`오류 ${d.nsfwjsErrorCount}`);
+                    const detail = parts.length ? ` (${parts.join(", ")})` : "";
+                    const nsfwMsg = `NSFWJS 1차: ${d.nsfwjsCount}건 분석${detail}`;
+                    (d.nsfwjsFlaggedCount > 0 || d.nsfwjsErrorCount > 0) ? twarn("NSFWJS", nsfwMsg) : tok("NSFWJS", nsfwMsg);
+                } else {
+                    twarn("NSFWJS", `NSFWJS 1차: 전체 실패 (${d.imageScreenedCount}건 중 0건 분석 성공)`);
+                }
 
-            // Azure 상세
-            if (d.azureEnabled) {
-                const azMsg = `Azure 2차: ${d.azureCount}건 정밀검사 → ${d.azureFlaggedCount}건 플래그`;
-                d.azureFlaggedCount > 0 ? twarn("Azure", azMsg) : tok("Azure", azMsg);
+                // NSFWJS 오류 경고
+                if (d.nsfwjsErrorCount > 0) {
+                    twarn("NSFWJS", `NSFWJS 오류: ${d.nsfwjsErrorCount}건 이미지 분석 실패 → Azure fallback 시도`);
+                }
+
+                // Azure 상세 (실제 호출 기반)
+                if (d.azureEnabled) {
+                    if (d.azureCount > 0) {
+                        const azExtra = d.azureErrorCount > 0 ? ` (오류 ${d.azureErrorCount}건)` : "";
+                        const azMsg = `Azure 2차: ${d.azureCount}건 정밀검사 → ${d.azureFlaggedCount}건 플래그${azExtra}`;
+                        (d.azureFlaggedCount > 0 || d.azureErrorCount > 0) ? twarn("Azure", azMsg) : tok("Azure", azMsg);
+                    } else {
+                        tok("Azure", "Azure 2차: 호출 불필요 (NSFWJS 1차에서 모두 판정 완료)");
+                    }
+                } else {
+                    tlog("Azure", "Azure 2차 정밀검사: 비활성화 상태");
+                }
             } else {
-                tlog("Azure", "Azure 2차 정밀검사: 비활성화 상태");
+                tlog("Image", "이미지 스크리닝: 대상 없음 (0건)");
             }
         } else {
             tlog("Image", "이미지 스크리닝: 비활성화 상태");
@@ -267,9 +295,9 @@ async function batchScreen(forceRescan = false) {
         if (result.skippedCount > 0) alertMsg += `\n스킵: ${result.skippedCount}건 (이미 검사됨)`;
         alertMsg += `\n\n── 상세 ──`;
         if (d.textEnabled) alertMsg += `\n텍스트: ${d.textScreenedCount}건 검사 → ${d.textFlaggedCount}건 플래그`;
-        if (d.imageEnabled) {
-            alertMsg += `\nNSFWJS: ${d.nsfwjsCount}건 분석 → ${d.nsfwjsFlaggedCount}건 플래그`;
-            if (d.azureEnabled) alertMsg += `\nAzure: ${d.azureCount}건 정밀검사 → ${d.azureFlaggedCount}건 플래그`;
+        if (d.imageEnabled && d.imageScreenedCount > 0) {
+            alertMsg += `\nNSFWJS: ${d.nsfwjsCount}건 (안전:${d.nsfwjsSafeCount||0} 애매:${d.nsfwjsAmbiguousCount||0} 플래그:${d.nsfwjsFlaggedCount||0} 오류:${d.nsfwjsErrorCount||0})`;
+            if (d.azureEnabled) alertMsg += `\nAzure: ${d.azureCount}건 정밀검사 → ${d.azureFlaggedCount}건 플래그${d.azureErrorCount ? ` (오류 ${d.azureErrorCount})` : ""}`;
         }
         alert(alertMsg);
         loadStats();
