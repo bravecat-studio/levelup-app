@@ -532,11 +532,6 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 /* D-Day 캡션 (목표/좌우명) */
 .dday-caption-card {
     padding: 12px 14px !important;
-    border-top: none !important;
-    border-radius: 0 0 12px 12px !important;
-}
-.dday-card {
-    border-radius: 12px 12px 0 0 !important;
 }
 .dday-caption-display {
     text-align: center;
