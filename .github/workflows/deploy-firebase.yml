@@ -128,6 +128,8 @@ jobs:
         run: |
           echo "ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}" > functions/.env
           echo "MASTER_EMAILS=${{ secrets.MASTER_EMAILS }}" >> functions/.env
+          echo "AZURE_CS_ENDPOINT=${{ secrets.AZURE_CS_ENDPOINT }}" >> functions/.env
+          echo "AZURE_CS_KEY=${{ secrets.AZURE_CS_KEY }}" >> functions/.env
 
       - name: Functions 의존성 설치
         if: steps.detect.outputs.deploy_functions == 'true'
