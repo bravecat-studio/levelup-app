@@ -140,6 +140,24 @@ jobs:
           gcloud functions delete sendRaidAlerts --region=asia-northeast3 --gen2 --quiet 2>/dev/null || true
           gcloud scheduler jobs delete firebase-schedule-sendRaidAlerts-asia-northeast3 --location=asia-northeast3 --quiet 2>/dev/null || true
 
+      - name: Eventarc/Pub/Sub IAM 바인딩 (Storage 트리거용, 최초 1회)
+        if: steps.detect.outputs.deploy_functions == 'true'
+        continue-on-error: true
+        run: |
+          PROJECT_NUMBER=$(gcloud projects describe levelup-app-53d02 --format='value(projectNumber)')
+          gcloud projects add-iam-policy-binding levelup-app-53d02 \
+            --member="serviceAccount:service-${PROJECT_NUMBER}@gs-project-accounts.iam.gserviceaccount.com" \
+            --role="roles/pubsub.publisher" --condition=None --quiet
+          gcloud projects add-iam-policy-binding levelup-app-53d02 \
+            --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com" \
+            --role="roles/iam.serviceAccountTokenCreator" --condition=None --quiet
+          gcloud projects add-iam-policy-binding levelup-app-53d02 \
+            --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+            --role="roles/run.invoker" --condition=None --quiet
+          gcloud projects add-iam-policy-binding levelup-app-53d02 \
+            --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+            --role="roles/eventarc.eventReceiver" --condition=None --quiet
+
       - name: Firebase Functions 배포
         if: steps.detect.outputs.deploy_functions == 'true'
         run: firebase deploy --only functions --force
