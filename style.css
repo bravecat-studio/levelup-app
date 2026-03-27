@@ -220,7 +220,7 @@ h2 { font-size: 1rem; color: var(--neon-blue); margin-top: 0; margin-bottom: 12p
 
 /* 레이더 및 스탯 */
 .radar-chart-container { display: flex; justify-content: center; margin: 5px 0 15px 0; }
-.radar-chart { width: 100%; max-width: 220px; height: auto; aspect-ratio: 1/1; }
+.radar-chart { width: 100%; max-width: 220px; height: auto; aspect-ratio: 1/1; overflow: visible; }
 .radar-bg-line { fill: none; stroke: var(--border-color); stroke-width: 0.8; }
 .radar-polygon { fill: rgba(0, 217, 255, 0.25); stroke: var(--neon-blue); stroke-width: 2; transition: all 0.6s ease; }
 .radar-point { fill: var(--neon-blue); transition: all 0.6s; }
