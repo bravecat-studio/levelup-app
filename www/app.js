@@ -7690,6 +7690,16 @@ function showReportReasonModal(reasons, title, submitText, cancelText, lang) {
         const existing = document.getElementById('report-reason-modal');
         if (existing) existing.remove();
 
+        // ★ 네이티브 광고 숨김 (모달 위에 겹치지 않도록)
+        let _adWasVisible = false;
+        if (isNativePlatform && _nativeAdVisible) {
+            _adWasVisible = true;
+            try {
+                const { NativeAd } = window.Capacitor.Plugins;
+                if (NativeAd) NativeAd.hideAd();
+            } catch (e) { /* 무시 */ }
+        }
+
         const overlay = document.createElement('div');
         overlay.id = 'report-reason-modal';
         overlay.className = 'report-modal-overlay';
@@ -7721,6 +7731,13 @@ function showReportReasonModal(reasons, title, submitText, cancelText, lang) {
         const cleanup = (value) => {
             overlay.classList.remove('active');
             setTimeout(() => overlay.remove(), 200);
+            // ★ 네이티브 광고 복원
+            if (_adWasVisible && isNativePlatform) {
+                try {
+                    const { NativeAd } = window.Capacitor.Plugins;
+                    if (NativeAd) NativeAd.resumeAd();
+                } catch (e) { /* 무시 */ }
+            }
             resolve(value);
         };
 
