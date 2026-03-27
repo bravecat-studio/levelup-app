@@ -5,6 +5,18 @@ import { tlog, tok, terror } from "./log-panel.js";
 let _container = null;
 let _posts = [];
 
+const STORAGE_BUCKET = "levelup-app-53d02.firebasestorage.app";
+
+function getReelsPhotoUrl(uid, timestamp) {
+    const path = `reels_photos/${uid}/${timestamp}.webp`;
+    return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
+}
+
+function getReelsPhotoUrlJpg(uid, timestamp) {
+    const path = `reels_photos/${uid}/${timestamp}.jpg`;
+    return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
+}
+
 const ping = httpsCallable(functions, "ping");
 
 async function callAdmin(action, data = {}) {
@@ -152,9 +164,9 @@ function renderPostTable(posts) {
         const dt = p.timestamp ? new Date(p.timestamp).toLocaleString("ko-KR") : "—";
         const remaining = formatRemaining(p.remainingMs);
         const captionPreview = escHtml((p.caption || "").substring(0, 40)) + (p.caption && p.caption.length > 40 ? "..." : "");
-        const thumbHtml = p.photo
-            ? `<img src="${escHtml(p.photo)}" class="ps-thumb" alt="" onerror="this.style.display='none'">`
-            : '';
+        const thumbSrc = p.photo || getReelsPhotoUrl(p.ownerUid, p.timestamp);
+        const thumbFallback = getReelsPhotoUrlJpg(p.ownerUid, p.timestamp);
+        const thumbHtml = `<img src="${escHtml(thumbSrc)}" class="ps-thumb" alt="" onerror="if(this.src.includes('.webp')){this.src='${escHtml(thumbFallback)}'}else{this.style.display='none'}">`;
         const reportCount = p._reportCount || 0;
         const reportBadge = reportCount > 0
             ? `<span class="badge badge-fail">${reportCount}건</span>`
@@ -195,14 +207,13 @@ function selectPost(ownerUid, timestamp) {
     const dt = _selectedPost.timestamp ? new Date(_selectedPost.timestamp).toLocaleString("ko-KR") : "—";
     const remaining = formatRemaining(_selectedPost.remainingMs);
 
-    let photoHtml = "";
-    if (_selectedPost.photo) {
-        photoHtml = `<div style="margin-top:12px;">
-            <img src="${escHtml(_selectedPost.photo)}" alt="post photo"
-                 style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid var(--border);"
-                 onerror="this.style.display='none'">
-        </div>`;
-    }
+    const detailPhotoSrc = _selectedPost.photo || getReelsPhotoUrl(_selectedPost.ownerUid, _selectedPost.timestamp);
+    const detailPhotoFallback = getReelsPhotoUrlJpg(_selectedPost.ownerUid, _selectedPost.timestamp);
+    const photoHtml = `<div style="margin-top:12px;">
+        <img src="${escHtml(detailPhotoSrc)}" alt="post photo"
+             style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid var(--border);"
+             onerror="if(this.src.includes('.webp')){this.src='${escHtml(detailPhotoFallback)}'}else{this.style.display='none'}">
+    </div>`;
 
     document.getElementById("ps-detail-content").innerHTML = `
         <div class="stats-grid">
