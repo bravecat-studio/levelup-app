@@ -417,9 +417,11 @@ function renderResultTable(results) {
         <thead><tr>
             <th>작성자</th>
             <th>캡션</th>
+            <th>텍스트 플래그</th>
+            <th>썸네일</th>
+            <th>이미지 플래그</th>
             <th>심각도</th>
             <th>상태</th>
-            <th>플래그</th>
             <th>스크리닝 시간</th>
         </tr></thead>
         <tbody>`;
@@ -429,19 +431,68 @@ function renderResultTable(results) {
         const dt = r.screenedAt ? new Date(r.screenedAt).toLocaleString("ko-KR") : "—";
         const sevBadge = getSeverityBadge(r.overallSeverity);
         const statusBadge = getStatusBadge(r.status);
-        const flagCount = (r.textFlags || []).length + (r.imageFlags ? 1 : 0);
+
+        // 텍스트 플래그 요약
+        const textFlagsSummary = renderTextFlagsSummary(r);
+
+        // 썸네일
+        const thumbnailHtml = r.photo
+            ? `<img src="${escHtml(r.photo)}" alt="thumb" style="width:48px; height:48px; object-fit:cover; border-radius:4px; border:1px solid var(--border);" onerror="this.style.display='none'">`
+            : '<span class="text-sub">—</span>';
+
+        // 이미지 플래그 요약
+        const imageFlagsSummary = renderImageFlagsSummary(r);
 
         html += `<tr class="as-row as-sev-${r.overallSeverity}" data-postid="${escHtml(r.postId)}" style="cursor:pointer;">
             <td>${escHtml(r.ownerName || "—")}</td>
             <td class="text-sm">${captionPreview || '<span class="text-sub">—</span>'}</td>
+            <td class="text-sm">${textFlagsSummary}</td>
+            <td style="text-align:center;">${thumbnailHtml}</td>
+            <td class="text-sm">${imageFlagsSummary}</td>
             <td>${sevBadge}</td>
             <td>${statusBadge}</td>
-            <td class="text-sm">${flagCount}건</td>
             <td class="text-sub text-sm">${dt}</td>
         </tr>`;
     }
     html += '</tbody></table>';
     return html;
+}
+
+function renderTextFlagsSummary(r) {
+    const catLabels = {
+        profanity: "욕설", hate: "혐오", spam: "스팸", nsfw: "음란", illegal: "불법"
+    };
+    if (!r.textFlags || r.textFlags.length === 0) {
+        return '<span class="text-sub">없음</span>';
+    }
+    return r.textFlags.map(f =>
+        `<span class="as-keyword-tag as-tag-${f.severity}" style="font-size:11px; padding:1px 6px; margin:1px;">${escHtml(f.keyword)} <span class="text-sub">(${catLabels[f.category] || f.category})</span></span>`
+    ).join("");
+}
+
+function renderImageFlagsSummary(r) {
+    if (r.imageFlags) {
+        const imgLabels = { adult: "성인", violence: "폭력", racy: "선정", hate: "혐오", selfHarm: "자해" };
+        const source = r.imageFlags._source === "azure" ? "Azure" : "NSFWJS";
+        const flags = Object.entries(r.imageFlags)
+            .filter(([key]) => !key.startsWith("_"))
+            .filter(([, val]) => val === "POSSIBLE" || val === "LIKELY" || val === "VERY_LIKELY")
+            .map(([key, val]) =>
+                `<span class="as-keyword-tag as-tag-${getImageFlagSeverity(val)}" style="font-size:11px; padding:1px 6px; margin:1px;">${imgLabels[key] || key}: ${val}</span>`
+            ).join("");
+        if (flags) {
+            return `<span class="text-sub" style="font-size:10px;">[${source}]</span> ${flags}`;
+        }
+        return `<span class="text-sub" style="font-size:10px;">[${source}]</span> <span class="text-sub">정상</span>`;
+    }
+    // engineData가 있으면 분석은 했지만 플래그가 없는 경우
+    if (r.engineData && r.engineData.nsfwjsVerdict) {
+        const verdict = r.engineData.nsfwjsVerdict;
+        if (verdict === "safe") return '<span class="text-sub">정상</span>';
+        if (verdict === "error") return '<span class="text-sub" style="color:var(--error);">오류</span>';
+        return '<span class="text-sub">검토 필요</span>';
+    }
+    return '<span class="text-sub">미분석</span>';
 }
 
 function getSeverityBadge(severity) {
