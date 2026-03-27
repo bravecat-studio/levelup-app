@@ -1538,7 +1538,8 @@ async function _doSaveUserData() {
             questHistoryStr: JSON.stringify(AppState.questHistory),
             rareTitleStr: JSON.stringify(AppState.user.rareTitle),
             ddaysStr: JSON.stringify(AppState.ddays || []),
-            ddayCaption: AppState.ddayCaption || ''
+            ddayCaption: AppState.ddayCaption || '',
+            lifeStatusStr: localStorage.getItem('life_status_config') || ''
         };
         // 진단: 페이로드 크기 및 photoURL 상태 로그
         const payloadSize = new Blob([JSON.stringify(payload)]).size;
@@ -1626,6 +1627,10 @@ async function loadUserDataFromDB(user) {
             }
             if(data.ddayCaption !== undefined) {
                 AppState.ddayCaption = data.ddayCaption || '';
+            }
+            // Life Status 복원 (로그아웃 시 localStorage.clear() 대응)
+            if (data.lifeStatusStr) {
+                localStorage.setItem('life_status_config', data.lifeStatusStr);
             }
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
