@@ -648,7 +648,6 @@ async function _uploadImageToStorageImpl(storagePath, base64str, onProgress) {
 }
 
 const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // Google Fit: 네이티브 앱 플러그인(Health Connect / Google Fit SDK)만 사용
 // REST API 폴백 제거됨 — 모든 건강 데이터는 네이티브 SDK를 통해 조회
@@ -3720,7 +3719,14 @@ async function simulateGoogleLogin() {
                 scopes: ['profile', 'email'],
                 grantOfflineAccess: true
             });
-            const googleUser = await GoogleAuth.signIn();
+            // 이미 로그인한 사용자는 확인 화면 없이 자동 로그인 시도
+            let googleUser;
+            try {
+                googleUser = await GoogleAuth.refresh();
+            } catch (_) {
+                // refresh 실패 시 (최초 로그인 등) 대화형 로그인 진행
+                googleUser = await GoogleAuth.signIn();
+            }
             const idToken = googleUser.authentication.idToken;
             const credential = GoogleAuthProvider.credential(idToken);
             const result = await signInWithCredential(auth, credential);
@@ -3761,7 +3767,7 @@ async function simulateGoogleLogin() {
 
 async function logout() {
     AppLogger.info('[Auth] 로그아웃');
-    // 네이티브 앱에서 Google 세션도 완전히 해제 (계정 선택 화면이 다시 표시되도록)
+    // 네이티브 앱에서 Google 세션도 완전히 해제
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
     if (isNative) {
         try {
