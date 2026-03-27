@@ -9505,6 +9505,7 @@ function saveLifeStatusFromModal() {
     requestAnimationFrame(() => {
         saveLifeStatusConfig({ birthday, expectAge, remainUnit });
         renderLifeStatus();
+        saveUserData();
         clearTimeout(loadingTimer);
 
         if (loadingShown) {
@@ -9520,6 +9521,7 @@ function resetLifeStatus() {
     localStorage.removeItem(LIFE_STATUS_STORAGE_KEY);
     closeLifeStatusModal();
     renderLifeStatus();
+    saveUserData();
 }
 
 function closeLifeStatusModal() {
