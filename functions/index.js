@@ -30,24 +30,42 @@ async function getNsfwModel() {
 
 // ─── Azure Content Safety API (2차 정밀 이미지 스크리닝) ───
 let azureClient = null;
+let _azureInitError = null; // 마지막 초기화 실패 사유 (구체적 에러 메시지)
 function getAzureClient() {
     if (!azureClient) {
         const endpoint = process.env.AZURE_CS_ENDPOINT;
         const key = process.env.AZURE_CS_KEY;
-        if (!endpoint || !key) {
-            console.warn("[Azure] AZURE_CS_ENDPOINT 또는 AZURE_CS_KEY가 설정되지 않았습니다. 이미지 스크리닝이 비활성화됩니다.");
+        if (!endpoint && !key) {
+            _azureInitError = "AZURE_CS_ENDPOINT 및 AZURE_CS_KEY 환경변수가 모두 설정되지 않았습니다";
+            console.warn(`[Azure] ${_azureInitError}. 이미지 스크리닝이 비활성화됩니다.`);
+            return null;
+        }
+        if (!endpoint) {
+            _azureInitError = "AZURE_CS_ENDPOINT 환경변수가 설정되지 않았습니다";
+            console.warn(`[Azure] ${_azureInitError}. 이미지 스크리닝이 비활성화됩니다.`);
+            return null;
+        }
+        if (!key) {
+            _azureInitError = "AZURE_CS_KEY 환경변수가 설정되지 않았습니다";
+            console.warn(`[Azure] ${_azureInitError}. 이미지 스크리닝이 비활성화됩니다.`);
             return null;
         }
         try {
             const { ContentSafetyClient } = require("@azure-rest/ai-content-safety");
             const { AzureKeyCredential } = require("@azure/core-auth");
             azureClient = ContentSafetyClient(endpoint, new AzureKeyCredential(key));
+            _azureInitError = null; // 성공 시 에러 초기화
         } catch (e) {
-            console.warn("[Azure] @azure-rest/ai-content-safety 패키지가 설치되지 않았습니다:", e.message);
+            _azureInitError = `패키지 로드 실패: ${e.message}`;
+            console.warn(`[Azure] ${_azureInitError}`);
             return null;
         }
     }
     return azureClient;
+}
+
+function getAzureInitError() {
+    return _azureInitError;
 }
 
 // Callable 함수 공통 옵션 (Gen 2 Cloud Run 호환)
@@ -1742,7 +1760,11 @@ async function screenImageAzure(photoUrl) {
     }
 
     const client = getAzureClient();
-    if (!client || !photoUrl) return null;
+    if (!client) {
+        console.warn(`[screenImageAzure] Azure 클라이언트 사용 불가: ${getAzureInitError() || "알 수 없는 원인"}`);
+        return null;
+    }
+    if (!photoUrl) return null;
 
     try {
         const imageBuffer = await downloadImage(photoUrl);
@@ -2176,7 +2198,7 @@ async function handleBatchScreenPosts(request) {
             try {
                 const client = getAzureClient();
                 azureClientReady = !!client;
-                if (!client) azureClientError = "Azure 클라이언트 초기화 실패 (엔드포인트/키 미설정 또는 패키지 미설치)";
+                if (!client) azureClientError = getAzureInitError() || "Azure 클라이언트 초기화 실패 (알 수 없는 원인)";
             } catch (e) {
                 azureClientError = e.message;
             }
