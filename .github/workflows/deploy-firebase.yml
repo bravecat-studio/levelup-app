@@ -156,7 +156,7 @@ jobs:
             echo "✅ sendRaidAlerts 스케줄러 삭제 완료" || \
             echo "ℹ️ sendRaidAlerts 스케줄러 없음 (이미 정리됨)"
 
-      - name: Eventarc/Pub/Sub IAM 바인딩 (Storage 트리거용)
+      - name: Eventarc/Pub/Sub IAM 바인딩 확인 및 설정 (Storage 트리거용)
         if: steps.detect.outputs.deploy_functions == 'true'
         run: |
           PROJECT_NUMBER=$(gcloud projects describe ${{ env.FIREBASE_PROJECT }} --format='value(projectNumber)')
@@ -169,25 +169,42 @@ jobs:
             "serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com|roles/eventarc.eventReceiver"
           )
 
+          # 현재 IAM 정책을 한 번만 조회 (API 호출 절약)
+          CURRENT_POLICY=$(gcloud projects get-iam-policy ${{ env.FIREBASE_PROJECT }} --format=json 2>/dev/null || echo "")
+
+          SKIPPED=0
+          ADDED=0
           FAILED=0
           for BINDING in "${BINDINGS[@]}"; do
             MEMBER="${BINDING%%|*}"
             ROLE="${BINDING##*|}"
-            echo "→ ${ROLE} for ${MEMBER}"
-            if ! gcloud projects add-iam-policy-binding ${{ env.FIREBASE_PROJECT }} \
-              --member="${MEMBER}" --role="${ROLE}" --condition=None --quiet 2>&1; then
-              echo "⚠️ IAM 바인딩 실패: ${ROLE} (이미 설정되었거나 권한 부족)"
+
+            # 기존 바인딩 존재 여부 확인
+            if [ -n "$CURRENT_POLICY" ] && echo "$CURRENT_POLICY" | grep -q "$ROLE" && echo "$CURRENT_POLICY" | grep -q "$MEMBER"; then
+              echo "✅ 이미 설정됨: ${ROLE} for ${MEMBER}"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            echo "→ 설정 중: ${ROLE} for ${MEMBER}"
+            if gcloud projects add-iam-policy-binding ${{ env.FIREBASE_PROJECT }} \
+              --member="${MEMBER}" --role="${ROLE}" --condition=None --quiet 2>/dev/null; then
+              echo "✅ 바인딩 추가 완료: ${ROLE}"
+              ADDED=$((ADDED + 1))
+            else
+              echo "⚠️ IAM 바인딩 실패: ${ROLE} (권한 부족 — 프로젝트 소유자가 수동 설정 필요)"
               FAILED=$((FAILED + 1))
             fi
           done
 
-          if [ $FAILED -eq 4 ]; then
-            echo "::warning::모든 IAM 바인딩이 실패했습니다. Storage 트리거가 작동하지 않을 수 있습니다."
+          echo "IAM 바인딩 결과: 기존=${SKIPPED}, 추가=${ADDED}, 실패=${FAILED}"
+          if [ $FAILED -gt 0 ] && [ $SKIPPED -eq 0 ] && [ $ADDED -eq 0 ]; then
+            echo "::warning::모든 IAM 바인딩이 실패했습니다. 프로젝트 소유자가 수동으로 IAM 바인딩을 설정해야 합니다. --force 플래그로 배포를 계속 진행합니다."
           fi
 
       - name: Firebase Functions 배포
         if: steps.detect.outputs.deploy_functions == 'true'
-        run: firebase deploy --only functions --project ${{ env.FIREBASE_PROJECT }}
+        run: firebase deploy --only functions --project ${{ env.FIREBASE_PROJECT }} --force
 
       - name: push-test.html 동기화 (root → www)
         if: steps.detect.outputs.deploy_hosting == 'true'
