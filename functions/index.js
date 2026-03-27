@@ -1,5 +1,6 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
@@ -773,14 +774,15 @@ async function handleDeleteMyAccount(request) {
         await db.collection("users").doc(uid).delete();
     }
 
-    // 프로필 이미지 삭제
+    // 프로필 이미지 삭제 (원본 + 썸네일)
     try {
         const bucket = getStorage().bucket();
         const [files] = await bucket.getFiles({ prefix: `profile_images/${uid}` });
         for (const file of files) {
             await file.delete();
+            try { await bucket.file(`thumbs/${file.name}`).delete(); } catch (e) { }
         }
-        console.log(`[deleteMyAccount] Profile images deleted for ${uid}`);
+        console.log(`[deleteMyAccount] Profile images (+thumbs) deleted for ${uid}`);
     } catch (e) {
         console.warn(`[deleteMyAccount] 프로필 이미지 삭제 실패 (uid: ${uid}):`, e.message);
     }
@@ -1473,11 +1475,14 @@ async function handleScreeningDeletePost(request) {
             const bucket = getStorage().bucket();
             const fileName = `reels_photos/${timestamp}.webp`;
             await bucket.file(fileName).delete();
+            // 썸네일도 삭제
+            try { await bucket.file(`thumbs/${fileName}`).delete(); } catch (e) { /* 썸네일 없을 수 있음 */ }
         } catch (e) {
             // Try jpg fallback
             try {
                 const bucket = getStorage().bucket();
                 await bucket.file(`reels_photos/${timestamp}.jpg`).delete();
+                try { await bucket.file(`thumbs/reels_photos/${timestamp}.jpg`).delete(); } catch (e3) { }
             } catch (e2) { /* photo may not exist or different name */ }
         }
     }
@@ -2039,12 +2044,17 @@ async function performAutoDelete(ownerUid, timestamp) {
     const postId = `${ownerUid}_${timestamp}`;
     try { await db.collection("reels_reactions").doc(postId).delete(); } catch (e) { }
 
-    // 스토리지 사진 삭제
+    // 스토리지 사진 삭제 (원본 + 썸네일)
     try {
         const bucket = getStorage().bucket();
         await bucket.file(`reels_photos/${timestamp}.webp`).delete();
+        try { await bucket.file(`thumbs/reels_photos/${timestamp}.webp`).delete(); } catch (e) { }
     } catch (e) {
-        try { await getStorage().bucket().file(`reels_photos/${timestamp}.jpg`).delete(); } catch (e2) { }
+        try {
+            const bucket = getStorage().bucket();
+            await bucket.file(`reels_photos/${timestamp}.jpg`).delete();
+            try { await bucket.file(`thumbs/reels_photos/${timestamp}.jpg`).delete(); } catch (e3) { }
+        } catch (e2) { }
     }
 }
 
@@ -2426,10 +2436,12 @@ exports.cleanupExpiredReelsPhotos = onSchedule({
         const ts = parseInt(filename, 10);
         if (!isNaN(ts) && ts < cutoff) {
             await file.delete();
+            // 썸네일도 삭제
+            try { await bucket.file(`thumbs/${file.name}`).delete(); } catch (e) { /* 썸네일 없을 수 있음 */ }
             deletedCount++;
         }
     }
-    console.log(`[Storage Cleanup] ${deletedCount}개 만료 릴스 사진 삭제 완료`);
+    console.log(`[Storage Cleanup] ${deletedCount}개 만료 릴스 사진(+썸네일) 삭제 완료`);
 
     // hasActiveReels 리셋: 활성 릴스가 없는 사용자 정리
     const usersSnap = await db.collection("users").where("hasActiveReels", "==", true).get();
@@ -2472,8 +2484,80 @@ exports.cleanupExpiredPlannerPhotos = onSchedule({
         const filename = file.name.split("/").pop().replace(/\.(jpg|jpeg|webp|png)$/i, "");
         if (/^\d{4}-\d{2}-\d{2}$/.test(filename) && filename <= cutoffStr) {
             await file.delete();
+            // 썸네일도 삭제
+            try { await bucket.file(`thumbs/${file.name}`).delete(); } catch (e) { /* 썸네일 없을 수 있음 */ }
             deletedCount++;
         }
     }
-    console.log(`[Storage Cleanup] ${deletedCount}개 만료 플래너 사진 삭제 완료`);
+    console.log(`[Storage Cleanup] ${deletedCount}개 만료 플래너 사진(+썸네일) 삭제 완료`);
+});
+
+// ─── 이미지 썸네일 자동 생성 (Storage trigger) ───
+
+const THUMB_PREFIX = "thumbs/";
+const THUMB_WIDTH = 240;
+const THUMB_QUALITY = 80;
+const ALLOWED_PREFIXES = ["reels_photos/", "profile_images/", "planner_photos/"];
+
+// Cache-Control 매핑 (원본 업로드 시 설정과 동일)
+const CACHE_CONTROL_MAP = {
+    "reels_photos/": "public, max-age=86400",
+    "profile_images/": "public, max-age=604800, immutable",
+    "planner_photos/": "no-cache",
+};
+
+exports.generateThumbnail = onObjectFinalized({
+    region: "asia-northeast3",
+    memory: "256MiB",
+    timeoutSeconds: 60,
+}, async (event) => {
+    const filePath = event.data.name; // e.g. "reels_photos/uid/123.webp"
+    const contentType = event.data.contentType;
+
+    // 무한루프 방지: thumbs/ 경로는 무시
+    if (filePath.startsWith(THUMB_PREFIX)) {
+        return;
+    }
+
+    // 이미지 파일만 처리
+    if (!contentType || !contentType.startsWith("image/")) {
+        return;
+    }
+
+    // 허용된 경로(reels_photos/, profile_images/, planner_photos/)만 처리
+    const matchedPrefix = ALLOWED_PREFIXES.find(p => filePath.startsWith(p));
+    if (!matchedPrefix) {
+        return;
+    }
+
+    const sharp = require("sharp");
+    const bucket = getStorage().bucket();
+    const thumbPath = `${THUMB_PREFIX}${filePath}`;
+
+    try {
+        // 원본 다운로드
+        const [originalBuffer] = await bucket.file(filePath).download();
+
+        // sharp로 리사이즈: 240px 너비, WebP, quality 80
+        const thumbBuffer = await sharp(originalBuffer)
+            .resize({ width: THUMB_WIDTH, withoutEnlargement: true })
+            .webp({ quality: THUMB_QUALITY })
+            .toBuffer();
+
+        // 썸네일 업로드
+        const thumbFile = bucket.file(thumbPath);
+        await thumbFile.save(thumbBuffer, {
+            metadata: {
+                contentType: "image/webp",
+                cacheControl: CACHE_CONTROL_MAP[matchedPrefix] || "public, max-age=86400",
+            },
+        });
+
+        const reduction = originalBuffer.length > 0
+            ? Math.round((1 - thumbBuffer.length / originalBuffer.length) * 100)
+            : 0;
+        console.log(`[Thumbnail] ${filePath} → ${thumbPath} (${originalBuffer.length} → ${thumbBuffer.length} bytes, -${reduction}%)`);
+    } catch (e) {
+        console.error(`[Thumbnail] 썸네일 생성 실패 (${filePath}):`, e.message);
+    }
 });

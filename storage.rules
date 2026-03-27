@@ -29,5 +29,16 @@ service firebase.storage {
                             && request.resource.contentType.matches('image/.*');
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
+
+    // thumbs/: Cloud Function이 생성하는 썸네일 (읽기 전용, 쓰기는 Admin SDK)
+    match /thumbs/reels_photos/{allPaths=**} {
+      allow read: if true;
+    }
+    match /thumbs/profile_images/{allPaths=**} {
+      allow read: if true;
+    }
+    match /thumbs/planner_photos/{allPaths=**} {
+      allow read: if request.auth != null;
+    }
   }
 }

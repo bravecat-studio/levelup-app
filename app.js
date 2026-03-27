@@ -383,6 +383,20 @@ function getImageExtension() {
     return _supportsWebP ? '.webp' : '.jpg';
 }
 
+// 썸네일 URL 변환: Firebase Storage 원본 URL → thumbs/ 경로 썸네일 URL
+function getThumbnailURL(originalURL) {
+    if (!originalURL || typeof originalURL !== 'string') return originalURL;
+    // Firebase Storage URL 패턴: .../{prefix}%2F... (URL-encoded path)
+    const prefixes = ['reels_photos', 'profile_images', 'planner_photos'];
+    for (const prefix of prefixes) {
+        const encoded = encodeURIComponent(prefix + '/');  // e.g. "reels_photos%2F"
+        if (originalURL.includes(encoded)) {
+            return originalURL.replace(encoded, encodeURIComponent('thumbs/' + prefix + '/'));
+        }
+    }
+    return originalURL;
+}
+
 // base64 이미지 압축 유틸리티 (maxDim: 최대 픽셀, quality: 0~1)
 function compressBase64Image(base64str, maxDim, quality) {
     return new Promise((resolve) => {
@@ -7300,7 +7314,7 @@ function renderReelsCards(posts, lang) {
                 </div>
                 <div class="reels-time">${formatReelsTime(post.timestamp)}</div>
             </div>
-            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(post.photo)}" onerror="this.onerror=null;window._retryFirebaseImg(this,'${sanitizeAttr(post.photo)}')" alt="Timetable"></div>` : ''}
+            ${post.photo ? `<div class="reels-photo-container"><img class="reels-photo" src="${sanitizeURL(getThumbnailURL(post.photo))}" onerror="this.onerror=null;if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${sanitizeAttr(post.photo)}';}else{window._retryFirebaseImg(this,'${sanitizeAttr(post.photo)}');}" alt="Timetable"></div>` : ''}
             ${post.caption ? `<div class="reels-caption">${sanitizeText(post.caption).replace(/\n/g,'<br>')}</div>` : ''}
             <div class="reels-timetable">
                 <div class="reels-timetable-title" ${moreCount > 0 ? `onclick="toggleScheduleFold('${postId}')" style="cursor:pointer;"` : ''}>

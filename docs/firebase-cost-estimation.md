@@ -227,7 +227,7 @@ Firestore 저장     ▏                                      0.3%
 |----------|------|-----------|------|
 | ✅ 완료 | **이미지 CDN 도입** — Storage 공개 읽기 + Cache-Control 헤더 + SW 이미지 캐싱 | Storage 다운로드 ~80% 절감 | PR #253 적용 |
 | ✅ 완료 | **릴스 피드 캐싱** — Service Worker Cache First 전략 (24h 만료, 150개 제한) | 동일 디바이스 재다운로드 제거 | PR #253 적용 |
-| 🔴 높음 | **이미지 리사이즈** (썸네일 생성 Cloud Function + `sharp`) | 다운로드 용량 50~70% 추가 절감 | Phase 2 예정 |
+| ✅ 완료 | **이미지 리사이즈** (썸네일 생성 Cloud Function + `sharp`) | 다운로드 용량 50~70% 추가 절감 | `generateThumbnail` 함수 + `thumbs/` 경로 |
 | 🟡 중간 | **Firestore 쿼리 최적화** - getDocs 대신 페이지네이션 적용 | 읽기 연산 30~50% 절감 | 미적용 |
 | 🟢 낮음 | **스케줄 함수 배치 처리** - 개별 send 대신 sendEach/sendEachForMulticast 활용 | Functions 실행 시간 절감 | 미적용 |
 
@@ -360,7 +360,9 @@ MAU       CDN 미적용       CDN 적용 (Phase 1)    비고
 - `profile_images/`: 공개 읽기 허용 — 피드에서 모든 유저에게 노출되는 반공개 콘텐츠
 - `planner_photos/`: **인증 필수 유지** — 개인 콘텐츠
 
-### 미적용 (Phase 2 예정)
+### ✅ 적용 완료 (Phase 2)
 
-- 썸네일 생성 Cloud Function (`sharp` 기반 240px 리사이즈)
-- 피드에서 썸네일 URL 사용 (이미지당 ~1.5MB → ~40KB)
+- `generateThumbnail` Cloud Function (`sharp` 기반 240px WebP 리사이즈, `onObjectFinalized` 트리거)
+- 썸네일 저장 경로: `thumbs/{원본경로}` (예: `thumbs/reels_photos/uid/123.webp`)
+- 피드에서 썸네일 URL 사용 (이미지당 ~1.5MB → ~40KB), 로드 실패 시 원본 fallback
+- 기존 cleanup 함수들에 썸네일 동시 삭제 로직 추가
