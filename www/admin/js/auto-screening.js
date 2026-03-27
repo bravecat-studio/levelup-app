@@ -8,6 +8,23 @@ let _config = null;
 let _stats = null;
 let _currentView = "dashboard"; // dashboard | results | config
 
+const STORAGE_BUCKET = "levelup-app-53d02.firebasestorage.app";
+
+function getReelsPhotoUrl(uid, timestamp) {
+    const path = `reels_photos/${uid}/${timestamp}.webp`;
+    return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
+}
+
+function getReelsPhotoUrlJpg(uid, timestamp) {
+    const path = `reels_photos/${uid}/${timestamp}.jpg`;
+    return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media`;
+}
+
+function getPostTimestamp(postId) {
+    const parts = postId.split("_");
+    return parts[parts.length - 1];
+}
+
 const ping = httpsCallable(functions, "ping");
 
 async function callAdmin(action, data = {}) {
@@ -435,10 +452,11 @@ function renderResultTable(results) {
         // 텍스트 플래그 요약
         const textFlagsSummary = renderTextFlagsSummary(r);
 
-        // 썸네일
-        const thumbnailHtml = r.photo
-            ? `<img src="${escHtml(r.photo)}" alt="thumb" style="width:48px; height:48px; object-fit:cover; border-radius:4px; border:1px solid var(--border);" onerror="this.style.display='none'">`
-            : '<span class="text-sub">—</span>';
+        // 썸네일 (photo 필드 없으면 Storage 경로에서 직접 구성)
+        const thumbTs = getPostTimestamp(r.postId);
+        const thumbSrc = r.photo || getReelsPhotoUrl(r.ownerUid, thumbTs);
+        const thumbFallback = getReelsPhotoUrlJpg(r.ownerUid, thumbTs);
+        const thumbnailHtml = `<img src="${escHtml(thumbSrc)}" alt="thumb" style="width:48px; height:48px; object-fit:cover; border-radius:4px; border:1px solid var(--border);" onerror="if(this.src.includes('.webp')){this.src='${escHtml(thumbFallback)}'}else{this.style.display='none'}">`;
 
         // 이미지 플래그 요약
         const imageFlagsSummary = renderImageFlagsSummary(r);
@@ -534,14 +552,14 @@ function selectResult(postId) {
     const dt = r.screenedAt ? new Date(r.screenedAt).toLocaleString("ko-KR") : "—";
     const reviewDt = r.reviewedAt ? new Date(r.reviewedAt).toLocaleString("ko-KR") : "—";
 
-    let photoHtml = "";
-    if (r.photo) {
-        photoHtml = `<div style="margin-top:12px;">
-            <img src="${escHtml(r.photo)}" alt="post photo"
-                 style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid var(--border);"
-                 onerror="this.style.display='none'">
-        </div>`;
-    }
+    const detailTs = getPostTimestamp(r.postId);
+    const detailPhotoSrc = r.photo || getReelsPhotoUrl(r.ownerUid, detailTs);
+    const detailPhotoFallback = getReelsPhotoUrlJpg(r.ownerUid, detailTs);
+    const photoHtml = `<div style="margin-top:12px;">
+        <img src="${escHtml(detailPhotoSrc)}" alt="post photo"
+             style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid var(--border);"
+             onerror="if(this.src.includes('.webp')){this.src='${escHtml(detailPhotoFallback)}'}else{this.style.display='none'}">
+    </div>`;
 
     // 텍스트 플래그 표시
     const catLabels = {
