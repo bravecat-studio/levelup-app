@@ -657,7 +657,7 @@ async function reviewPost(postId, action) {
     tlog("AutoScreen", `포스트 ${actionLabel} 처리 중: ${postId}`);
 
     try {
-        await callAdmin("reviewScreenedPost", { postId, action });
+        await callAdmin("reviewScreenedPost", { postId, reviewAction: action });
         tok("AutoScreen", `포스트 ${actionLabel} 완료: ${postId}`);
         resultEl.innerHTML = `<p class="text-success text-sm">${actionLabel} 완료!</p>`;
 
