@@ -2302,12 +2302,12 @@ async function handleGetScreeningResults(request) {
 async function handleReviewScreenedPost(request) {
     await assertAdmin(request);
 
-    const { postId, action } = request.data || {};
-    if (!postId || !action) {
-        throw new HttpsError("invalid-argument", "postId와 action은 필수입니다.");
+    const { postId, reviewAction } = request.data || {};
+    if (!postId || !reviewAction) {
+        throw new HttpsError("invalid-argument", "postId와 reviewAction은 필수입니다.");
     }
-    if (!["approved", "rejected"].includes(action)) {
-        throw new HttpsError("invalid-argument", "action은 'approved' 또는 'rejected'이어야 합니다.");
+    if (!["approved", "rejected"].includes(reviewAction)) {
+        throw new HttpsError("invalid-argument", "reviewAction은 'approved' 또는 'rejected'이어야 합니다.");
     }
 
     const docRef = db.collection("screening_results").doc(postId);
@@ -2318,13 +2318,13 @@ async function handleReviewScreenedPost(request) {
 
     const adminEmail = request.auth.token.email || request.auth.uid;
     await docRef.update({
-        status: action,
+        status: reviewAction,
         reviewedBy: adminEmail,
         reviewedAt: Date.now()
     });
 
     // 거부 시 포스트 삭제
-    if (action === "rejected") {
+    if (reviewAction === "rejected") {
         const data = doc.data();
         const parts = postId.split("_");
         const ownerUid = parts.slice(0, -1).join("_");
@@ -2336,8 +2336,8 @@ async function handleReviewScreenedPost(request) {
         }
     }
 
-    console.log(`[reviewScreenedPost] Admin ${adminEmail}: ${action} post ${postId}`);
-    return { success: true, postId, action };
+    console.log(`[reviewScreenedPost] Admin ${adminEmail}: ${reviewAction} post ${postId}`);
+    return { success: true, postId, reviewAction };
 }
 
 // ─── 자동 스크리닝: 핸들러 — 설정 조회 ───
