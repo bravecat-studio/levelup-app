@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.7] - 2026-03-28
+
+### 변경
+- fix: 플래너 복사 후 데이터 미반영 오류 수정
+
 ## [1.0.6] - 2026-03-28
 
 ### 변경
