@@ -917,6 +917,17 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 }
 [data-theme="light"] .reels-comment-input-wrap { border-top-color: rgba(0,0,0,0.06); }
 
+/* ===== 플래너 복사 버튼 ===== */
+.reels-copy-btn {
+    background: none; border: none;
+    color: var(--text-sub); cursor: pointer;
+    padding: 4px 6px; display: inline-flex; align-items: center;
+    transition: all 0.2s; font-size: 1rem;
+    opacity: 0.7;
+}
+.reels-copy-btn:hover { opacity: 1; color: var(--neon-blue); transform: scale(1.15); }
+.reels-copy-btn:active { transform: scale(0.9); }
+
 /* ===== 신고 버튼 & 경고 ===== */
 .reels-report-btn {
     background: none; border: none;
