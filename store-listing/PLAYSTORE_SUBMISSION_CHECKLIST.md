@@ -195,7 +195,7 @@ Play Console → 데이터 보안에서 아래 항목 신고:
 - GitHub Actions 워크플로우: `.github/workflows/release-aab.yml` ✅ 준비됨
 - 20+ 빌드 단계 자동화 (키스토어 복원, 빌드, 서명, 아티팩트 업로드)
 - Target SDK: 34 | Min SDK: 26 (Health Connect 요구사항 충족)
-- 앱 버전: `package.json` → `1.0.0`
+- 앱 버전: `package.json` → `1.0.1`
 
 ### 할 일
 - [ ] GitHub Secrets 등록 완료 확인 (1단계)
