@@ -8953,11 +8953,18 @@ function drawRunningMileageChart(days) {
 function updateRunningMileageUI() {
     const card = document.getElementById('running-mileage-card');
     if (!card) return;
+
+    // 편집기에서 숨김 처리된 경우 표시하지 않음
+    const hiddenCards = getHiddenCards();
+    if (hiddenCards.includes('running-mileage')) {
+        card.style.display = 'none';
+        return;
+    }
+
     const lang = i18n[AppState.currentLang] || {};
     const totalEl = document.getElementById('running-total-value');
     const reqPanel = document.getElementById('running-req-panel');
 
-    // 항상 표시
     card.style.display = '';
 
     if (!AppState.user.syncEnabled) {
