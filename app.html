@@ -895,6 +895,22 @@
         </div>
     </div>
 
+    <!-- 플래너 복사 확인 모달 -->
+    <div class="modal-overlay d-none" id="copyPlannerModal" onclick="if(event.target===this){closeCopyPlannerModal();}">
+        <div class="modal-content" style="max-width: 95%; width: 360px; padding: 20px;">
+            <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 8px;">
+                <span id="copy-planner-modal-title" style="font-weight:bold; color:var(--neon-gold);">⚠️ 플래너 덮어쓰기 경고</span>
+                <button class="modal-close" onclick="closeCopyPlannerModal()">×</button>
+            </div>
+            <div class="modal-body" id="copy-planner-modal-body" style="color:var(--text); font-size:0.9rem; line-height:1.6;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn-share-option" id="btn-copy-planner-cancel" style="flex:1;" onclick="closeCopyPlannerModal()">취소</button>
+                <button class="btn-share-option" id="btn-copy-planner-confirm" style="flex:1; background:var(--neon-blue); color:#fff;" onclick="confirmCopyPlanner()">복사하기</button>
+            </div>
+        </div>
+    </div>
+
     <script src="logger.js"></script>
     <!-- 위치 검색 모달 -->
     <div class="location-search-modal d-none" id="location-search-modal" onclick="if(event.target===this)window.closeLocationModal()">

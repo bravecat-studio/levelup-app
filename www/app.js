@@ -6475,6 +6475,123 @@ window.copyPrevDaySchedule = function(checked) {
     }).join('');
 };
 
+// --- ★ Day1 포스트 → 내 플래너 복사 기능 ★ ---
+let _pendingCopyPost = null;
+let _reelsCachedPosts = []; // 렌더링된 포스트 캐시 (복사 기능용)
+
+window.openCopyPlannerModal = function(postId) {
+    const lang = AppState.currentLang;
+    // 캐시된 포스트에서 해당 postId 찾기
+    const post = _reelsCachedPosts.find(p => `${p.uid}_${p.timestamp}` === postId);
+    if (!post) return;
+
+    // blocks 데이터 유효성 체크
+    if (!post.blocks || Object.keys(post.blocks).length === 0) {
+        alert(i18n[lang]?.reels_copy_no_data || '복사할 시간표 데이터가 없습니다.');
+        return;
+    }
+
+    _pendingCopyPost = post;
+
+    // 모달 타이틀 & 본문 렌더링
+    const titleEl = document.getElementById('copy-planner-modal-title');
+    const bodyEl = document.getElementById('copy-planner-modal-body');
+    const confirmBtn = document.getElementById('btn-copy-planner-confirm');
+    const cancelBtn = document.getElementById('btn-copy-planner-cancel');
+
+    if (titleEl) titleEl.textContent = i18n[lang]?.reels_copy_confirm_title || '⚠️ 플래너 덮어쓰기 경고';
+    if (confirmBtn) confirmBtn.textContent = i18n[lang]?.reels_copy_confirm_btn || '복사하기';
+    if (cancelBtn) cancelBtn.textContent = i18n[lang]?.reels_copy_cancel_btn || '취소';
+
+    const msgTemplate = i18n[lang]?.reels_copy_confirm_msg || '현재 플래너의 우선순위 태스크와 시간표가 <b>{name}</b>님의 데이터로 덮어쓰기됩니다.<br><br>※ 우선순위 태스크는 시간표에 기록된 순서대로 자동 입력됩니다.';
+    if (bodyEl) bodyEl.innerHTML = msgTemplate.replace('{name}', sanitizeText(post.userName || '헌터'));
+
+    // 모달 열기
+    const modal = document.getElementById('copyPlannerModal');
+    if (modal) { modal.classList.remove('d-none'); modal.classList.add('d-flex'); }
+};
+
+window.closeCopyPlannerModal = function() {
+    _pendingCopyPost = null;
+    const modal = document.getElementById('copyPlannerModal');
+    if (modal) { modal.classList.add('d-none'); modal.classList.remove('d-flex'); }
+};
+
+window.confirmCopyPlanner = function() {
+    if (!_pendingCopyPost) return;
+    const lang = AppState.currentLang;
+    const post = _pendingCopyPost;
+
+    // 1. blocks 객체에서 고유 태스크를 시간순으로 추출
+    const blockEntries = Object.entries(post.blocks).sort(([a], [b]) => a.localeCompare(b));
+    const uniqueTasks = [];
+    const seen = new Set();
+    blockEntries.forEach(([time, task]) => {
+        if (task && !seen.has(task)) {
+            seen.add(task);
+            uniqueTasks.push(task);
+        }
+    });
+
+    // 2. plannerTasks 생성 (시간표 순서 = 우선순위 순서)
+    plannerTasks = uniqueTasks.map((text, i) => ({ text, ranked: true, rankOrder: i + 1 }));
+    while (plannerTasks.length < 6) plannerTasks.push({ text: '', ranked: false, rankOrder: 0 });
+
+    // 3. 태스크 렌더링 (타임박스 옵션도 업데이트됨)
+    renderPlannerTasks();
+
+    // 4. 타임박스 그리드에 blocks 반영
+    const grid = document.getElementById('planner-timebox-grid');
+    if (grid) {
+        const options = getTaskOptions();
+        const isFuture = isSelectedDateFuture();
+        const optTexts = new Set(options.map(o => o.text));
+        const extraVals = [...new Set(Object.values(post.blocks))].filter(v => v && !optTexts.has(v));
+
+        const emptyLabel = i18n[lang]?.timebox_empty || '-- 없음 --';
+        const makeOpts = (currentVal) => {
+            return [`<option value="">${emptyLabel}</option>`,
+                ...options.map(o => `<option value="${o.text.replace(/"/g,'&quot;')}"${o.text === currentVal ? ' selected' : ''}>${o.label}</option>`),
+                ...extraVals.map(v => `<option value="${v.replace(/"/g,'&quot;')}"${v === currentVal ? ' selected' : ''}>${v}</option>`)
+            ].join('');
+        };
+
+        const rows = [];
+        for (let h = 5; h < 24; h++) rows.push(h);
+
+        grid.innerHTML = rows.map(h => {
+            const t00 = `${String(h).padStart(2,'0')}:00`;
+            const t30 = `${String(h).padStart(2,'0')}:30`;
+            const val00 = post.blocks[t00] || '';
+            const val30 = post.blocks[t30] || '';
+            return `<div class="timebox-row">
+                <span class="timebox-label">${String(h).padStart(2,'0')}:00</span>
+                <select class="timebox-select${val00 ? ' has-content' : ''}"
+                        data-time="${t00}"
+                        ${isFuture ? 'disabled' : ''}
+                        onchange="this.classList.toggle('has-content', this.value.length > 0)">
+                    ${makeOpts(val00)}
+                </select>
+                <select class="timebox-select${val30 ? ' has-content' : ''}"
+                        data-time="${t30}"
+                        ${isFuture ? 'disabled' : ''}
+                        onchange="this.classList.toggle('has-content', this.value.length > 0)">
+                    ${makeOpts(val30)}
+                </select>
+            </div>`;
+        }).join('');
+    }
+
+    // 5. 모달 닫기
+    window.closeCopyPlannerModal();
+
+    // 6. diary 탭으로 전환
+    switchTab('diary', document.querySelector('.nav-item[data-tab="diary"]'));
+
+    // 7. 성공 알림
+    alert(i18n[lang]?.reels_copy_success || '플래너에 복사되었습니다. 플래너 탭에서 확인하세요.');
+};
+
 // 타임박스 그리드 렌더링 - 드롭다운 방식 (05:00~23:30)
 function renderTimeboxGrid(dateStr) {
     const grid = document.getElementById('planner-timebox-grid');
@@ -7360,10 +7477,12 @@ function mergeConsecutiveBlocks(blocks) {
 }
 
 function renderReelsCards(posts, lang) {
+    _reelsCachedPosts = posts; // 포스트 캐시 업데이트
     const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 16 16" style="color:#ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
 
     const heartOutline = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
     const commentIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+    const copyIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
     const reportIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`;
 
     const html = posts.map((post, postIdx) => {
@@ -7409,6 +7528,7 @@ function renderReelsCards(posts, lang) {
             <div class="reels-actions">
                 <button class="reels-like-btn" onclick="toggleReelsLike('${postId}')">${heartOutline}</button><span class="reels-like-count"></span>
                 <button class="reels-comment-btn" onclick="toggleCommentsPanel('${postId}')">${commentIcon}</button><span class="reels-comment-count"></span>
+                ${!isMe ? `<button class="reels-copy-btn" onclick="window.openCopyPlannerModal('${postId}')" title="${i18n[lang].reels_copy_planner || '플래너 복사'}">${copyIcon}</button>` : ''}
                 ${!isMe ? `<button class="reels-report-btn" onclick="toggleReportPost('${postId}')" title="${i18n[lang].reels_report || '신고'}">${reportIcon}<span class="reels-report-label">${i18n[lang].reels_report || '신고'}</span></button>` : ''}
             </div>
             <div class="reels-report-warning" data-report-warning="${postId}" style="display:none;">
