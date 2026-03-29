@@ -684,7 +684,8 @@ function getInitialAppState() {
             instaId: "",
             streak: { currentStreak: 0, lastActiveDate: null, multiplier: 1.0 },
             nameLastChanged: null,
-            rareTitle: { unlocked: [] }
+            rareTitle: { unlocked: [] },
+            cameraEnabled: false
         },
         quest: {
             currentDayOfWeek: new Date().getDay(),
@@ -791,7 +792,7 @@ function initNavDragReorder() {
 }
 
 // --- 상태창 카드 순서 재배치 (길게 눌러 상하 이동) ---
-const DEFAULT_STATUS_CARD_ORDER = ['step-count', 'stat-radar', 'bonus-exp', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
+const DEFAULT_STATUS_CARD_ORDER = ['step-count', 'stat-radar', 'my-library', 'bonus-exp', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
 
 function saveStatusCardOrder() {
     const cards = Array.from(document.querySelectorAll('#status .status-reorderable'));
@@ -917,11 +918,12 @@ const STATUS_CARD_LABELS = {
     'life-status': { name: 'LIFE STATUS', icon: '📅' },
     'dday': { name: 'D-DAY', icon: '⏰' },
     'dday-caption': { name: '목표/좌우명', icon: '💬' },
-    'daily-quote': { name: '오늘의 명언', icon: '❝' }
+    'daily-quote': { name: '오늘의 명언', icon: '❝' },
+    'my-library': { name: '내 서재', icon: '📚' }
 };
-const ALL_CARD_IDS = ['step-count', 'stat-radar', 'bonus-exp', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
+const ALL_CARD_IDS = ['step-count', 'stat-radar', 'my-library', 'bonus-exp', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
 // 삭제 불가 카드 (이동만 가능)
-const NON_REMOVABLE_CARDS = ['stat-radar', 'bonus-exp'];
+const NON_REMOVABLE_CARDS = ['stat-radar', 'bonus-exp', 'my-library'];
 
 function getHiddenCards() {
     try {
@@ -3636,7 +3638,7 @@ function switchTab(tabId, el) {
     const mainEl = document.querySelector('main');
     if(tabId === 'status') {
         mainEl.style.overflowY = 'auto';
-        drawRadarChart(); updatePointUI(); renderQuote(); renderDDayList(); renderDDayCaption(); renderLifeStatus(); renderBonusExp();
+        drawRadarChart(); updatePointUI(); renderQuote(); renderDDayList(); renderDDayCaption(); renderLifeStatus(); renderBonusExp(); if (window.updateLibraryCardCount) window.updateLibraryCardCount();
     } else {
         mainEl.style.overflowY = 'auto';
     }
@@ -8444,6 +8446,19 @@ async function showPermissionPrompts() {
         }
     }
 
+    // 4) 카메라 — ISBN 바코드 스캔용
+    if (!AppState.user.cameraEnabled) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            stream.getTracks().forEach(track => track.stop());
+            AppState.user.cameraEnabled = true;
+            saveUserData();
+            if (window.AppLogger) AppLogger.info('[PermPrompt] Camera permission granted');
+        } catch (e) {
+            if (window.AppLogger) AppLogger.warn('[PermPrompt] Camera permission denied or unavailable: ' + (e.message || e));
+        }
+    }
+
     if (window.AppLogger) AppLogger.info('[PermPrompt] 네이티브 권한 확인/요청 완료');
 }
 
@@ -10603,6 +10618,15 @@ window.renderLifeStatus = renderLifeStatus;
         return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     }
 
+    // ── Library Card Count (status screen) ──
+    window.updateLibraryCardCount = function() {
+        const books = (AppState.library && AppState.library.books) || [];
+        const year = new Date().getFullYear();
+        const yearlyCount = books.filter(b => new Date(b.addedDate).getFullYear() === year).length;
+        const el = document.getElementById('lib-yearly-card-count');
+        if (el) el.textContent = yearlyCount;
+    };
+
     // ── Library View ──
     window.openLibraryView = function() {
         const overlay = document.getElementById('library-overlay');
@@ -10616,6 +10640,7 @@ window.renderLifeStatus = renderLifeStatus;
         updateLibraryTabs();
         updateLibraryCounts();
         renderLibrary();
+        window.updateLibraryCardCount();
         // Trigger i18n re-apply for dynamically shown overlay
         if (typeof changeLanguage === 'function') changeLanguage(AppState.currentLang);
     };
@@ -10799,6 +10824,7 @@ window.renderLifeStatus = renderLifeStatus;
             finishedDate: category === 'read' ? getTodayStr() : null
         });
         saveUserData();
+        window.updateLibraryCardCount();
         return true;
     };
 
@@ -10808,6 +10834,7 @@ window.renderLifeStatus = renderLifeStatus;
         saveUserData();
         updateLibraryCounts();
         renderLibrary();
+        window.updateLibraryCardCount();
     };
 
     window.changeBookCategory = function(isbn, newCategory) {
@@ -10819,6 +10846,7 @@ window.renderLifeStatus = renderLifeStatus;
         saveUserData();
         updateLibraryCounts();
         renderLibrary();
+        window.updateLibraryCardCount();
     };
 
     // ── ISBN Scanner ──
