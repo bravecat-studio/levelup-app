@@ -10674,7 +10674,7 @@ window.renderLifeStatus = renderLifeStatus;
 
     function _scannerConfig() {
         return {
-            fps: 15,
+            fps: 5,
             qrbox: function(viewfinderWidth, viewfinderHeight) {
                 // Barcode-optimized: wide scan area covering more of the frame
                 var w = Math.floor(viewfinderWidth * 0.92);
@@ -10725,6 +10725,34 @@ window.renderLifeStatus = renderLifeStatus;
         return null;
     }
 
+    // ── ISBN Check Digit Validation ──
+    function isValidIsbn13(isbn) {
+        if (!isbn || isbn.length !== 13 || !/^\d{13}$/.test(isbn)) return false;
+        var sum = 0;
+        for (var i = 0; i < 13; i++) {
+            sum += parseInt(isbn[i], 10) * (i % 2 === 0 ? 1 : 3);
+        }
+        return sum % 10 === 0;
+    }
+
+    function isValidIsbn10(isbn) {
+        if (!isbn || isbn.length !== 10 || !/^\d{9}[\dXx]$/.test(isbn)) return false;
+        var sum = 0;
+        for (var i = 0; i < 9; i++) {
+            sum += parseInt(isbn[i], 10) * (10 - i);
+        }
+        var last = isbn[9].toUpperCase() === 'X' ? 10 : parseInt(isbn[9], 10);
+        sum += last;
+        return sum % 11 === 0;
+    }
+
+    function isValidIsbn(isbn) {
+        if (!isbn) return false;
+        if (isbn.length === 13) return isValidIsbn13(isbn);
+        if (isbn.length === 10) return isValidIsbn10(isbn);
+        return false;
+    }
+
     async function initOcrWorker() {
         if (_ocrWorker) return _ocrWorker;
         if (typeof Tesseract === 'undefined') return null;
@@ -10769,7 +10797,7 @@ window.renderLifeStatus = renderLifeStatus;
 
             var result = await worker.recognize(canvas);
             var isbn = extractIsbnFromText(result.data.text);
-            if (isbn) {
+            if (isbn && isValidIsbn(isbn)) {
                 stopOcrInterval();
                 var statusEl = document.getElementById('isbn-scanner-status');
                 if (statusEl) statusEl.textContent = 'ISBN (OCR): ' + isbn;
@@ -10787,8 +10815,8 @@ window.renderLifeStatus = renderLifeStatus;
 
     function startOcrInterval() {
         stopOcrInterval();
-        // Run OCR every 2 seconds as fallback
-        _ocrInterval = setInterval(ocrCaptureFrame, 2000);
+        // Run OCR every 1.5 seconds (primary detection method)
+        _ocrInterval = setInterval(ocrCaptureFrame, 1500);
     }
 
     function stopOcrInterval() {
@@ -11210,17 +11238,20 @@ window.renderLifeStatus = renderLifeStatus;
                 { facingMode: 'environment' },
                 _scannerConfig(),
                 async (decodedText) => {
-                    // Prevent duplicate triggers
                     if (_scanHandled) return;
+                    // Validate barcode: reject garbage reads
+                    var barcode = (decodedText || '').replace(/[-\s]/g, '');
+                    if (!isValidIsbn(barcode)) {
+                        console.log('Barcode rejected (invalid ISBN):', decodedText);
+                        return;
+                    }
                     _scanHandled = true;
-                    // ISBN detected via barcode
                     stopOcrInterval();
-                    if (statusEl) statusEl.textContent = 'ISBN: ' + decodedText;
+                    if (statusEl) statusEl.textContent = 'ISBN: ' + barcode;
                     try { await _html5QrCode.stop(); } catch(e) {}
-                    // Auto-fill manual field
                     var field = document.getElementById('isbn-manual-field');
-                    if (field) field.value = decodedText;
-                    await onIsbnScanned(decodedText);
+                    if (field) field.value = barcode;
+                    await onIsbnScanned(barcode);
                     _scanHandled = false;
                 },
                 () => {} // ignore scan failures
@@ -11230,8 +11261,8 @@ window.renderLifeStatus = renderLifeStatus;
             saveUserData();
             updateCameraToggleUI();
 
-            // Start OCR fallback after a short delay
-            setTimeout(function() { startOcrInterval(); }, 2000);
+            // Start OCR immediately (primary detection method)
+            startOcrInterval();
         } catch(e) {
             console.error('Scanner start error:', e);
             // Camera permission denied or other error
@@ -11297,10 +11328,16 @@ window.renderLifeStatus = renderLifeStatus;
                         await _html5QrCode.start(
                             { facingMode: 'environment' },
                             _scannerConfig(),
-                            async (text) => { stopOcrInterval(); try { await _html5QrCode.stop(); } catch(e) {} await onIsbnScanned(text); },
+                            async (text) => {
+                                var barcode = (text || '').replace(/[-\s]/g, '');
+                                if (!isValidIsbn(barcode)) return;
+                                stopOcrInterval();
+                                try { await _html5QrCode.stop(); } catch(e) {}
+                                await onIsbnScanned(barcode);
+                            },
                             () => {}
                         );
-                        setTimeout(function() { startOcrInterval(); }, 2000);
+                        startOcrInterval();
                     }
                 } catch(e) {}
             }
