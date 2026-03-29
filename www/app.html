@@ -204,7 +204,6 @@
                             <div style="font-size: 0.65rem; color: var(--text-sub);" data-i18n="tot_score">종합 스코어</div>
                             <div class="compact-score-val" id="totalScore">0</div>
                         </div>
-                        <button id="btn-my-library" class="btn-my-library" aria-label="내 서재" onclick="window.openLibraryView()">📚</button>
                         <button id="btn-hamburger-menu" class="btn-hamburger-menu" aria-label="메뉴">
                             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
                                 <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
@@ -258,6 +257,23 @@
                             <polygon id="playerPolygon" class="radar-polygon" points="" />
                             <g id="radarPoints"></g><g id="radarLabels"></g>
                         </svg>
+                    </div>
+                </div>
+
+                <!-- 내 서재 (My Library) 카드 -->
+                <div class="system-card status-reorderable" data-card-id="my-library" style="margin-top:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">📚</span>
+                            <h2 style="margin:0; font-size:0.95rem;" data-i18n="lib_title">내 서재</h2>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="text-align:right;">
+                                <div style="font-size:0.65rem; color:var(--text-sub);" data-i18n="lib_yearly">연간</div>
+                                <div style="font-size:1.3rem; font-weight:900; color:var(--neon-blue);"><span id="lib-yearly-card-count">0</span><span style="font-size:0.7rem; color:var(--text-sub);" data-i18n="lib_unit"> 권</span></div>
+                            </div>
+                            <button class="btn-info-sm" onclick="window.openLibraryView()" data-i18n="lib_detail">상세</button>
+                        </div>
                     </div>
                 </div>
 
