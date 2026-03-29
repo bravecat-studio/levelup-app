@@ -10762,7 +10762,11 @@ window.renderLifeStatus = renderLifeStatus;
         try {
             if (window.AppLogger) AppLogger.info('[ISBN] Initializing OCR worker');
             _ocrWorker = await Tesseract.createWorker('eng', 1, {
-                logger: function() {}
+                logger: function() {},
+                workerPath: 'worker.min.js',
+                corePath: 'tesseract-core/',
+                langPath: 'tesseract-lang/',
+                workerBlobURL: false
             });
             await _ocrWorker.setParameters({
                 tessedit_char_whitelist: '0123456789ISBNisbn-Xx ',
