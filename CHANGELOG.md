@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.21] - 2026-03-29
+
+### 변경
+- fix: 알라딘 API에서 페이지 수(itemPage) 가져오도록 수정
+
 ## [1.0.20] - 2026-03-29
 
 ### 변경
