@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.19] - 2026-03-29
+
+### 변경
+- fix: ISBN 수동입력 키보드 가림 문제 해결 + 바코드 스캐너 AppLogger 로깅 추가
+
 ## [1.0.18] - 2026-03-29
 
 ### 변경
