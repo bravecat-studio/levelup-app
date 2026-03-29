@@ -14,13 +14,14 @@ permissions:
 jobs:
   build:
     # 이벤트 타입별 빌드 조건:
-    # - workflow_run: auto-version 성공 시에만 빌드 (원래 커밋이 [skip ci]면 스킵)
+    # - workflow_run: auto-version 성공 시에만 빌드 (auto-version이 [skip ci] 처리 담당)
+    #   주의: head_commit.message 체크 불가 — auto-version이 [skip ci] 커밋을 push하므로
+    #         head_commit이 항상 [skip ci]를 포함하게 되어 빌드가 영구 스킵됨
     # - push: claude/** 브랜치용 ([skip ci] 커밋 스킵)
     # - workflow_dispatch: 항상 실행
     if: >-
       (github.event_name == 'workflow_run'
-       && github.event.workflow_run.conclusion == 'success'
-       && !contains(github.event.workflow_run.head_commit.message, '[skip ci]')) ||
+       && github.event.workflow_run.conclusion == 'success') ||
       (github.event_name == 'push'
        && !contains(github.event.head_commit.message, '[skip ci]')) ||
       github.event_name == 'workflow_dispatch'
