@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.16] - 2026-03-29
+
+### 변경
+- fix: Android 바코드 인식 안되는 문제 수정
+
 ## [1.0.15] - 2026-03-29
 
 ### 변경
