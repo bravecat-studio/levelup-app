@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.13] - 2026-03-29
+
+### 변경
+- fix: ISBN API 폴백 순서를 카카오>알라딘>구글북스로 변경
+
 ## [1.0.12] - 2026-03-29
 
 ### 변경
