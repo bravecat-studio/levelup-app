@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.10] - 2026-03-29
+
+### 변경
+- fix: 카메라 권한 문제 해결 및 설정화면 카메라 토글 추가
+
 ## [1.0.9] - 2026-03-29
 
 ### 변경
