@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.15] - 2026-03-29
+
+### 변경
+- feat: 탑 두께 페이지 반영 + OCR ISBN 자동인식 추가
+- feat: 내 서재 무한의 탑 디자인 + 책 상세 정보 뷰 개선
+
 ## [1.0.14] - 2026-03-29
 
 ### 변경
