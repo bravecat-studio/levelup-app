@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.23] - 2026-03-29
+
+### 변경
+- feat: 서재 출처(알라딘/카카오/구글) 표기 및 쌓아보기 탑 리디자인
+
 ## [1.0.22] - 2026-03-29
 
 ### 변경
