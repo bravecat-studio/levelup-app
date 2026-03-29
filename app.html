@@ -919,8 +919,15 @@
             <button class="library-scan-btn" onclick="window.openIsbnScanner()">📷</button>
         </div>
         <div class="library-search-bar">
-            <input type="text" id="library-search-input" data-i18n-placeholder="lib_search" placeholder="책 검색하기" oninput="window.filterLibraryBooks(this.value)">
+            <div class="library-search-row">
+                <input type="text" id="library-search-input" data-i18n-placeholder="lib_search" placeholder="책 검색하기" oninput="window.filterLibraryBooks(this.value)">
+                <label class="library-filter-checkbox">
+                    <input type="checkbox" id="library-local-filter" onchange="window.toggleLibrarySearchMode(this.checked)">
+                    <span data-i18n="lib_my_library_filter">내 서재</span>
+                </label>
+            </div>
         </div>
+        <div id="library-search-results" class="library-search-results d-none"></div>
         <div class="library-count-bar">
             <div class="library-count-toggle">
                 <button class="lib-count-btn active" data-period="total" onclick="window.switchLibraryPeriod('total')"><span data-i18n="lib_total">전체</span> <span id="lib-count-total" class="lib-count-num">0</span></button>

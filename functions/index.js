@@ -1092,6 +1092,86 @@ async function handleLookupIsbn(request) {
     return { source: null, book: null };
 }
 
+// ─── 도서 키워드 검색 (제목/저자/출판사) ───
+async function handleSearchBooks(request) {
+    const query = (request.data?.query || "").trim();
+    const page = Math.max(1, parseInt(request.data?.page) || 1);
+    if (!query) {
+        throw new HttpsError("invalid-argument", "검색어를 입력해주세요.");
+    }
+
+    // 1) 카카오 책 검색 API (키워드 검색)
+    const kakaoKey = process.env.KAKAO_REST_API_KEY;
+    if (kakaoKey) {
+        try {
+            const url = `https://dapi.kakao.com/v3/search/book?query=${encodeURIComponent(query)}&size=20&page=${page}`;
+            const res = await fetch(url, {
+                headers: { "Authorization": `KakaoAK ${kakaoKey}` }
+            });
+            const data = await res.json();
+            if (data.documents && data.documents.length > 0) {
+                const books = data.documents.map(doc => {
+                    const isbns = (doc.isbn || "").split(" ").filter(Boolean);
+                    return {
+                        isbn: isbns[isbns.length - 1] || "",
+                        title: doc.title || "",
+                        author: (doc.authors || []).join(", "),
+                        publisher: doc.publisher || "",
+                        thumbnail: doc.thumbnail || "",
+                        description: doc.contents || "",
+                        pubDate: doc.datetime ? doc.datetime.substring(0, 10) : "",
+                        price: doc.price || 0,
+                        url: doc.url || "",
+                        source: "kakao"
+                    };
+                });
+                return {
+                    books: books,
+                    hasMore: !data.meta.is_end,
+                    totalCount: data.meta.total_count || 0
+                };
+            }
+        } catch (e) {
+            console.warn("[searchBooks] Kakao error:", e.message);
+        }
+    }
+
+    // 2) Google Books API 폴백
+    try {
+        const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=20&startIndex=${(page - 1) * 20}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.items && data.items.length > 0) {
+            const books = data.items.map(item => {
+                const vol = item.volumeInfo;
+                const ids = vol.industryIdentifiers || [];
+                const isbn13 = ids.find(i => i.type === "ISBN_13");
+                const isbn10 = ids.find(i => i.type === "ISBN_10");
+                return {
+                    isbn: (isbn13 && isbn13.identifier) || (isbn10 && isbn10.identifier) || "",
+                    title: vol.title || "",
+                    author: (vol.authors || []).join(", "),
+                    publisher: vol.publisher || "",
+                    thumbnail: (vol.imageLinks && (vol.imageLinks.thumbnail || vol.imageLinks.smallThumbnail)) || "",
+                    description: vol.description || "",
+                    pubDate: vol.publishedDate || "",
+                    pages: vol.pageCount || 0,
+                    source: "google"
+                };
+            });
+            return {
+                books: books,
+                hasMore: (data.totalItems || 0) > page * 20,
+                totalCount: data.totalItems || 0
+            };
+        }
+    } catch (e) {
+        console.warn("[searchBooks] Google Books error:", e.message);
+    }
+
+    return { books: [], hasMore: false, totalCount: 0 };
+}
+
 exports.ping = onCall(pingCallableOpts, async (request) => {
     // ── Action router: handle admin actions via ping ──
     const action = request.data?.action;
@@ -1158,6 +1238,9 @@ exports.ping = onCall(pingCallableOpts, async (request) => {
                 // ─── ISBN 도서 검색 ───
                 case "lookupIsbn":
                     return await handleLookupIsbn(request);
+                // ─── 도서 키워드 검색 ───
+                case "searchBooks":
+                    return await handleSearchBooks(request);
                 default:
                     throw new HttpsError("invalid-argument", "Unknown action: " + action);
             }

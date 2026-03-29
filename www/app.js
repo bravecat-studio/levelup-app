@@ -10940,6 +10940,12 @@ window.renderLifeStatus = renderLifeStatus;
     let _libCurrentPeriod = 'total';
     let _libCurrentView = 'tower';
     let _libSearchQuery = '';
+    let _libLocalSearch = false;  // false = API search, true = local filter
+    let _apiSearchTimer = null;
+    let _apiSearchPage = 1;
+    let _apiSearchHasMore = false;
+    let _apiSearchQuery = '';
+    let _apiSearchResults = [];
 
     function t(key) {
         const lang = AppState.currentLang || 'ko';
@@ -10969,8 +10975,18 @@ window.renderLifeStatus = renderLifeStatus;
         _libCurrentPeriod = 'total';
         _libCurrentView = (_libCurrentTab === 'read') ? 'tower' : 'list';
         _libSearchQuery = '';
+        _libLocalSearch = false;
+        _apiSearchResults = [];
+        _apiSearchQuery = '';
+        _apiSearchPage = 1;
+        _apiSearchHasMore = false;
         const searchInput = document.getElementById('library-search-input');
         if (searchInput) searchInput.value = '';
+        const localCheckbox = document.getElementById('library-local-filter');
+        if (localCheckbox) localCheckbox.checked = false;
+        const searchResults = document.getElementById('library-search-results');
+        if (searchResults) { searchResults.classList.add('d-none'); searchResults.innerHTML = ''; }
+        showLibraryMainContent(true);
         updateLibraryTabs();
         updateLibraryViewToggle();
         updateLibraryCounts();
@@ -11022,8 +11038,196 @@ window.renderLifeStatus = renderLifeStatus;
     }
 
     window.filterLibraryBooks = function(query) {
-        _libSearchQuery = (query || '').trim().toLowerCase();
-        renderLibrary();
+        var trimmed = (query || '').trim();
+        if (_libLocalSearch) {
+            // Local filter mode: filter books in library
+            _libSearchQuery = trimmed.toLowerCase();
+            renderLibrary();
+        } else {
+            // API search mode: search via server
+            _libSearchQuery = '';
+            if (!trimmed) {
+                // Empty query: hide search results, show library
+                _apiSearchResults = [];
+                _apiSearchQuery = '';
+                var sr = document.getElementById('library-search-results');
+                if (sr) { sr.classList.add('d-none'); sr.innerHTML = ''; }
+                showLibraryMainContent(true);
+                return;
+            }
+            // Debounce API calls
+            if (_apiSearchTimer) clearTimeout(_apiSearchTimer);
+            _apiSearchTimer = setTimeout(function() {
+                _apiSearchPage = 1;
+                _apiSearchQuery = trimmed;
+                searchBooksFromApi(trimmed, 1);
+            }, 400);
+        }
+    };
+
+    window.toggleLibrarySearchMode = function(checked) {
+        _libLocalSearch = checked;
+        var searchInput = document.getElementById('library-search-input');
+        var currentVal = searchInput ? searchInput.value.trim() : '';
+        var searchResults = document.getElementById('library-search-results');
+
+        if (checked) {
+            // Switch to local filter mode
+            if (searchResults) { searchResults.classList.add('d-none'); searchResults.innerHTML = ''; }
+            _apiSearchResults = [];
+            showLibraryMainContent(true);
+            _libSearchQuery = currentVal.toLowerCase();
+            renderLibrary();
+        } else {
+            // Switch to API search mode
+            _libSearchQuery = '';
+            renderLibrary();
+            if (currentVal) {
+                _apiSearchPage = 1;
+                _apiSearchQuery = currentVal;
+                searchBooksFromApi(currentVal, 1);
+            }
+        }
+    };
+
+    function showLibraryMainContent(show) {
+        var els = document.querySelectorAll('.library-count-bar, .library-tabs, .library-view-toggle, #library-content');
+        els.forEach(function(el) {
+            el.style.display = show ? '' : 'none';
+        });
+    }
+
+    async function searchBooksFromApi(query, page) {
+        var searchResults = document.getElementById('library-search-results');
+        if (!searchResults) return;
+
+        // Show search results area, hide library main content
+        showLibraryMainContent(false);
+        searchResults.classList.remove('d-none');
+
+        if (page === 1) {
+            searchResults.innerHTML = '<div class="search-loading">' + t('lib_search_api') + '</div>';
+        } else {
+            // Remove old "more" button
+            var moreBtn = searchResults.querySelector('.search-more-btn');
+            if (moreBtn) moreBtn.textContent = t('lib_search_api');
+        }
+
+        try {
+            var _ping = httpsCallable(functions, 'ping');
+            var result = await _ping({ action: 'searchBooks', query: query, page: page });
+            var data = result.data || {};
+            var books = data.books || [];
+            _apiSearchHasMore = data.hasMore || false;
+
+            if (page === 1) {
+                _apiSearchResults = books;
+            } else {
+                _apiSearchResults = _apiSearchResults.concat(books);
+            }
+
+            renderApiSearchResults();
+        } catch (e) {
+            console.error('Book search error:', e);
+            if (page === 1) {
+                searchResults.innerHTML = '<div class="search-no-result">' + t('lib_search_no_result') + '</div>';
+                showLibraryMainContent(true);
+            }
+        }
+    }
+
+    function renderApiSearchResults() {
+        var searchResults = document.getElementById('library-search-results');
+        if (!searchResults) return;
+
+        if (_apiSearchResults.length === 0) {
+            searchResults.innerHTML = '<div class="search-no-result">' + t('lib_search_no_result') + '</div>';
+            showLibraryMainContent(true);
+            return;
+        }
+
+        var existingIsbns = {};
+        var libBooks = (AppState.library && AppState.library.books) || [];
+        libBooks.forEach(function(b) { if (b.isbn) existingIsbns[b.isbn] = true; });
+
+        var html = '';
+        _apiSearchResults.forEach(function(book, idx) {
+            var isAdded = book.isbn && existingIsbns[book.isbn];
+            var thumbSrc = book.thumbnail || 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'50\' height=\'72\' fill=\'%23555\'%3E%3Crect width=\'50\' height=\'72\' fill=\'%23222\' rx=\'4\'/%3E%3Ctext x=\'25\' y=\'40\' text-anchor=\'middle\' fill=\'%23666\' font-size=\'10\'%3E📖%3C/text%3E%3C/svg%3E';
+
+            html += '<div class="search-result-item" data-idx="' + idx + '">'
+                + '<img class="search-result-thumb" src="' + escapeHtml(thumbSrc) + '" alt="" onerror="this.style.visibility=\'hidden\'">'
+                + '<div class="search-result-info">'
+                + '<div class="search-result-title">' + escapeHtml(book.title) + '</div>'
+                + '<div class="search-result-meta">' + escapeHtml(book.author || '') + (book.publisher ? ' · ' + escapeHtml(book.publisher) : '') + '</div>'
+                + '<div class="search-cat-selector" data-idx="' + idx + '">'
+                + '<button class="search-cat-btn active" data-cat="reading" onclick="window.selectSearchCat(this)">' + t('lib_reading') + '</button>'
+                + '<button class="search-cat-btn" data-cat="read" onclick="window.selectSearchCat(this)">' + t('lib_read') + '</button>'
+                + '<button class="search-cat-btn" data-cat="wantToRead" onclick="window.selectSearchCat(this)">' + t('lib_want_to_read') + '</button>'
+                + '</div>'
+                + '</div>'
+                + '<div class="search-result-actions">'
+                + (isAdded
+                    ? '<button class="search-result-add-btn added" disabled>' + '✓' + '</button>'
+                    : '<button class="search-result-add-btn" onclick="window.addSearchResult(' + idx + ')">' + t('lib_add_book') + '</button>')
+                + '</div>'
+                + '</div>';
+        });
+
+        if (_apiSearchHasMore) {
+            html += '<button class="search-more-btn" onclick="window.loadMoreSearchResults()">' + t('lib_search_more') + '</button>';
+        }
+
+        searchResults.innerHTML = html;
+    }
+
+    window.selectSearchCat = function(btn) {
+        var selector = btn.closest('.search-cat-selector');
+        if (!selector) return;
+        selector.querySelectorAll('.search-cat-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+    };
+
+    window.addSearchResult = function(idx) {
+        if (idx < 0 || idx >= _apiSearchResults.length) return;
+        var book = _apiSearchResults[idx];
+        var item = document.querySelector('.search-result-item[data-idx="' + idx + '"]');
+        var catSelector = item ? item.querySelector('.search-cat-selector') : null;
+        var activeBtn = catSelector ? catSelector.querySelector('.search-cat-btn.active') : null;
+        var category = activeBtn ? activeBtn.dataset.cat : 'reading';
+
+        var bookInfo = {
+            isbn: book.isbn || '',
+            title: book.title || '',
+            author: book.author || '',
+            publisher: book.publisher || '',
+            thumbnail: book.thumbnail || '',
+            description: book.description || '',
+            pubDate: book.pubDate || '',
+            pages: book.pages || 0,
+            price: book.price || 0,
+            url: book.url || '',
+            source: book.source || null
+        };
+
+        var added = window.addBookToLibrary(bookInfo, category);
+        if (added) {
+            // Update button to show "added"
+            var addBtn = item ? item.querySelector('.search-result-add-btn') : null;
+            if (addBtn) {
+                addBtn.classList.add('added');
+                addBtn.disabled = true;
+                addBtn.textContent = '✓';
+                addBtn.onclick = null;
+            }
+            showLibToast(t('lib_book_added'));
+        }
+    };
+
+    window.loadMoreSearchResults = function() {
+        if (!_apiSearchHasMore || !_apiSearchQuery) return;
+        _apiSearchPage++;
+        searchBooksFromApi(_apiSearchQuery, _apiSearchPage);
     };
 
     function updateLibraryTabs() {
@@ -11152,7 +11356,7 @@ window.renderLifeStatus = renderLifeStatus;
         });
         // Tower top
         html += '<div class="book-tower-top">'
-            + '<div class="book-tower-top-label">' + books.length + '층 도달</div>'
+            + '<div class="book-tower-top-label">' + t('lib_babel_tower') + ' ' + books.length + '층</div>'
             + '<div class="book-tower-top-roof"></div>'
             + '</div>';
         container.innerHTML = html;
