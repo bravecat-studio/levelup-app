@@ -256,6 +256,12 @@ const i18n = {
         lib_move_read: "읽은책으로 이동",
         lib_move_want: "읽고싶은책으로 이동",
         lib_delete: "삭제",
+        lib_babel_tower: "바벨의 도서관",
+        lib_my_library_filter: "내 서재",
+        lib_search_api: "도서 검색 중...",
+        lib_search_no_result: "검색 결과가 없습니다.",
+        lib_add_book: "추가",
+        lib_search_more: "더보기",
         btn_cancel: "취소"
     },
     en: {
@@ -511,6 +517,12 @@ const i18n = {
         lib_move_read: "Move to Read",
         lib_move_want: "Move to Want to Read",
         lib_delete: "Delete",
+        lib_babel_tower: "Tower of Babel",
+        lib_my_library_filter: "My Library",
+        lib_search_api: "Searching books...",
+        lib_search_no_result: "No results found.",
+        lib_add_book: "Add",
+        lib_search_more: "More",
         btn_cancel: "Cancel"
     },
     ja: {
@@ -766,6 +778,12 @@ const i18n = {
         lib_move_read: "読了に移動",
         lib_move_want: "読みたいに移動",
         lib_delete: "削除",
+        lib_babel_tower: "バベルの図書館",
+        lib_my_library_filter: "マイ書斎",
+        lib_search_api: "本を検索中...",
+        lib_search_no_result: "検索結果がありません。",
+        lib_add_book: "追加",
+        lib_search_more: "もっと見る",
         btn_cancel: "キャンセル"
     }
 };
