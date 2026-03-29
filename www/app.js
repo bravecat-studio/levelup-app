@@ -10674,13 +10674,14 @@ window.renderLifeStatus = renderLifeStatus;
 
     function _scannerConfig() {
         return {
-            fps: 15,
+            fps: 10,
             qrbox: function(viewfinderWidth, viewfinderHeight) {
-                var w = Math.floor(viewfinderWidth * 0.85);
-                var h = Math.floor(viewfinderHeight * 0.5);
+                // Barcode-optimized: wide and short scan area
+                var w = Math.floor(viewfinderWidth * 0.9);
+                var h = Math.floor(viewfinderHeight * 0.35);
+                if (h < 80) h = 80;
                 return { width: w, height: h };
             },
-            aspectRatio: 1.3333,
             disableFlip: true,
             formatsToSupport: [
                 Html5QrcodeSupportedFormats.EAN_13,
@@ -10689,7 +10690,7 @@ window.renderLifeStatus = renderLifeStatus;
                 Html5QrcodeSupportedFormats.UPC_A,
                 Html5QrcodeSupportedFormats.UPC_E
             ],
-            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+            experimentalFeatures: { useBarCodeDetectorIfSupported: false }
         };
     }
 
@@ -11186,25 +11187,6 @@ window.renderLifeStatus = renderLifeStatus;
 
     // ── ISBN Scanner ──
     window.openIsbnScanner = async function() {
-        // Request camera permission
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } });
-            stream.getTracks().forEach(track => track.stop());
-            AppState.user.cameraEnabled = true;
-            saveUserData();
-            updateCameraToggleUI();
-        } catch(e) {
-            AppState.user.cameraEnabled = false;
-            saveUserData();
-            updateCameraToggleUI();
-            const lang = i18n[AppState.currentLang];
-            const msg = lang.cam_denied_go_settings || '카메라 권한이 거부되었습니다.\n앱 설정에서 카메라 권한을 허용하시겠습니까?';
-            if (confirm(msg)) {
-                openAppSettings();
-            }
-            return;
-        }
-
         const overlay = document.getElementById('isbn-scanner-overlay');
         if (overlay) overlay.classList.remove('d-none');
 
@@ -11214,12 +11196,18 @@ window.renderLifeStatus = renderLifeStatus;
         try {
             if (_html5QrCode) {
                 try { await _html5QrCode.stop(); } catch(e) {}
+                _html5QrCode = null;
             }
             _html5QrCode = new Html5Qrcode('isbn-scanner-reader');
+
+            var _scanHandled = false;
             await _html5QrCode.start(
                 { facingMode: 'environment' },
                 _scannerConfig(),
                 async (decodedText) => {
+                    // Prevent duplicate triggers
+                    if (_scanHandled) return;
+                    _scanHandled = true;
                     // ISBN detected via barcode
                     stopOcrInterval();
                     if (statusEl) statusEl.textContent = 'ISBN: ' + decodedText;
@@ -11228,14 +11216,33 @@ window.renderLifeStatus = renderLifeStatus;
                     var field = document.getElementById('isbn-manual-field');
                     if (field) field.value = decodedText;
                     await onIsbnScanned(decodedText);
+                    _scanHandled = false;
                 },
                 () => {} // ignore scan failures
             );
+
+            AppState.user.cameraEnabled = true;
+            saveUserData();
+            updateCameraToggleUI();
+
             // Start OCR fallback after a short delay
             setTimeout(function() { startOcrInterval(); }, 3000);
         } catch(e) {
             console.error('Scanner start error:', e);
-            if (statusEl) statusEl.textContent = 'Scanner error: ' + (e.message || e);
+            // Camera permission denied or other error
+            if (e && (e.name === 'NotAllowedError' || (e.message && e.message.indexOf('Permission') >= 0))) {
+                AppState.user.cameraEnabled = false;
+                saveUserData();
+                updateCameraToggleUI();
+                if (overlay) overlay.classList.add('d-none');
+                const lang = i18n[AppState.currentLang];
+                const msg = lang.cam_denied_go_settings || '카메라 권한이 거부되었습니다.\n앱 설정에서 카메라 권한을 허용하시겠습니까?';
+                if (confirm(msg)) {
+                    openAppSettings();
+                }
+            } else {
+                if (statusEl) statusEl.textContent = 'Scanner error: ' + (e.message || e);
+            }
         }
     };
 
