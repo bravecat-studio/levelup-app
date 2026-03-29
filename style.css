@@ -1578,7 +1578,7 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
     font-size: 1.6rem; cursor: pointer; line-height: 1;
 }
 .isbn-scanner-reader {
-    width: 90%; max-width: 400px; aspect-ratio: 4/3;
+    width: 92%; max-width: 420px; min-height: 280px;
     border-radius: 12px; overflow: hidden; background: #111;
     position: relative;
 }
