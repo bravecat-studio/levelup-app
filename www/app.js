@@ -11035,7 +11035,18 @@ window.renderLifeStatus = renderLifeStatus;
     }
 
     async function lookupBookByIsbn(isbn) {
-        // 1) Google Books API
+        // 1) Server-side Korean book API proxy (알라딘 → 카카오)
+        try {
+            const _ping = httpsCallable(functions, 'ping');
+            const result = await _ping({ action: 'lookupIsbn', isbn: isbn });
+            if (result.data && result.data.book) {
+                return result.data.book;
+            }
+        } catch(e) {
+            console.warn('Server ISBN lookup error:', e);
+        }
+
+        // 2) Google Books API (client-side fallback)
         try {
             const res = await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:' + encodeURIComponent(isbn) + '&maxResults=1');
             const data = await res.json();
@@ -11053,7 +11064,7 @@ window.renderLifeStatus = renderLifeStatus;
             console.error('Google Books lookup error:', e);
         }
 
-        // 2) Open Library API fallback
+        // 3) Open Library API fallback
         try {
             const res = await fetch('https://openlibrary.org/isbn/' + encodeURIComponent(isbn) + '.json');
             if (res.ok) {
