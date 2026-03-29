@@ -11010,19 +11010,24 @@ window.renderLifeStatus = renderLifeStatus;
 
         const bookInfo = await lookupBookByIsbn(isbn);
         if (!bookInfo) {
-            alert(t('lib_not_found'));
-            if (statusEl) statusEl.textContent = t('lib_scan_hint');
-            // Restart scanner
-            try {
-                if (_html5QrCode) {
-                    await _html5QrCode.start(
-                        { facingMode: 'environment' },
-                        _scannerConfig(),
-                        async (text) => { try { await _html5QrCode.stop(); } catch(e) {} await onIsbnScanned(text); },
-                        () => {}
-                    );
-                }
-            } catch(e) {}
+            // Ask user if they want to enter manually
+            if (confirm(t('lib_not_found'))) {
+                window.closeIsbnScanner();
+                showManualBookEntry(isbn);
+            } else {
+                if (statusEl) statusEl.textContent = t('lib_scan_hint');
+                // Restart scanner
+                try {
+                    if (_html5QrCode) {
+                        await _html5QrCode.start(
+                            { facingMode: 'environment' },
+                            _scannerConfig(),
+                            async (text) => { try { await _html5QrCode.stop(); } catch(e) {} await onIsbnScanned(text); },
+                            () => {}
+                        );
+                    }
+                } catch(e) {}
+            }
             return;
         }
         _pendingBook = bookInfo;
@@ -11030,22 +11035,53 @@ window.renderLifeStatus = renderLifeStatus;
     }
 
     async function lookupBookByIsbn(isbn) {
+        // 1) Google Books API
         try {
             const res = await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:' + encodeURIComponent(isbn) + '&maxResults=1');
             const data = await res.json();
-            if (!data.items || data.items.length === 0) return null;
-            const vol = data.items[0].volumeInfo;
-            return {
-                isbn: isbn,
-                title: vol.title || 'Unknown',
-                author: (vol.authors || []).join(', '),
-                publisher: vol.publisher || '',
-                thumbnail: (vol.imageLinks && (vol.imageLinks.thumbnail || vol.imageLinks.smallThumbnail)) || ''
-            };
+            if (data.items && data.items.length > 0) {
+                const vol = data.items[0].volumeInfo;
+                return {
+                    isbn: isbn,
+                    title: vol.title || 'Unknown',
+                    author: (vol.authors || []).join(', '),
+                    publisher: vol.publisher || '',
+                    thumbnail: (vol.imageLinks && (vol.imageLinks.thumbnail || vol.imageLinks.smallThumbnail)) || ''
+                };
+            }
         } catch(e) {
-            console.error('Book lookup error:', e);
-            return null;
+            console.error('Google Books lookup error:', e);
         }
+
+        // 2) Open Library API fallback
+        try {
+            const res = await fetch('https://openlibrary.org/isbn/' + encodeURIComponent(isbn) + '.json');
+            if (res.ok) {
+                const data = await res.json();
+                let authorName = '';
+                if (data.authors && data.authors.length > 0) {
+                    try {
+                        const authorRes = await fetch('https://openlibrary.org' + data.authors[0].key + '.json');
+                        if (authorRes.ok) {
+                            const authorData = await authorRes.json();
+                            authorName = authorData.name || '';
+                        }
+                    } catch(e) {}
+                }
+                const coverId = data.covers && data.covers[0];
+                return {
+                    isbn: isbn,
+                    title: data.title || 'Unknown',
+                    author: authorName,
+                    publisher: (data.publishers && data.publishers[0]) || '',
+                    thumbnail: coverId ? 'https://covers.openlibrary.org/b/id/' + coverId + '-M.jpg' : ''
+                };
+            }
+        } catch(e) {
+            console.error('Open Library lookup error:', e);
+        }
+
+        return null;
     }
 
     function showBookConfirm(bookInfo) {
@@ -11111,6 +11147,64 @@ window.renderLifeStatus = renderLifeStatus;
         if (overlay) { overlay.classList.add('d-none'); overlay.classList.remove('d-flex'); }
         // Restart scanner
         window.openIsbnScanner();
+    };
+
+    // ── Manual Book Entry ──
+    function showManualBookEntry(isbn) {
+        const overlay = document.getElementById('manual-book-overlay');
+        if (!overlay) return;
+        document.getElementById('manual-book-isbn').value = isbn;
+        document.getElementById('manual-book-title').value = '';
+        document.getElementById('manual-book-author').value = '';
+        document.getElementById('manual-book-publisher').value = '';
+        // Reset category selection
+        overlay.querySelectorAll('.book-cat-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.cat === 'reading');
+        });
+        overlay.querySelectorAll('.book-cat-btn').forEach(b => {
+            b.onclick = function() {
+                overlay.querySelectorAll('.book-cat-btn').forEach(x => x.classList.remove('active'));
+                this.classList.add('active');
+            };
+        });
+        overlay.classList.remove('d-none');
+        overlay.classList.add('d-flex');
+        // Apply i18n
+        if (typeof changeLanguage === 'function') changeLanguage(AppState.currentLang);
+    }
+
+    window.confirmManualBook = function() {
+        const title = (document.getElementById('manual-book-title').value || '').trim();
+        if (!title) {
+            document.getElementById('manual-book-title').focus();
+            return;
+        }
+        const isbn = document.getElementById('manual-book-isbn').value || '';
+        const author = (document.getElementById('manual-book-author').value || '').trim();
+        const publisher = (document.getElementById('manual-book-publisher').value || '').trim();
+        const overlay = document.getElementById('manual-book-overlay');
+        const activeBtn = overlay ? overlay.querySelector('.book-cat-btn.active') : null;
+        const category = activeBtn ? activeBtn.dataset.cat : 'reading';
+
+        const bookInfo = { isbn: isbn, title: title, author: author, publisher: publisher, thumbnail: '' };
+        const added = window.addBookToLibrary(bookInfo, category);
+        if (added) {
+            if (overlay) { overlay.classList.add('d-none'); overlay.classList.remove('d-flex'); }
+            // Refresh library view if open
+            const libOverlay = document.getElementById('library-overlay');
+            if (libOverlay && !libOverlay.classList.contains('d-none')) {
+                _libCurrentTab = category;
+                updateLibraryTabs();
+                updateLibraryCounts();
+                renderLibrary();
+            }
+            showLibToast(t('lib_book_added'));
+        }
+    };
+
+    window.cancelManualBook = function() {
+        const overlay = document.getElementById('manual-book-overlay');
+        if (overlay) { overlay.classList.add('d-none'); overlay.classList.remove('d-flex'); }
     };
 
     function showLibToast(msg) {
