@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.31] - 2026-03-30
+
+### 변경
+- fix: remove OCR char whitelist, use max(R,G,B) grayscale, improve crops
+
 ## [1.0.30] - 2026-03-30
 
 ### 변경
