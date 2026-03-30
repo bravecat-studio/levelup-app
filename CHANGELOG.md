@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.39] - 2026-03-30
+
+### 변경
+- feat: 소셜탭 독서왕 랭킹 탭 및 독서 호칭 시스템 추가
+
 ## [1.0.38] - 2026-03-30
 
 ### 변경
