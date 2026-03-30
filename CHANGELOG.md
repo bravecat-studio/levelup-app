@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.45] - 2026-03-30
+
+### 변경
+- feat: 상태창에 러닝 계산기 추가 (페이스/VDOT 계산기)
+
 ## [1.0.44] - 2026-03-30
 
 ### 변경
