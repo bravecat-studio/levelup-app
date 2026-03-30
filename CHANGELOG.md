@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.30] - 2026-03-30
+
+### 변경
+- fix: improve OCR preprocessing for colored backgrounds and ISBN extraction
+
 ## [1.0.29] - 2026-03-30
 
 ### 변경
