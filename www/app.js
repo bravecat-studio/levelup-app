@@ -6162,9 +6162,9 @@ async function showRewardedInterstitial(context) {
 
 // --- 배너 광고 함수 (던전 탭 전용) ---
 function _getBannerMargin() {
-    // nav 높이(65px) + safe-area-inset-bottom 을 합산하여 배너가 nav 위에 위치하도록
-    const safeBottom = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-bottom)')) || 0;
-    return 65 + safeBottom;
+    // 내 서재: 헤더 높이(약 53px) + safe-area-inset-top 을 합산하여 배너가 헤더 아래(검색바 위)에 위치하도록
+    const safeTop = parseInt(getComputedStyle(document.documentElement).getPropertyValue('env(safe-area-inset-top)')) || 0;
+    return 53 + safeTop;
 }
 
 async function showBannerAd() {
@@ -6180,16 +6180,19 @@ async function showBannerAd() {
             await AdMob.showBanner({
                 adId: BANNER_AD_UNIT_ID,
                 adSize: 'ADAPTIVE_BANNER',
-                position: 'BOTTOM_CENTER',
+                position: 'TOP_CENTER',
                 margin: bannerMargin,
                 isTesting: false,
             });
             _bannerAdLoaded = true;
         }
         _bannerAdVisible = true;
-        // 던전 콘텐츠가 배너에 가리지 않도록 하단 여백 추가
+        // 배너 스페이서 표시 (검색바 위에 공간 확보)
+        var spacer = document.getElementById('library-banner-spacer');
+        if (spacer) { spacer.classList.remove('d-none'); spacer.style.height = '60px'; }
+        // 던전 콘텐츠가 배너에 가리지 않도록 상단 여백 추가
         const mainEl = document.querySelector('main');
-        if (mainEl) mainEl.style.paddingBottom = `calc(${bannerMargin + 70}px + env(safe-area-inset-bottom))`;
+        if (mainEl) mainEl.style.paddingTop = `calc(${bannerMargin + 70}px + env(safe-area-inset-top))`;
         if (window.AppLogger) AppLogger.info('[AdMob] 배너 광고 표시');
     } catch (e) {
         console.warn('[AdMob] 배너 광고 표시 실패:', e);
@@ -6204,9 +6207,12 @@ async function hideBannerAd() {
         if (!AdMob) return;
         await AdMob.hideBanner();
         _bannerAdVisible = false;
-        // 배너 숨김 시 하단 여백 원래대로 복원
+        // 배너 스페이서 숨김
+        var spacer = document.getElementById('library-banner-spacer');
+        if (spacer) { spacer.classList.add('d-none'); spacer.style.height = ''; }
+        // 배너 숨김 시 상단 여백 원래대로 복원
         const mainEl = document.querySelector('main');
-        if (mainEl) mainEl.style.paddingBottom = '';
+        if (mainEl) mainEl.style.paddingTop = '';
         if (window.AppLogger) AppLogger.info('[AdMob] 배너 광고 숨김');
     } catch (e) {
         console.warn('[AdMob] 배너 광고 숨김 실패:', e);
@@ -11618,22 +11624,14 @@ window.renderLifeStatus = renderLifeStatus;
         window.updateLibraryCardCount();
         // Trigger i18n re-apply for dynamically shown overlay
         if (typeof changeLanguage === 'function') changeLanguage(AppState.currentLang);
-        // 내 서재 하단 배너 광고 표시
-        showBannerAd().then(function() {
-            var libContent = document.getElementById('library-content');
-            if (libContent && _bannerAdVisible) {
-                var bannerMargin = _getBannerMargin();
-                libContent.style.paddingBottom = (bannerMargin + 60) + 'px';
-            }
-        });
+        // 내 서재 배너 광고 표시 (검색바 바로 위)
+        showBannerAd();
     };
 
     window.closeLibraryView = function() {
         const overlay = document.getElementById('library-overlay');
         if (overlay) overlay.classList.add('d-none');
-        // 배너 광고 숨김 및 하단 여백 복원
-        var libContent = document.getElementById('library-content');
-        if (libContent) libContent.style.paddingBottom = '';
+        // 배너 광고 숨김
         hideBannerAd();
         // 뒤로가기 시 상태창으로 이동
         const statusNav = document.querySelector('.nav-item[data-tab="status"]');
@@ -12121,11 +12119,10 @@ window.renderLifeStatus = renderLifeStatus;
 
         // 레이아웃 높이 계산
         var hexH = 48;
-        var hexGap = 8;
         var baseH = 14;
         var baseGap = 4;
         var footerH = 36;
-        var totalH = pad + hexH + hexGap + totalBooksH + baseGap + baseH + 20 + footerH + pad;
+        var totalH = pad + totalBooksH + baseGap + baseH + hexH + footerH + pad;
 
         canvas.width = W;
         canvas.height = totalH;
@@ -12135,35 +12132,6 @@ window.renderLifeStatus = renderLifeStatus;
         ctx.fillRect(0, 0, W, totalH);
 
         var y = pad;
-
-        // --- 육각형 탑 꼭대기 ---
-        var hexW = innerW * 0.6;
-        var hexX = centerX - hexW / 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(hexX + hexW * 0.1, y);
-        ctx.lineTo(hexX + hexW * 0.9, y);
-        ctx.lineTo(hexX + hexW, y + hexH / 2);
-        ctx.lineTo(hexX + hexW * 0.9, y + hexH);
-        ctx.lineTo(hexX + hexW * 0.1, y + hexH);
-        ctx.lineTo(hexX, y + hexH / 2);
-        ctx.closePath();
-        var hexGrad = ctx.createLinearGradient(0, y, 0, y + hexH);
-        hexGrad.addColorStop(0, '#4a4a5a');
-        hexGrad.addColorStop(1, '#3a3a4a');
-        ctx.fillStyle = hexGrad;
-        ctx.fill();
-        ctx.restore();
-        // 육각형 텍스트 (2줄: 바벨의 도서관 / N층)
-        ctx.fillStyle = '#00d9ff';
-        ctx.font = 'bold 11px Pretendard, sans-serif';
-        var hexLine1 = t('lib_babel_tower') || '바벨의 도서관';
-        var hexLine2 = books.length + '층';
-        var hexLine1W = ctx.measureText(hexLine1).width;
-        var hexLine2W = ctx.measureText(hexLine2).width;
-        ctx.fillText(hexLine1, centerX - hexLine1W / 2, y + hexH / 2 - 2);
-        ctx.fillText(hexLine2, centerX - hexLine2W / 2, y + hexH / 2 + 12);
-        y += hexH + hexGap;
 
         // --- 책 스파인 육각형 (맨 위층부터 아래로) ---
         for (var i = bookMetrics.length - 1; i >= 0; i--) {
@@ -12227,7 +12195,36 @@ window.renderLifeStatus = renderLifeStatus;
         ctx.beginPath();
         ctx.roundRect(baseX, y, baseW, baseH, [0, 0, 6, 6]);
         ctx.fill();
-        y += baseH + 20;
+        y += baseH;
+
+        // --- 바벨의 도서관 육각형 (최하단, 공백 없이) ---
+        var hexW = innerW * 0.6;
+        var hexX = centerX - hexW / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(hexX + hexW * 0.1, y);
+        ctx.lineTo(hexX + hexW * 0.9, y);
+        ctx.lineTo(hexX + hexW, y + hexH / 2);
+        ctx.lineTo(hexX + hexW * 0.9, y + hexH);
+        ctx.lineTo(hexX + hexW * 0.1, y + hexH);
+        ctx.lineTo(hexX, y + hexH / 2);
+        ctx.closePath();
+        var hexGrad = ctx.createLinearGradient(0, y, 0, y + hexH);
+        hexGrad.addColorStop(0, '#4a4a5a');
+        hexGrad.addColorStop(1, '#3a3a4a');
+        ctx.fillStyle = hexGrad;
+        ctx.fill();
+        ctx.restore();
+        // 육각형 텍스트 (2줄: 바벨의 도서관 / N층)
+        ctx.fillStyle = '#00d9ff';
+        ctx.font = 'bold 11px Pretendard, sans-serif';
+        var hexLine1 = t('lib_babel_tower') || '바벨의 도서관';
+        var hexLine2 = books.length + '층';
+        var hexLine1W = ctx.measureText(hexLine1).width;
+        var hexLine2W = ctx.measureText(hexLine2).width;
+        ctx.fillText(hexLine1, centerX - hexLine1W / 2, y + hexH / 2 - 2);
+        ctx.fillText(hexLine2, centerX - hexLine2W / 2, y + hexH / 2 + 12);
+        y += hexH;
 
         // --- 푸터 ---
         ctx.fillStyle = '#444';
@@ -12371,8 +12368,12 @@ window.renderLifeStatus = renderLifeStatus;
 
     function renderTowerView(container, books) {
         container.className = 'library-tower';
+        // 바벨의 도서관 라벨을 최하단에 배치 (column-reverse이므로 HTML 첫 번째 = 화면 최하단)
+        let html = '<div class="book-tower-top">'
+            + '<div class="book-tower-top-label">' + t('lib_babel_tower') + '<br>' + books.length + '층</div>'
+            + '</div>';
         // Tower base
-        let html = '<div class="book-tower-base"></div>';
+        html += '<div class="book-tower-base"></div>';
         // Books stacked from bottom (floor 1) to top
         books.forEach((book, i) => {
             const floor = i + 1;
@@ -12388,10 +12389,6 @@ window.renderLifeStatus = renderLifeStatus;
                 + (srcLabel ? '<span class="book-tower-source">' + escapeHtml(srcLabel) + '</span>' : '')
                 + '</div>';
         });
-        // Tower top
-        html += '<div class="book-tower-top">'
-            + '<div class="book-tower-top-label">' + t('lib_babel_tower') + '<br>' + books.length + '층</div>'
-            + '</div>';
         container.innerHTML = html;
     }
 
