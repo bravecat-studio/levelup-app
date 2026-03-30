@@ -921,6 +921,9 @@
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
                 <button class="library-info-btn btn-info-sm" onclick="window.openLibraryInfoModal()" data-i18n="btn_library_info">가이드</button>
+                <button id="library-share-btn" class="library-share-btn d-none" onclick="window.shareLibraryAsImage()">
+                    📥 <span data-i18n="lib_save_image">이미지 저장</span>
+                </button>
                 <button class="library-scan-btn" onclick="window.openIsbnScanner()">📷</button>
             </div>
         </div>
@@ -971,9 +974,6 @@
             <button class="lib-view-btn" data-view="list" onclick="window.switchLibraryViewMode('list')" data-i18n="lib_list_view">리스트형 보기</button>
         </div>
         <div id="library-content" class="library-content" style="position:relative;">
-            <button id="library-share-btn" class="library-share-btn d-none" onclick="window.shareLibraryAsImage()">
-                📥 <span data-i18n="lib_save_image">이미지 저장</span>
-            </button>
             <div id="library-tower" class="library-tower"></div>
         </div>
     </div>
