@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.46] - 2026-03-30
+
+### 변경
+- 내 서재 하단 불필요한 공백 제거
+
 ## [1.0.45] - 2026-03-30
 
 ### 변경
