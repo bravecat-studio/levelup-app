@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.42] - 2026-03-30
+
+### 변경
+- feat: 책 스파인 육각형 변경 및 이미지 저장 버튼 우측 상단 이동
+
 ## [1.0.41] - 2026-03-30
 
 ### 변경
