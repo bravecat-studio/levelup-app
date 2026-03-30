@@ -1973,18 +1973,15 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 
 /* ── Library Share Button (top-right) ── */
 .library-share-btn {
-    position: sticky; top: 4px; right: 0;
-    z-index: 10; float: right;
-    margin: 4px 6px 0 0;
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 6px 12px;
+    padding: 4px 8px;
     background: rgba(0, 217, 255, 0.12);
     color: var(--neon-blue);
     border: 1px solid rgba(0, 217, 255, 0.3);
     border-radius: 8px;
-    font-size: 0.72rem; font-weight: 700; cursor: pointer;
-    backdrop-filter: blur(6px);
+    font-size: 0.7rem; font-weight: 700; cursor: pointer;
 }
+.library-share-btn.d-none { display: none !important; }
 .library-share-btn:active { transform: scale(0.96); }
 
 /* ── Source badges ── */
