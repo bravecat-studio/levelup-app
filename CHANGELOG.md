@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.47] - 2026-03-30
+
+### 변경
+- feat: 1RM 계산기 카드 및 상세 화면 추가
+
 ## [1.0.46] - 2026-03-30
 
 ### 변경
