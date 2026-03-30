@@ -792,7 +792,7 @@ function initNavDragReorder() {
 }
 
 // --- 상태창 카드 순서 재배치 (길게 눌러 상하 이동) ---
-const DEFAULT_STATUS_CARD_ORDER = ['step-count', 'stat-radar', 'my-library', 'bonus-exp', 'running-calc', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
+const DEFAULT_STATUS_CARD_ORDER = ['stat-radar', 'bonus-exp', 'step-count', 'my-library', 'orm-calc', 'running-calc', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
 
 function saveStatusCardOrder() {
     const cards = Array.from(document.querySelectorAll('#status .status-reorderable'));
@@ -920,11 +920,12 @@ const STATUS_CARD_LABELS = {
     'dday-caption': { name: '목표/좌우명', icon: '💬' },
     'daily-quote': { name: '오늘의 명언', icon: '❝' },
     'my-library': { name: '내 서재', icon: '📚' },
-    'running-calc': { name: '러닝 계산기', icon: '🏃' }
+    'running-calc': { name: '러닝 계산기', icon: '🏃' },
+    'orm-calc': { name: '1RM 계산기', icon: '🏋️' }
 };
-const ALL_CARD_IDS = ['step-count', 'stat-radar', 'my-library', 'bonus-exp', 'running-calc', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
+const ALL_CARD_IDS = ['stat-radar', 'bonus-exp', 'step-count', 'my-library', 'orm-calc', 'running-calc', 'pomodoro', 'life-status', 'dday', 'dday-caption', 'daily-quote'];
 // 삭제 불가 카드 (이동만 가능)
-const NON_REMOVABLE_CARDS = ['stat-radar', 'bonus-exp', 'my-library'];
+const NON_REMOVABLE_CARDS = ['stat-radar', 'bonus-exp'];
 
 function getHiddenCards() {
     try {
@@ -937,6 +938,33 @@ function saveHiddenCards(hiddenIds) {
     // 삭제 불가 카드는 숨김 목록에서 제외
     const filtered = hiddenIds.filter(id => !NON_REMOVABLE_CARDS.includes(id));
     localStorage.setItem('statusCardHidden', JSON.stringify(filtered));
+}
+
+// 기존 사용자의 카드 순서에 새 카드(orm-calc 등)가 누락된 경우 추가
+function migrateCardOrder() {
+    const saved = localStorage.getItem('statusCardOrder');
+    if (!saved) return;
+    try {
+        const order = JSON.parse(saved);
+        let changed = false;
+        ALL_CARD_IDS.forEach(id => {
+            if (!order.includes(id)) {
+                // DEFAULT_STATUS_CARD_ORDER 기준으로 적절한 위치에 삽입
+                const defaultIdx = DEFAULT_STATUS_CARD_ORDER.indexOf(id);
+                let insertIdx = order.length;
+                for (let i = defaultIdx + 1; i < DEFAULT_STATUS_CARD_ORDER.length; i++) {
+                    const nextId = DEFAULT_STATUS_CARD_ORDER[i];
+                    const pos = order.indexOf(nextId);
+                    if (pos !== -1) { insertIdx = pos; break; }
+                }
+                order.splice(insertIdx, 0, id);
+                changed = true;
+            }
+        });
+        if (changed) {
+            localStorage.setItem('statusCardOrder', JSON.stringify(order));
+        }
+    } catch(e) {}
 }
 
 function applyCardVisibility() {
@@ -1350,6 +1378,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadNavOrder();
+    migrateCardOrder();
     loadStatusCardOrder();
     applyCardVisibility();
     initHamburgerMenu();
