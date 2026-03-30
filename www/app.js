@@ -11040,6 +11040,72 @@ window.renderLifeStatus = renderLifeStatus;
         return null;
     }
 
+    // ── ISBN-10 to ISBN-13 Conversion ──
+    function isbn10to13(isbn10) {
+        if (!isbn10 || isbn10.length !== 10) return null;
+        var base = '978' + isbn10.substring(0, 9);
+        var sum = 0;
+        for (var i = 0; i < 12; i++) {
+            sum += parseInt(base[i], 10) * (i % 2 === 0 ? 1 : 3);
+        }
+        var check = (10 - (sum % 10)) % 10;
+        return base + check;
+    }
+
+    // ── ISBN Candidate Voting System ──
+    // Track how many times each ISBN candidate appears across frames
+    var _isbnCandidateVotes = {};  // { isbn: { count: N, confidence: totalConf, firstSeen: ts } }
+    var _isbnVoteThreshold = 2;   // Require 2+ sightings to accept a candidate
+
+    function voteIsbnCandidate(isbn, confidence) {
+        if (!isbn) return null;
+        var now = Date.now();
+        // Normalize ISBN-10 to ISBN-13 for consistent voting
+        var normalizedIsbn = isbn.length === 10 ? isbn10to13(isbn) : isbn;
+        if (!normalizedIsbn) normalizedIsbn = isbn;
+
+        if (!_isbnCandidateVotes[normalizedIsbn]) {
+            _isbnCandidateVotes[normalizedIsbn] = { count: 0, confidence: 0, firstSeen: now };
+        }
+        var entry = _isbnCandidateVotes[normalizedIsbn];
+        entry.count++;
+        entry.confidence += (confidence || 0);
+
+        // Expire old candidates (>12s old with no recent votes)
+        var keys = Object.keys(_isbnCandidateVotes);
+        for (var i = 0; i < keys.length; i++) {
+            if (now - _isbnCandidateVotes[keys[i]].firstSeen > 12000 && _isbnCandidateVotes[keys[i]].count < _isbnVoteThreshold) {
+                delete _isbnCandidateVotes[keys[i]];
+            }
+        }
+
+        // Check if any candidate has reached the vote threshold
+        if (entry.count >= _isbnVoteThreshold && isValidIsbn(normalizedIsbn)) {
+            if (window.AppLogger) AppLogger.info('[ISBN] Candidate voted in: ' + normalizedIsbn + ' (votes=' + entry.count + ', avgConf=' + Math.round(entry.confidence / entry.count) + '%)');
+            return normalizedIsbn;
+        }
+
+        // Also check if the original (non-normalized) has high votes
+        if (isbn !== normalizedIsbn && _isbnCandidateVotes[isbn] && _isbnCandidateVotes[isbn].count >= _isbnVoteThreshold && isValidIsbn(isbn)) {
+            return isbn;
+        }
+
+        return null;
+    }
+
+    function getBestVotedCandidate() {
+        var bestIsbn = null, bestCount = 0;
+        var keys = Object.keys(_isbnCandidateVotes);
+        for (var i = 0; i < keys.length; i++) {
+            var entry = _isbnCandidateVotes[keys[i]];
+            if (entry.count > bestCount && isValidIsbn(keys[i])) {
+                bestCount = entry.count;
+                bestIsbn = keys[i];
+            }
+        }
+        return bestCount >= _isbnVoteThreshold ? bestIsbn : null;
+    }
+
     // ── ISBN Fragment Accumulation ──
     // Accumulate OCR digit fragments across frames and try to reconstruct a full ISBN
     function addIsbnFragment(ocrText) {
@@ -11048,9 +11114,22 @@ window.renderLifeStatus = renderLifeStatus;
         // Extract all digit sequences (3+ digits) from the OCR text
         var digitRuns = corrected.match(/\d{3,}/g);
         if (!digitRuns || digitRuns.length === 0) return;
+
+        // Deduplicate: skip if identical to the last fragment (prevents redundant accumulation)
+        if (_isbnFragments.length > 0) {
+            var lastFrag = _isbnFragments[_isbnFragments.length - 1];
+            if (lastFrag.digits.join(',') === digitRuns.join(',')) return;
+        }
+
         _isbnFragments.push({ digits: digitRuns, raw: corrected, time: Date.now() });
         // Keep only last 15 fragments (sliding window ~10.5s at 700ms interval)
         if (_isbnFragments.length > 15) _isbnFragments.shift();
+
+        // Expire fragments older than 10 seconds
+        var now = Date.now();
+        while (_isbnFragments.length > 0 && now - _isbnFragments[0].time > 10000) {
+            _isbnFragments.shift();
+        }
     }
 
     function extractIsbnFromFragments() {
@@ -11126,7 +11205,7 @@ window.renderLifeStatus = renderLifeStatus;
         }
     }
 
-    // ── OCR Image Preprocessing (grayscale → Otsu binarization → upscale) ──
+    // ── OCR Image Preprocessing (grayscale → sharpen → adaptive binarization → upscale) ──
     function preprocessForOcr(srcCanvas) {
         var w = srcCanvas.width;
         var h = srcCanvas.height;
@@ -11156,10 +11235,6 @@ window.renderLifeStatus = renderLifeStatus;
                 var inv = 255 - data[i];
                 data[i] = data[i + 1] = data[i + 2] = inv;
             }
-            // Recompute min/max after inversion
-            minGray = 255 - maxGray;
-            maxGray = 255 - (meanGray < 50 ? 0 : minGray);
-            if (minGray > maxGray) { var tmp = minGray; minGray = maxGray; maxGray = tmp; }
             // Recalc actual min/max from inverted data
             minGray = 255; maxGray = 0;
             for (var i = 0; i < data.length; i += 4) {
@@ -11169,7 +11244,6 @@ window.renderLifeStatus = renderLifeStatus;
         }
 
         // Step 1b: Contrast stretching (normalize gray range to 0-255)
-        // Critical for colored backgrounds (e.g. orange ISBN band)
         var grayRange = maxGray - minGray;
         if (grayRange > 0 && grayRange < 200) {
             for (var i = 0; i < data.length; i += 4) {
@@ -11180,50 +11254,170 @@ window.renderLifeStatus = renderLifeStatus;
             }
         }
 
-        // Recompute histogram after stretching
+        // Step 1c: Unsharp mask sharpening — sharpens blurry camera text
+        // kernel: center = 5, neighbors = -1 (3x3 Laplacian-based unsharp)
+        ctx.putImageData(imgData, 0, 0);
+        var sharpData = ctx.getImageData(0, 0, w, h);
+        var sd = sharpData.data;
+        var strength = 0.6; // sharpening strength (0=none, 1=full)
+        for (var y = 1; y < h - 1; y++) {
+            for (var x = 1; x < w - 1; x++) {
+                var idx = (y * w + x) * 4;
+                var center = data[idx];
+                var neighbors = data[((y-1)*w+x)*4] + data[((y+1)*w+x)*4] +
+                                data[(y*w+x-1)*4] + data[(y*w+x+1)*4];
+                var sharp = center + strength * (4 * center - neighbors);
+                if (sharp < 0) sharp = 0;
+                if (sharp > 255) sharp = 255;
+                sd[idx] = sd[idx+1] = sd[idx+2] = Math.round(sharp);
+            }
+        }
+        ctx.putImageData(sharpData, 0, 0);
+        imgData = ctx.getImageData(0, 0, w, h);
+        data = imgData.data;
+
+        // Recompute histogram after stretching + sharpening
         histogram.fill(0);
         for (var i = 0; i < data.length; i += 4) {
             histogram[data[i]]++;
         }
 
-        // Step 2: Otsu thresholding
-        var sumAll = 0;
-        for (var t = 0; t < 256; t++) sumAll += t * histogram[t];
-        var sumBg = 0, weightBg = 0, maxVariance = 0, bestThreshold = 128;
-        for (var t = 0; t < 256; t++) {
-            weightBg += histogram[t];
-            if (weightBg === 0) continue;
-            var weightFg = totalPixels - weightBg;
-            if (weightFg === 0) break;
-            sumBg += t * histogram[t];
-            var meanBg = sumBg / weightBg;
-            var meanFg = (sumAll - sumBg) / weightFg;
-            var variance = weightBg * weightFg * (meanBg - meanFg) * (meanBg - meanFg);
-            if (variance > maxVariance) {
-                maxVariance = variance;
-                bestThreshold = t;
+        // Step 2: Adaptive local thresholding with Otsu fallback
+        // Use block-based local thresholding for uneven lighting (shadows, glare)
+        var blockSize = Math.max(15, Math.floor(Math.min(w, h) / 8) | 1);
+        if (blockSize % 2 === 0) blockSize++;
+        var useLocalThreshold = false;
+
+        // Detect uneven lighting: check if std deviation of block means is high
+        var blockMeans = [];
+        var bStep = Math.max(1, Math.floor(blockSize / 2));
+        for (var by = 0; by < h; by += bStep) {
+            for (var bx = 0; bx < w; bx += bStep) {
+                var bSum = 0, bCount = 0;
+                for (var dy = 0; dy < bStep && by + dy < h; dy++) {
+                    for (var dx = 0; dx < bStep && bx + dx < w; dx++) {
+                        bSum += data[((by+dy)*w+(bx+dx))*4];
+                        bCount++;
+                    }
+                }
+                if (bCount > 0) blockMeans.push(bSum / bCount);
             }
         }
-        // Guard against extreme thresholds (glossy reflections)
-        if (bestThreshold < 30) bestThreshold = 30;
-        if (bestThreshold > 225) bestThreshold = 225;
-
-        // Apply binarization
-        var blackCount = 0;
-        for (var i = 0; i < data.length; i += 4) {
-            var val = data[i] >= bestThreshold ? 255 : 0;
-            data[i] = data[i + 1] = data[i + 2] = val;
-            if (val === 0) blackCount++;
+        if (blockMeans.length > 4) {
+            var bmMean = 0;
+            for (var i = 0; i < blockMeans.length; i++) bmMean += blockMeans[i];
+            bmMean /= blockMeans.length;
+            var bmVar = 0;
+            for (var i = 0; i < blockMeans.length; i++) bmVar += (blockMeans[i] - bmMean) * (blockMeans[i] - bmMean);
+            var bmStd = Math.sqrt(bmVar / blockMeans.length);
+            // High std deviation → uneven lighting → use local thresholding
+            useLocalThreshold = bmStd > 35;
         }
-        // If majority is black, invert (Tesseract expects dark text on white bg)
-        if (blackCount > totalPixels * 0.6) {
+
+        if (useLocalThreshold) {
+            // Sauvola-inspired local thresholding
+            var halfBlock = Math.floor(blockSize / 2);
+            var localResult = new Uint8Array(w * h);
+            // Build integral image for fast local mean computation
+            var integral = new Float64Array((w + 1) * (h + 1));
+            var integralSq = new Float64Array((w + 1) * (h + 1));
+            for (var y = 0; y < h; y++) {
+                var rowSum = 0, rowSumSq = 0;
+                for (var x = 0; x < w; x++) {
+                    var v = data[(y * w + x) * 4];
+                    rowSum += v;
+                    rowSumSq += v * v;
+                    integral[(y+1)*(w+1)+(x+1)] = integral[y*(w+1)+(x+1)] + rowSum;
+                    integralSq[(y+1)*(w+1)+(x+1)] = integralSq[y*(w+1)+(x+1)] + rowSumSq;
+                }
+            }
+            for (var y = 0; y < h; y++) {
+                for (var x = 0; x < w; x++) {
+                    var x1 = Math.max(0, x - halfBlock);
+                    var y1 = Math.max(0, y - halfBlock);
+                    var x2 = Math.min(w - 1, x + halfBlock);
+                    var y2 = Math.min(h - 1, y + halfBlock);
+                    var area = (x2 - x1 + 1) * (y2 - y1 + 1);
+                    var sum = integral[(y2+1)*(w+1)+(x2+1)] - integral[y1*(w+1)+(x2+1)]
+                            - integral[(y2+1)*(w+1)+x1] + integral[y1*(w+1)+x1];
+                    var sumSq = integralSq[(y2+1)*(w+1)+(x2+1)] - integralSq[y1*(w+1)+(x2+1)]
+                              - integralSq[(y2+1)*(w+1)+x1] + integralSq[y1*(w+1)+x1];
+                    var localMean = sum / area;
+                    var localVar = (sumSq / area) - (localMean * localMean);
+                    var localStd = Math.sqrt(Math.max(0, localVar));
+                    // Sauvola threshold: T = mean * (1 + k * (std/R - 1)), k=0.2, R=128
+                    var threshold = localMean * (1 + 0.2 * (localStd / 128 - 1));
+                    localResult[y * w + x] = data[(y * w + x) * 4] >= threshold ? 255 : 0;
+                }
+            }
+            var blackCount = 0;
+            for (var i = 0; i < localResult.length; i++) {
+                var val = localResult[i];
+                data[i*4] = data[i*4+1] = data[i*4+2] = val;
+                if (val === 0) blackCount++;
+            }
+            if (blackCount > totalPixels * 0.6) {
+                for (var i = 0; i < data.length; i += 4) {
+                    data[i] = data[i+1] = data[i+2] = data[i] === 0 ? 255 : 0;
+                }
+            }
+        } else {
+            // Fallback: global Otsu thresholding (uniform lighting)
+            var sumAll = 0;
+            for (var t = 0; t < 256; t++) sumAll += t * histogram[t];
+            var sumBg = 0, weightBg = 0, maxVariance = 0, bestThreshold = 128;
+            for (var t = 0; t < 256; t++) {
+                weightBg += histogram[t];
+                if (weightBg === 0) continue;
+                var weightFg = totalPixels - weightBg;
+                if (weightFg === 0) break;
+                sumBg += t * histogram[t];
+                var meanBg = sumBg / weightBg;
+                var meanFg = (sumAll - sumBg) / weightFg;
+                var variance = weightBg * weightFg * (meanBg - meanFg) * (meanBg - meanFg);
+                if (variance > maxVariance) {
+                    maxVariance = variance;
+                    bestThreshold = t;
+                }
+            }
+            if (bestThreshold < 30) bestThreshold = 30;
+            if (bestThreshold > 225) bestThreshold = 225;
+
+            var blackCount = 0;
             for (var i = 0; i < data.length; i += 4) {
-                data[i] = data[i + 1] = data[i + 2] = data[i] === 0 ? 255 : 0;
+                var val = data[i] >= bestThreshold ? 255 : 0;
+                data[i] = data[i + 1] = data[i + 2] = val;
+                if (val === 0) blackCount++;
+            }
+            if (blackCount > totalPixels * 0.6) {
+                for (var i = 0; i < data.length; i += 4) {
+                    data[i] = data[i + 1] = data[i + 2] = data[i] === 0 ? 255 : 0;
+                }
             }
         }
         ctx.putImageData(imgData, 0, 0);
 
-        // Step 3: 3x upscale (cap width at 3000px)
+        // Step 3: Morphological dilation (1px) — thicken thin digit strokes for OCR
+        var binData = ctx.getImageData(0, 0, w, h);
+        var bd = binData.data;
+        var dilated = new Uint8Array(w * h);
+        for (var i = 0; i < w * h; i++) dilated[i] = bd[i * 4]; // copy grayscale
+        for (var y = 1; y < h - 1; y++) {
+            for (var x = 1; x < w - 1; x++) {
+                if (bd[(y * w + x) * 4] === 0) continue; // already white bg, skip
+                // If any neighbor is black (text), this pixel becomes black too
+                if (bd[((y-1)*w+x)*4] === 0 || bd[((y+1)*w+x)*4] === 0 ||
+                    bd[(y*w+x-1)*4] === 0 || bd[(y*w+x+1)*4] === 0) {
+                    dilated[y * w + x] = 0;
+                }
+            }
+        }
+        for (var i = 0; i < w * h; i++) {
+            bd[i*4] = bd[i*4+1] = bd[i*4+2] = dilated[i];
+        }
+        ctx.putImageData(binData, 0, 0);
+
+        // Step 4: 3x upscale (cap width at 3000px)
         var scale = Math.min(3, 3000 / w);
         var upW = Math.floor(w * scale);
         var upH = Math.floor(h * scale);
@@ -11500,16 +11694,43 @@ window.renderLifeStatus = renderLifeStatus;
                 }
             }
 
+            // ── Candidate voting: register valid ISBNs and require 2+ sightings ──
+            if (isbn && isValidIsbn(isbn)) {
+                var votedIsbn = voteIsbnCandidate(isbn, confidence);
+                if (!votedIsbn) {
+                    // First sighting — don't act yet, wait for confirmation
+                    if (window.AppLogger) AppLogger.debug('[ISBN] Candidate registered (awaiting confirmation): ' + isbn);
+                    isbn = null; // suppress immediate action
+                } else {
+                    isbn = votedIsbn; // Use normalized (ISBN-13) version
+                }
+            }
+
             // ── Try fragment accumulation if single-frame extraction failed ──
             if (!isbn || !isValidIsbn(isbn)) {
                 var fragIsbn = extractIsbnFromFragments();
                 if (fragIsbn) {
                     if (window.AppLogger) AppLogger.info('[ISBN] Fragment accumulation found ISBN: ' + fragIsbn, { fragmentCount: _isbnFragments.length });
-                    isbn = fragIsbn;
+                    // Fragment results also go through voting
+                    var votedFrag = voteIsbnCandidate(fragIsbn, confidence);
+                    isbn = votedFrag || null;
                 }
             }
 
+            // ── Check if any candidate has enough votes even without new extraction ──
+            if (!isbn) {
+                isbn = getBestVotedCandidate();
+            }
+
             if (isbn && isValidIsbn(isbn)) {
+                // Normalize ISBN-10 to ISBN-13 for API compatibility
+                if (isbn.length === 10) {
+                    var isbn13 = isbn10to13(isbn);
+                    if (isbn13) {
+                        if (window.AppLogger) AppLogger.info('[ISBN] Converted ISBN-10→13: ' + isbn + ' → ' + isbn13);
+                        isbn = isbn13;
+                    }
+                }
                 if (window.AppLogger) AppLogger.info('[ISBN] OCR detected valid ISBN: ' + isbn);
                 stopOcrInterval();
                 var statusEl = document.getElementById('isbn-scanner-status');
@@ -11539,6 +11760,7 @@ window.renderLifeStatus = renderLifeStatus;
         _lockMissCount = 0;
         _lockSubIndex = 0;
         _rotatedScanCounter = 0;
+        _isbnCandidateVotes = {};
         // Delay OCR start: barcode scanner is primary, OCR is fallback after a short delay
         _ocrDelayTimer = setTimeout(function() {
             _ocrDelayTimer = null;
@@ -11556,6 +11778,7 @@ window.renderLifeStatus = renderLifeStatus;
         _lockedCropIndex = -1;
         _lockMissCount = 0;
         _lockSubIndex = 0;
+        _isbnCandidateVotes = {};
     }
     let _libCurrentTab = 'reading';
     let _libCurrentPeriod = 'total';
@@ -12693,6 +12916,14 @@ window.renderLifeStatus = renderLifeStatus;
                     return;
                 }
                 _scanHandled = true;
+                // Normalize ISBN-10 to ISBN-13 for API compatibility
+                if (barcode.length === 10) {
+                    var barcode13 = isbn10to13(barcode);
+                    if (barcode13) {
+                        if (window.AppLogger) AppLogger.info('[ISBN] Barcode ISBN-10→13: ' + barcode + ' → ' + barcode13);
+                        barcode = barcode13;
+                    }
+                }
                 if (window.AppLogger) AppLogger.info('[ISBN] Barcode accepted: ' + barcode, { attemptNum: _scanAttemptCount });
                 stopOcrInterval();
                 if (statusEl) statusEl.textContent = 'ISBN: ' + barcode;
@@ -12797,11 +13028,19 @@ window.renderLifeStatus = renderLifeStatus;
 
     window.manualIsbnLookup = async function() {
         const input = document.getElementById('isbn-manual-field');
-        const isbn = (input ? input.value : '').trim().replace(/[-\s]/g, '');
+        var isbn = (input ? input.value : '').trim().replace(/[-\s]/g, '');
         if (window.AppLogger) AppLogger.info('[ISBN] Manual lookup: ' + isbn);
         if (!isbn || isbn.length < 10) {
             alert('ISBN을 정확히 입력해주세요 (10자리 또는 13자리)');
             return;
+        }
+        // Normalize ISBN-10 to ISBN-13 for API compatibility
+        if (isbn.length === 10 && isValidIsbn10(isbn)) {
+            var isbn13 = isbn10to13(isbn);
+            if (isbn13) {
+                if (window.AppLogger) AppLogger.info('[ISBN] Manual ISBN-10→13: ' + isbn + ' → ' + isbn13);
+                isbn = isbn13;
+            }
         }
         await onIsbnScanned(isbn);
     };
