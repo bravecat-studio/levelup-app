@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.52] - 2026-03-30
+
+### 변경
+- feat: ISBN OCR 인식률 대폭 개선 — 샤프닝/적응형 이진화/후보 투표/ISBN-10→13 변환
+
 ## [1.0.51] - 2026-03-30
 
 ### 변경
