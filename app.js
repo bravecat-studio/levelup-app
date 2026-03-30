@@ -1941,6 +1941,7 @@ async function loadUserDataFromDB(user) {
             if (data.libraryStr) {
                 try { AppState.library = JSON.parse(data.libraryStr); } catch(e) { AppState.library = { books: [] }; }
                 if (!AppState.library || !Array.isArray(AppState.library.books)) AppState.library = { books: [] };
+                if (!Array.isArray(AppState.library.rewardedISBNs)) AppState.library.rewardedISBNs = [];
             }
             // Life Status 복원 (로그아웃 시 localStorage.clear() 대응)
             if (data.lifeStatusStr) {
@@ -11356,6 +11357,7 @@ window.renderLifeStatus = renderLifeStatus;
             renderListView(container, books);
         }
     }
+    window.renderLibrary = renderLibrary;
 
     function getBookThickness(pages) {
         // Reboot: thinner spines – min 4px, max 14px
@@ -11569,7 +11571,13 @@ window.renderLifeStatus = renderLifeStatus;
     // ── Library Read Reward ──
     function grantReadReward(book) {
         if (book.rewardGranted) return;
+        if (!AppState.library.rewardedISBNs) AppState.library.rewardedISBNs = [];
+        if (book.isbn && AppState.library.rewardedISBNs.indexOf(book.isbn) !== -1) {
+            book.rewardGranted = true;
+            return;
+        }
         book.rewardGranted = true;
+        if (book.isbn) AppState.library.rewardedISBNs.push(book.isbn);
         AppState.user.points += 10;
         AppState.user.pendingStats.int += 0.5;
         if (window.AppLogger) AppLogger.info('[Library] 독서 보상 지급: +10P, INT +0.5');
@@ -11581,7 +11589,8 @@ window.renderLifeStatus = renderLifeStatus;
 
     // ── Library CRUD ──
     window.addBookToLibrary = function(bookInfo, category) {
-        if (!AppState.library) AppState.library = { books: [] };
+        if (!AppState.library) AppState.library = { books: [], rewardedISBNs: [] };
+        if (!Array.isArray(AppState.library.rewardedISBNs)) AppState.library.rewardedISBNs = [];
         const existing = AppState.library.books.find(b => b.isbn === bookInfo.isbn);
         if (existing) {
             alert(t('lib_already_exists'));
