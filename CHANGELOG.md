@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.43] - 2026-03-30
+
+### 변경
+- feat: 내 서재 타워 라벨 2줄 표시 및 하단 배너 광고 추가
+
 ## [1.0.42] - 2026-03-30
 
 ### 변경
