@@ -13659,9 +13659,10 @@ window.renderLifeStatus = renderLifeStatus;
         return (-b + Math.sqrt(disc)) / (2 * a);
     }
 
-    function paceFromVDOT(vdot, pctVO2max) {
-        var targetVO2 = vdot * pctVO2max;
-        var velocity = velocityFromVO2(targetVO2); // m/min
+    function paceFromVDOT(vdot, pctVelocity) {
+        // Use %vVO2max: percentage of velocity at VO2max
+        var vVO2max = velocityFromVO2(vdot); // velocity at VO2max (m/min)
+        var velocity = vVO2max * pctVelocity;
         if (velocity <= 0) return 0;
         return 1000 / velocity * 60; // sec/km
     }
@@ -13672,8 +13673,8 @@ window.renderLifeStatus = renderLifeStatus;
         for (var i = 0; i < 50; i++) {
             var mid = (lo + hi) / 2;
             var v = calcVDOTFromRace(distMeters, mid);
-            if (v > vdot) hi = mid;
-            else lo = mid;
+            if (v > vdot) lo = mid;  // VDOT too high → time too short → increase
+            else hi = mid;            // VDOT too low → time too long → decrease
         }
         return (lo + hi) / 2; // minutes
     }
