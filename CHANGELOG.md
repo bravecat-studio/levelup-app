@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.34] - 2026-03-30
+
+### 변경
+- Improve ISBN OCR fallback robustness for low-confidence scans
+
 ## [1.0.33] - 2026-03-30
 
 ### 변경
