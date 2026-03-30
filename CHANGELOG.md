@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.48] - 2026-03-30
+
+### 변경
+- 상태창 기본순서 변경, 광고 노란색 테두리, 편집 기능 오류 수정
+
 ## [1.0.47] - 2026-03-30
 
 ### 변경
