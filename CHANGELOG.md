@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.44] - 2026-03-30
+
+### 변경
+- refactor: 이미지 저장 버튼을 헤더로 이동 (가이드↔스캔 사이)
+
 ## [1.0.43] - 2026-03-30
 
 ### 변경
