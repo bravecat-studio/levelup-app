@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.28] - 2026-03-30
+
+### 변경
+- fix: 안드로이드 뒤로가기 버튼으로 모달 닫기 수정
+
 ## [1.0.27] - 2026-03-30
 
 ### 변경
