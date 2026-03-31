@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.65] - 2026-03-31
+
+### 변경
+- fix: Firestore 보안 규칙에 계산기 기록 필드 추가
+
 ## [1.0.64] - 2026-03-31
 
 ### 변경
