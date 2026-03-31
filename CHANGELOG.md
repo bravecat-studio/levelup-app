@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.59] - 2026-03-31
+
+### 변경
+- 페이스 계산기: 수평 레이아웃, 입력값 검증, 길게 누르기 가속 기능 추가
+
 ## [1.0.58] - 2026-03-31
 
 ### 변경
