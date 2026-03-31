@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.71] - 2026-03-31
+
+### 변경
+- feat: 팔로우/팔로잉 시스템 도입 및 소셜탭 개편
+
 ## [1.0.70] - 2026-03-31
 
 ### 변경
