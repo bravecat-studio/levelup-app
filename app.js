@@ -1878,7 +1878,9 @@ async function _doSaveUserData() {
             ddaysStr: JSON.stringify(AppState.ddays || []),
             ddayCaption: AppState.ddayCaption || '',
             lifeStatusStr: localStorage.getItem('life_status_config') || '',
-            libraryStr: JSON.stringify(AppState.library || { books: [] })
+            libraryStr: JSON.stringify(AppState.library || { books: [] }),
+            runningCalcHistoryStr: localStorage.getItem('running_calc_history') || '[]',
+            ormCalcHistoryStr: localStorage.getItem('orm_calc_history') || '[]'
         };
         // 진단: 페이로드 크기 및 photoURL 상태 로그
         const payloadSize = new Blob([JSON.stringify(payload)]).size;
@@ -1976,6 +1978,14 @@ async function loadUserDataFromDB(user) {
             // Life Status 복원 (로그아웃 시 localStorage.clear() 대응)
             if (data.lifeStatusStr) {
                 localStorage.setItem('life_status_config', data.lifeStatusStr);
+            }
+            // 러닝 계산기 기록 복원 (로그아웃 시 localStorage.clear() 대응)
+            if (data.runningCalcHistoryStr) {
+                localStorage.setItem('running_calc_history', data.runningCalcHistoryStr);
+            }
+            // 1RM 계산기 기록 복원 (로그아웃 시 localStorage.clear() 대응)
+            if (data.ormCalcHistoryStr) {
+                localStorage.setItem('orm_calc_history', data.ormCalcHistoryStr);
             }
             // 스트릭 계산 및 스탯 감소
             applyStreakAndDecay();
@@ -13961,10 +13971,155 @@ window.renderLifeStatus = renderLifeStatus;
         }
     }
 
+    // --- Running Calc History (localStorage) ---
+    var RC_HISTORY_KEY = 'running_calc_history';
+    var RC_HISTORY_MAX = 10;
+
+    function loadRcHistory() {
+        try { return JSON.parse(localStorage.getItem(RC_HISTORY_KEY)) || []; }
+        catch(e) { return []; }
+    }
+    function saveRcHistoryToStorage(list) {
+        try { localStorage.setItem(RC_HISTORY_KEY, JSON.stringify(list)); } catch(e) {}
+    }
+
+    window.saveRunningCalcHistory = function() {
+        var list = loadRcHistory();
+        var isMi = _rcDisplayUnit === 'mi';
+        var vdotPanel = document.getElementById('rc-panel-vdot');
+        var isVdot = vdotPanel && vdotPanel.classList.contains('active');
+
+        var entry;
+        if (isVdot) {
+            var vdotVal = (document.getElementById('rc-vdot-value').textContent || '').trim();
+            if (!vdotVal || vdotVal === '0') return;
+            var distVal = parseFloat(document.getElementById('rc-vdot-distance').value) || 0;
+            var hr = parseInt(document.getElementById('rc-vdot-hr').value) || 0;
+            var min = parseInt(document.getElementById('rc-vdot-min').value) || 0;
+            var sec = parseInt(document.getElementById('rc-vdot-sec').value) || 0;
+            entry = {
+                type: 'vdot',
+                dist: distVal,
+                time: hr + ':' + (min < 10 ? '0' : '') + min + ':' + (sec < 10 ? '0' : '') + sec,
+                vdot: vdotVal,
+                unit: isMi ? 'mi' : 'km',
+                timestamp: Date.now()
+            };
+        } else {
+            var distKm = getDistKm('rc-pace-distance');
+            var hr2 = parseInt(document.getElementById('rc-pace-hr').value) || 0;
+            var min2 = parseInt(document.getElementById('rc-pace-min-t').value) || 0;
+            var sec2 = parseInt(document.getElementById('rc-pace-sec-t').value) || 0;
+            var totalSec = hr2 * 3600 + min2 * 60 + sec2;
+            if (distKm <= 0 || totalSec <= 0) return;
+            var paceSecPerKm = totalSec / distKm;
+            var distDisplay = parseFloat(document.getElementById('rc-pace-distance').value) || 0;
+            entry = {
+                type: _paceMode,
+                dist: distDisplay,
+                time: hr2 + ':' + (min2 < 10 ? '0' : '') + min2 + ':' + (sec2 < 10 ? '0' : '') + sec2,
+                pace: formatPace(isMi ? paceSecPerKm * 1.60934 : paceSecPerKm),
+                speed: (isMi ? (distKm / 1.60934) / (totalSec / 3600) : distKm / (totalSec / 3600)).toFixed(1),
+                unit: isMi ? 'mi' : 'km',
+                timestamp: Date.now()
+            };
+        }
+
+        list.unshift(entry);
+        if (list.length > RC_HISTORY_MAX) list = list.slice(0, RC_HISTORY_MAX);
+        saveRcHistoryToStorage(list);
+        renderRcHistory();
+        if (typeof saveUserData === 'function') saveUserData();
+    };
+
+    window.deleteRunningCalcHistory = function(idx) {
+        var list = loadRcHistory();
+        list.splice(idx, 1);
+        saveRcHistoryToStorage(list);
+        renderRcHistory();
+        if (typeof saveUserData === 'function') saveUserData();
+    };
+
+    window.clearRunningCalcHistory = function(tabType) {
+        var list = loadRcHistory();
+        if (tabType === 'vdot') {
+            list = list.filter(function(e) { return e.type !== 'vdot'; });
+        } else {
+            list = list.filter(function(e) { return e.type === 'vdot'; });
+        }
+        saveRcHistoryToStorage(list);
+        renderRcHistory();
+        if (typeof saveUserData === 'function') saveUserData();
+    };
+
+    function renderRcHistory() {
+        var list = loadRcHistory();
+        var paceItems = [];
+        var vdotItems = [];
+        list.forEach(function(e, i) {
+            if (e.type === 'vdot') vdotItems.push({ item: e, idx: i });
+            else paceItems.push({ item: e, idx: i });
+        });
+
+        // Pace history
+        var paceListEl = document.getElementById('rc-pace-history-list');
+        var paceClearBtn = document.getElementById('rc-pace-history-clear');
+        if (paceListEl) {
+            if (paceItems.length === 0) {
+                paceListEl.innerHTML = '<div class="calc-history-empty">저장된 기록이 없습니다</div>';
+                if (paceClearBtn) paceClearBtn.style.display = 'none';
+            } else {
+                if (paceClearBtn) paceClearBtn.style.display = '';
+                var html = '';
+                paceItems.forEach(function(obj) {
+                    var item = obj.item;
+                    var dateStr = new Date(item.timestamp).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    var modeLabel = item.type === 'pace' ? '페이스' : item.type === 'distance' ? '거리' : '시간';
+                    html += '<div class="calc-history-item">' +
+                        '<div class="calc-history-info">' +
+                        '<div class="calc-history-main">' + item.dist + ' ' + item.unit + ' / ' + item.time + '</div>' +
+                        '<div class="calc-history-sub">' + modeLabel + ' · ' + dateStr + '</div>' +
+                        '</div>' +
+                        '<div class="calc-history-value" style="color:var(--neon-green, #00e676);">' + item.pace + ' <span style="font-size:0.7rem;color:var(--text-sub);">/' + item.unit + '</span></div>' +
+                        '<button class="calc-history-delete" onclick="window.deleteRunningCalcHistory(' + obj.idx + ')">✕</button>' +
+                        '</div>';
+                });
+                paceListEl.innerHTML = html;
+            }
+        }
+
+        // VDOT history
+        var vdotListEl = document.getElementById('rc-vdot-history-list');
+        var vdotClearBtn = document.getElementById('rc-vdot-history-clear');
+        if (vdotListEl) {
+            if (vdotItems.length === 0) {
+                vdotListEl.innerHTML = '<div class="calc-history-empty">저장된 기록이 없습니다</div>';
+                if (vdotClearBtn) vdotClearBtn.style.display = 'none';
+            } else {
+                if (vdotClearBtn) vdotClearBtn.style.display = '';
+                var html2 = '';
+                vdotItems.forEach(function(obj) {
+                    var item = obj.item;
+                    var dateStr = new Date(item.timestamp).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    html2 += '<div class="calc-history-item">' +
+                        '<div class="calc-history-info">' +
+                        '<div class="calc-history-main">' + item.dist + ' ' + item.unit + ' / ' + item.time + '</div>' +
+                        '<div class="calc-history-sub">VDOT · ' + dateStr + '</div>' +
+                        '</div>' +
+                        '<div class="calc-history-value" style="color:var(--neon-cyan, #00d9ff);">' + item.vdot + '</div>' +
+                        '<button class="calc-history-delete" onclick="window.deleteRunningCalcHistory(' + obj.idx + ')">✕</button>' +
+                        '</div>';
+                });
+                vdotListEl.innerHTML = html2;
+            }
+        }
+    }
+
     // Init on page load
     document.addEventListener('DOMContentLoaded', function() {
         window.calcPace();
         window.calcTreadmill();
+        renderRcHistory();
     });
 })();
 
@@ -14059,6 +14214,9 @@ window.renderLifeStatus = renderLifeStatus;
         _ormData[exercise] = r1(avg);
         saveOrmData();
         updateTotalDisplay();
+
+        // Save to history
+        saveOrmHistory(exercise, weight, reps, r1(avg));
     };
 
     // --- Update total display in overlay ---
@@ -14094,8 +14252,80 @@ window.renderLifeStatus = renderLifeStatus;
         if (el4) el4.textContent = (sq || bp || dl) ? Math.round(total * 10) / 10 + ' kg' : '- kg';
     }
 
+    // --- 1RM Calc History ---
+    var ORM_HISTORY_KEY = 'orm_calc_history';
+    var ORM_HISTORY_MAX = 10;
+    var exerciseNames = { squat: '스쿼트', bench: '벤치프레스', deadlift: '데드리프트' };
+
+    function loadOrmHistory() {
+        try { return JSON.parse(localStorage.getItem(ORM_HISTORY_KEY)) || []; }
+        catch(e) { return []; }
+    }
+    function saveOrmHistoryToStorage(list) {
+        try { localStorage.setItem(ORM_HISTORY_KEY, JSON.stringify(list)); } catch(e) {}
+    }
+
+    function saveOrmHistory(exercise, weight, reps, result1rm) {
+        var list = loadOrmHistory();
+        list.unshift({
+            exercise: exercise,
+            exerciseName: exerciseNames[exercise] || exercise,
+            weight: weight,
+            reps: reps,
+            result1rm: result1rm,
+            timestamp: Date.now()
+        });
+        if (list.length > ORM_HISTORY_MAX) list = list.slice(0, ORM_HISTORY_MAX);
+        saveOrmHistoryToStorage(list);
+        renderOrmHistory();
+        if (typeof saveUserData === 'function') saveUserData();
+    }
+
+    window.deleteOrmCalcHistory = function(idx) {
+        var list = loadOrmHistory();
+        list.splice(idx, 1);
+        saveOrmHistoryToStorage(list);
+        renderOrmHistory();
+        if (typeof saveUserData === 'function') saveUserData();
+    };
+
+    window.clearOrmCalcHistory = function() {
+        saveOrmHistoryToStorage([]);
+        renderOrmHistory();
+        if (typeof saveUserData === 'function') saveUserData();
+    };
+
+    function renderOrmHistory() {
+        var list = loadOrmHistory();
+        var listEl = document.getElementById('orm-history-list');
+        var clearBtn = document.getElementById('orm-history-clear');
+        if (!listEl) return;
+
+        if (list.length === 0) {
+            listEl.innerHTML = '<div class="calc-history-empty">저장된 기록이 없습니다</div>';
+            if (clearBtn) clearBtn.style.display = 'none';
+            return;
+        }
+
+        if (clearBtn) clearBtn.style.display = '';
+        var html = '';
+        list.forEach(function(item, idx) {
+            var dateStr = new Date(item.timestamp).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            html += '<div class="calc-history-item">' +
+                '<div class="calc-history-info">' +
+                '<div class="calc-history-main">' + item.exerciseName + ' · ' + item.weight + 'kg × ' + item.reps + '회</div>' +
+                '<div class="calc-history-sub">' + dateStr + '</div>' +
+                '</div>' +
+                '<div class="calc-history-value" style="color:var(--neon-red);">' + item.result1rm + ' <span style="font-size:0.7rem;color:var(--text-sub);">kg</span></div>' +
+                '<button class="calc-history-delete" onclick="window.deleteOrmCalcHistory(' + idx + ')">✕</button>' +
+                '</div>';
+        });
+        listEl.innerHTML = html;
+    }
+
     // Init on page load
     document.addEventListener('DOMContentLoaded', function() {
         updateSummaryCard();
+        renderOrmHistory();
     });
 })();
