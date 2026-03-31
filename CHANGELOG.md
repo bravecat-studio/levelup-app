@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.86] - 2026-03-31
+
+### 변경
+- feat: Day1 검색 @닉네임 방식으로 변경 및 비공개 계정 검색 필터링 강화
+
 ## [1.0.85] - 2026-03-31
 
 ### 변경
