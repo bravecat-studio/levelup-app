@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.57] - 2026-03-31
+
+### 변경
+- km/mi 토글: 입력 단위도 연동하여 마일 기준 계산 지원
+
 ## [1.0.56] - 2026-03-31
 
 ### 변경
