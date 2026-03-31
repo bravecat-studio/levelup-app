@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.80] - 2026-03-31
+
+### 변경
+- feat: 상대방 프로필 사진 클릭 시 프로필+스탯 레이더 모달 표시
+
 ## [1.0.79] - 2026-03-31
 
 ### 변경
