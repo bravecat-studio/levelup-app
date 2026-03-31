@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.64] - 2026-03-31
+
+### 변경
+- feat: 러닝 계산기 및 1RM 계산기 직전 계산 기록 저장 기능 추가
+
 ## [1.0.63] - 2026-03-31
 
 ### 변경
