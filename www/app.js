@@ -11195,8 +11195,25 @@ window.renderLifeStatus = renderLifeStatus;
     async function initOcrWorker() {
         if (_ocrWorker) return _ocrWorker;
         if (_ocrInitFailed) return null;
+        // Lazy-load Tesseract.js on first OCR use
         if (typeof Tesseract === 'undefined') {
-            if (window.AppLogger) AppLogger.warn('[ISBN] Tesseract.js not loaded');
+            try {
+                if (window.AppLogger) AppLogger.info('[ISBN] Lazy-loading Tesseract.js');
+                await new Promise(function(resolve, reject) {
+                    var s = document.createElement('script');
+                    s.src = 'tesseract.min.js';
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+            } catch(loadErr) {
+                if (window.AppLogger) AppLogger.warn('[ISBN] Tesseract.js lazy-load failed');
+                _ocrInitFailed = true;
+                return null;
+            }
+        }
+        if (typeof Tesseract === 'undefined') {
+            if (window.AppLogger) AppLogger.warn('[ISBN] Tesseract.js not available after load');
             _ocrInitFailed = true;
             return null;
         }
@@ -11438,7 +11455,7 @@ window.renderLifeStatus = renderLifeStatus;
         }
         ctx.putImageData(binData, 0, 0);
 
-        // Step 4: 3x upscale (cap width at 3000px)
+        // Step 4: 3x upscale with bilinear interpolation (cap width at 3000px)
         var scale = Math.min(3, 3000 / w);
         var upW = Math.floor(w * scale);
         var upH = Math.floor(h * scale);
@@ -11446,9 +11463,20 @@ window.renderLifeStatus = renderLifeStatus;
         upCanvas.width = upW;
         upCanvas.height = upH;
         var upCtx = upCanvas.getContext('2d');
-        upCtx.imageSmoothingEnabled = false;
+        upCtx.imageSmoothingEnabled = true;
+        upCtx.imageSmoothingQuality = 'high';
         upCtx.drawImage(srcCanvas, 0, 0, upW, upH);
-        return upCanvas;
+
+        // Step 5: Add white border padding (Tesseract struggles with edge-touching text)
+        var pad = 10;
+        var paddedCanvas = document.createElement('canvas');
+        paddedCanvas.width = upW + pad * 2;
+        paddedCanvas.height = upH + pad * 2;
+        var paddedCtx = paddedCanvas.getContext('2d');
+        paddedCtx.fillStyle = '#FFFFFF';
+        paddedCtx.fillRect(0, 0, paddedCanvas.width, paddedCanvas.height);
+        paddedCtx.drawImage(upCanvas, pad, pad);
+        return paddedCanvas;
     }
 
     // ── Rotate canvas 90° clockwise ──
@@ -11552,9 +11580,9 @@ window.renderLifeStatus = renderLifeStatus;
             var w = videoEl.videoWidth;
             var h = videoEl.videoHeight;
 
-            // ── Rotated barcode detection (every 3rd frame ≈ 2.1s) ──
+            // ── Rotated barcode detection (every 2nd frame ≈ 1.4s for Korean vertical barcodes) ──
             _rotatedScanCounter++;
-            if (_rotatedScanCounter % 3 === 0) {
+            if (_rotatedScanCounter % 2 === 0) {
                 var rotatedIsbn = await tryRotatedBarcodeScan(videoEl);
                 if (rotatedIsbn) {
                     stopOcrInterval();
@@ -11575,33 +11603,38 @@ window.renderLifeStatus = renderLifeStatus;
 
             if (_lockedCropIndex >= 0) {
                 // Lock-on mode: cycle through locked region + 2 neighbors
-                var neighbors = [_lockedCropIndex, (_lockedCropIndex + 1) % 10, (_lockedCropIndex + 9) % 10];
+                var neighbors = [_lockedCropIndex, (_lockedCropIndex + 1) % 7, (_lockedCropIndex + 6) % 7];
                 cropIndex = neighbors[_lockSubIndex % 3];
                 _lockSubIndex++;
             } else {
-                cropIndex = _ocrFrameIndex % 10;
+                cropIndex = _ocrFrameIndex % 7;
             }
 
+            // 7 high-yield OCR regions (removed low-yield middle/full-frame regions)
             cropX = 0;
             cropW = w;
             cropY = 0;
             cropH = h;
             rotation = 0; // 0 = none, 1 = 90° CW, -1 = 90° CCW
             if (cropIndex === 0) {
+                // Bottom horizontal strip (most common ISBN location)
                 cropY = Math.floor(h * 0.78);
                 cropH = Math.floor(h * 0.20);
                 psmMode = '7';
             } else if (cropIndex === 1) {
+                // Center-bottom narrow strip
                 cropX = Math.floor(w * 0.20);
                 cropW = Math.floor(w * 0.60);
                 cropY = Math.floor(h * 0.80);
                 cropH = Math.floor(h * 0.16);
                 psmMode = '7';
             } else if (cropIndex === 2) {
+                // Lower region wider
                 cropY = Math.floor(h * 0.72);
                 cropH = Math.floor(h * 0.24);
                 psmMode = '6';
             } else if (cropIndex === 3) {
+                // Right vertical strip (Korean vertical barcodes)
                 cropX = Math.floor(w * 0.85);
                 cropW = Math.floor(w * 0.15);
                 cropY = Math.floor(h * 0.05);
@@ -11609,36 +11642,27 @@ window.renderLifeStatus = renderLifeStatus;
                 rotation = -1;
                 psmMode = '6';
             } else if (cropIndex === 4) {
+                // Bottom with rotation
                 cropY = Math.floor(h * 0.70);
                 cropH = Math.floor(h * 0.28);
                 rotation = 1;
                 psmMode = '6';
             } else if (cropIndex === 5) {
+                // Right wider vertical strip
                 cropX = Math.floor(w * 0.75);
                 cropW = Math.floor(w * 0.25);
                 cropY = Math.floor(h * 0.10);
                 cropH = Math.floor(h * 0.80);
                 rotation = -1;
                 psmMode = '7';
-            } else if (cropIndex === 6) {
+            } else {
+                // Left vertical strip
                 cropX = 0;
                 cropW = Math.floor(w * 0.15);
                 cropY = Math.floor(h * 0.05);
                 cropH = Math.floor(h * 0.90);
                 rotation = 1;
                 psmMode = '6';
-            } else if (cropIndex === 7) {
-                cropY = Math.floor(h * 0.30);
-                cropH = Math.floor(h * 0.30);
-                psmMode = '6';
-            } else if (cropIndex === 8) {
-                cropY = Math.floor(h * 0.50);
-                cropH = Math.floor(h * 0.30);
-                psmMode = '6';
-            } else {
-                cropY = Math.floor(h * 0.05);
-                cropH = Math.floor(h * 0.90);
-                psmMode = '11';
             }
             _ocrFrameIndex++;
 
@@ -11787,7 +11811,7 @@ window.renderLifeStatus = renderLifeStatus;
             _ocrDelayTimer = null;
             _ocrFrameIndex = 0;
             if (window.AppLogger) AppLogger.info('[ISBN] OCR fallback starting (barcode not detected)');
-            _ocrInterval = setInterval(ocrCaptureFrame, 700);
+            _ocrInterval = setInterval(ocrCaptureFrame, 500);
         }, 1200);
     }
 
@@ -13034,7 +13058,12 @@ window.renderLifeStatus = renderLifeStatus;
                     delete fullConfig.qrbox;
                     _html5QrCode.stop().then(function() {
                         return _html5QrCode.start(
-                            { facingMode: 'environment' },
+                            {
+                                facingMode: { ideal: 'environment' },
+                                width: { ideal: 1920, min: 1280 },
+                                height: { ideal: 1080, min: 720 },
+                                focusMode: { ideal: 'continuous' }
+                            },
                             fullConfig,
                             _onBarcodeSuccess,
                             function(err) {
@@ -13049,16 +13078,74 @@ window.renderLifeStatus = renderLifeStatus;
             };
 
             await _html5QrCode.start(
-                { facingMode: 'environment' },
+                {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 },
+                    focusMode: { ideal: 'continuous' }
+                },
                 _scannerConfig(),
                 _onBarcodeSuccess,
                 _onBarcodeError
             );
 
+            // Log actual camera resolution for debugging
+            try {
+                var videoEl = document.querySelector('#isbn-scanner-container video');
+                if (videoEl && videoEl.srcObject) {
+                    var track = videoEl.srcObject.getVideoTracks()[0];
+                    if (track) {
+                        var settings = track.getSettings();
+                        if (window.AppLogger) AppLogger.info('[ISBN] Camera resolution: ' + settings.width + 'x' + settings.height);
+                    }
+                }
+            } catch(resErr) {}
+
             if (window.AppLogger) AppLogger.info('[ISBN] Camera started successfully');
             AppState.user.cameraEnabled = true;
             saveUserData();
             updateCameraToggleUI();
+
+            // Native BarcodeDetector: parallel high-performance barcode scanning
+            if ('BarcodeDetector' in window) {
+                try {
+                    var _nativeDetector = new BarcodeDetector({
+                        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e']
+                    });
+                    var _nativeVideoEl = document.querySelector('#isbn-scanner-container video');
+                    var _nativeRunning = true;
+                    if (window.AppLogger) AppLogger.info('[ISBN] Native BarcodeDetector enabled');
+
+                    var _nativeScanLoop = async function() {
+                        if (!_nativeRunning || _scanHandled) return;
+                        try {
+                            if (_nativeVideoEl && _nativeVideoEl.readyState >= 2) {
+                                var barcodes = await _nativeDetector.detect(_nativeVideoEl);
+                                for (var bi = 0; bi < barcodes.length; bi++) {
+                                    var rawVal = (barcodes[bi].rawValue || '').replace(/[-\s]/g, '');
+                                    if (isValidIsbn(rawVal)) {
+                                        if (window.AppLogger) AppLogger.info('[ISBN] Native BarcodeDetector found: ' + rawVal);
+                                        await _onBarcodeSuccess(rawVal);
+                                        _nativeRunning = false;
+                                        return;
+                                    }
+                                }
+                            }
+                        } catch(detectErr) {
+                            // Silently continue on detect errors
+                        }
+                        if (_nativeRunning && !_scanHandled) {
+                            requestAnimationFrame(_nativeScanLoop);
+                        }
+                    };
+                    requestAnimationFrame(_nativeScanLoop);
+
+                    // Store cleanup reference for closeIsbnScanner
+                    window._nativeBarcodeCleanup = function() { _nativeRunning = false; };
+                } catch(nativeErr) {
+                    if (window.AppLogger) AppLogger.warn('[ISBN] Native BarcodeDetector init failed', { message: nativeErr.message });
+                }
+            }
 
             // Start OCR as fallback (activates after 5s if barcode not detected)
             startOcrInterval();
@@ -13084,6 +13171,11 @@ window.renderLifeStatus = renderLifeStatus;
 
     window.closeIsbnScanner = async function() {
         if (window.AppLogger) AppLogger.info('[ISBN] Scanner closed');
+        // Stop native BarcodeDetector if running
+        if (window._nativeBarcodeCleanup) {
+            window._nativeBarcodeCleanup();
+            window._nativeBarcodeCleanup = null;
+        }
         stopOcrInterval();
         if (_html5QrCode) {
             try { await _html5QrCode.stop(); } catch(e) {}
