@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.66] - 2026-03-31
+
+### 변경
+- Fix mile distance conversion for preset buttons in pace/VDOT calculator
+
 ## [1.0.65] - 2026-03-31
 
 ### 변경
