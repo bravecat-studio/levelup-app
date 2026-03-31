@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.78] - 2026-03-31
+
+### 변경
+- feat: 소셜/Day1 프로필 통일 및 종합스코어 정수 표기
+
 ## [1.0.77] - 2026-03-31
 
 ### 변경
