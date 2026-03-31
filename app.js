@@ -2735,22 +2735,34 @@ async function changePlayerName() {
             AppState.user.nameLastChanged = Date.now();
             loadPlayerName();
             updateSocialUserData();
-            // 디바운스 없이 즉시 저장하여 닉네임 변경과 DB 저장의 원자성 보장
+            // 닉네임 필드만 별도 저장 (전체 페이로드 대신 최소 필드만 업데이트)
             try {
-                await _doSaveUserData();
+                const namePayload = { name: trimmed, nameLastChanged: Date.now() };
+                if (window.AppLogger) AppLogger.info(`[NameChange] 최소 저장 시도: ${JSON.stringify(namePayload)}`);
+                await setDoc(doc(db, "users", auth.currentUser.uid), namePayload, { merge: true });
                 if (window.AppLogger) AppLogger.info(`[NameChange] 변경 완료: "${oldName}" → "${trimmed}"`);
+                // 나머지 데이터는 디바운스 저장으로 처리
+                saveUserData();
             } catch (saveErr) {
-                // DB 저장 실패 시 닉네임 롤백
-                if (window.AppLogger) AppLogger.error(`[NameChange] DB 저장 실패 → 롤백: ${saveErr.code || ''} ${saveErr.message || ''}`);
-                AppState.user.name = oldName;
-                AppState.user.nameLastChanged = null;
-                loadPlayerName();
-                updateSocialUserData();
-                // usernames 롤백: 새 이름 해제, 이전 이름 재선점
-                await releaseUsername(trimmed);
-                await claimUsername(oldName, auth.currentUser.uid);
-                alert("닉네임 저장에 실패했습니다. 다시 시도해주세요.");
-                return;
+                // 최소 저장도 실패 시 updateDoc으로 재시도
+                if (window.AppLogger) AppLogger.warn(`[NameChange] setDoc 실패 (${saveErr.code}), updateDoc 재시도`);
+                try {
+                    await updateDoc(doc(db, "users", auth.currentUser.uid), { name: trimmed, nameLastChanged: Date.now() });
+                    if (window.AppLogger) AppLogger.info(`[NameChange] updateDoc 성공: "${oldName}" → "${trimmed}"`);
+                    saveUserData();
+                } catch (updateErr) {
+                    // DB 저장 실패 시 닉네임 롤백
+                    if (window.AppLogger) AppLogger.error(`[NameChange] DB 저장 실패 → 롤백: ${updateErr.code || ''} ${updateErr.message || ''}`);
+                    AppState.user.name = oldName;
+                    AppState.user.nameLastChanged = null;
+                    loadPlayerName();
+                    updateSocialUserData();
+                    // usernames 롤백: 새 이름 해제, 이전 이름 재선점
+                    await releaseUsername(trimmed);
+                    await claimUsername(oldName, auth.currentUser.uid);
+                    alert("닉네임 저장에 실패했습니다. 다시 시도해주세요.");
+                    return;
+                }
             }
         } catch (e) {
             console.error("[NameChange] 닉네임 변경 실패:", e);
