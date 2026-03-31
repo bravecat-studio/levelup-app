@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.60] - 2026-03-31
+
+### 변경
+- Fix ISBN scanner error: cameraIdOrConfig must have exactly 1 key
+
 ## [1.0.59] - 2026-03-31
 
 ### 변경
