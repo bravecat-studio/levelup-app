@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.56] - 2026-03-31
+
+### 변경
+- VDOT 계산기: 이진 탐색 방향 수정 + 훈련 페이스 %vVO2max 방식으로 변경
+
 ## [1.0.55] - 2026-03-30
 
 ### 변경
