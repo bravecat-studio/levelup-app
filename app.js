@@ -13503,6 +13503,8 @@ window.renderLifeStatus = renderLifeStatus;
     window.closeRunningCalcView = function() {
         const overlay = document.getElementById('running-calc-overlay');
         if (overlay) overlay.classList.add('d-none');
+        // Save current calculation to history
+        if (window.saveRunningCalcHistory) window.saveRunningCalcHistory();
         updateSummaryCard();
     };
 
@@ -14011,21 +14013,24 @@ window.renderLifeStatus = renderLifeStatus;
 
     // --- Update summary card on status screen ---
     function updateSummaryCard() {
-        var distKm = getDistKm('rc-pace-distance');
-        var hr = parseInt(document.getElementById('rc-pace-hr').value) || 0;
-        var min = parseInt(document.getElementById('rc-pace-min-t').value) || 0;
-        var sec = parseInt(document.getElementById('rc-pace-sec-t').value) || 0;
-        var totalSec = hr * 3600 + min * 60 + sec;
-        var distDisplay = parseFloat(document.getElementById('rc-pace-distance').value) || 0;
-
+        var list = loadRcHistory();
         var el1 = document.getElementById('rc-summary-dist');
         var el2 = document.getElementById('rc-summary-time');
         var el3 = document.getElementById('rc-summary-pace');
-        if (el1) el1.textContent = distDisplay + ' ' + _rcDisplayUnit;
-        if (el2) el2.textContent = formatTime(totalSec);
-        if (distKm > 0 && totalSec > 0) {
-            var pace = totalSec / distKm;
-            if (el3) el3.textContent = formatPace(pace) + ' /km';
+
+        // Show most recent pace record in main summary
+        var latestPace = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].type !== 'vdot') { latestPace = list[i]; break; }
+        }
+        if (latestPace) {
+            if (el1) el1.textContent = latestPace.dist + ' ' + (latestPace.unit || 'km');
+            if (el2) el2.textContent = latestPace.time;
+            if (el3) el3.textContent = latestPace.pace + ' /' + (latestPace.unit || 'km');
+        } else {
+            if (el1) el1.textContent = '- km';
+            if (el2) el2.textContent = '-';
+            if (el3) el3.textContent = '- /km';
         }
         renderRcSummaryHistory();
     }
@@ -14201,6 +14206,7 @@ window.renderLifeStatus = renderLifeStatus;
     document.addEventListener('DOMContentLoaded', function() {
         window.calcPace();
         window.calcTreadmill();
+        updateSummaryCard();
         renderRcHistory();
     });
 })();
@@ -14318,6 +14324,7 @@ window.renderLifeStatus = renderLifeStatus;
 
     // --- Update summary card on status screen ---
     function updateSummaryCard() {
+        // Use _ormData (latest 1RM per exercise from history)
         var sq = _ormData.squat;
         var bp = _ormData.bench;
         var dl = _ormData.deadlift;
@@ -14333,6 +14340,7 @@ window.renderLifeStatus = renderLifeStatus;
 
         var total = (sq || 0) + (bp || 0) + (dl || 0);
         if (el4) el4.textContent = (sq || bp || dl) ? Math.round(total * 10) / 10 + ' kg' : '- kg';
+
         renderOrmSummaryHistory();
     }
 
