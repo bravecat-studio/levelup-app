@@ -3940,9 +3940,11 @@ async function fetchSocialData() {
             if (data.libraryStr) {
                 try { const lib = JSON.parse(data.libraryStr); readBooks = (lib.books || []).filter(b => b.category === 'read').length; } catch(e) {}
             }
-            return { id: d.id, ...data, title, rareTitle, books: readBooks, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, stepData: data.stepData || { date: '', rewardedSteps: 0, totalSteps: 0 }, isFriend: (AppState.user.friends || []).includes(d.id), isMe: auth.currentUser?.uid === d.id };
+            const uid = auth.currentUser?.uid;
+            return { id: d.id, ...data, title, rareTitle, books: readBooks, stats: data.stats || {str:0,int:0,cha:0,vit:0,wlth:0,agi:0}, stepData: data.stepData || { date: '', rewardedSteps: 0, totalSteps: 0 }, isFriend: (AppState.user.friends || []).includes(d.id), isFollower: uid && Array.isArray(data.friends) && data.friends.includes(uid), isMe: uid === d.id };
         });
         renderUsers(AppState.social.sortCriteria);
+        updateProfileFollowCounts();
         // 랭킹 기반 희귀 호칭 평가
         checkRankRareTitles();
     } catch(e) {
@@ -3970,7 +3972,18 @@ function renderUsers(criteria, btn = null) {
     });
 
     if(AppState.social.mode === 'friends') list = list.filter(u => u.isFriend || u.isMe);
+    if(AppState.social.mode === 'followers') list = list.filter(u => u.isFollower || u.isMe);
     list.sort((a,b) => b[criteria] - a[criteria]);
+
+    // 빈 상태 메시지 (팔로잉/팔로워 탭에서 자기 자신만 있을 때)
+    const lang = AppState.currentLang;
+    if ((AppState.social.mode === 'friends' || AppState.social.mode === 'followers') && list.filter(u => !u.isMe).length === 0) {
+        const emptyMsg = AppState.social.mode === 'friends'
+            ? (i18n[lang]?.no_friend || '팔로잉한 사용자가 없습니다.')
+            : (i18n[lang]?.no_follower || '팔로워가 없습니다.');
+        container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-sub); font-size:0.85rem;">${emptyMsg}</div>`;
+        return;
+    }
 
     const instaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="color: #ff3c3c;"><path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 8 0zm0 1.44c2.136 0 2.409.01 3.264.048.789.037 1.213.15 1.494.263.372.145.639.319.918.598.28.28.453.546.598.918.113.281.226.705.263 1.494.039.855.048 1.128.048 3.264s-.01 2.409-.048 3.264c-.037.789-.15 1.213-.263 1.494-.145.372-.319.639-.598.918-.28.28-.546.453-.918.598-.281.113-.705.226-1.494.263-.855.039-1.128.048-3.264.048s-2.409-.01-3.264-.048c-.789-.037-1.213-.15-1.494-.263-.372-.145-.639-.319-.918-.598-.28-.28-.453-.546-.598-.918-.113-.281-.226-.705-.263-1.494-.039-.855-.048-1.128-.048-3.264s.01-2.409.048-3.264c.037-.789.15-1.213.263-1.494.145-.372.319-.639.598-.918.28-.28.546-.453.918-.598.281-.113.705-.226 1.494-.263.855-.039 1.128-.048 3.264-.048z"/><path d="M8 3.89a4.11 4.11 0 1 0 0 8.22 4.11 4.11 0 0 0 0-8.22zm0 1.44a2.67 2.67 0 1 1 0 5.34 2.67 2.67 0 0 1 0-5.34z"/><path d="M12.333 4.667a.96.96 0 1 0 0-1.92.96.96 0 0 0 0 1.92z"/></svg>`;
 
@@ -4026,14 +4039,43 @@ window.toggleFriend = async (id) => {
     await setDoc(doc(db, "users", auth.currentUser.uid), { friends: isFriend ? arrayRemove(id) : arrayUnion(id) }, { merge: true });
     AppState.user.friends = isFriend ? AppState.user.friends.filter(f=>f!==id) : [...AppState.user.friends, id];
     fetchSocialData();
+    // Day1 피드에서 팔로우 버튼 상태 갱신
+    if (document.getElementById('reels')?.classList.contains('active')) renderReelsFeed();
 };
 
-function toggleSocialMode(mode, btn) { 
-    AppState.social.mode = mode; 
-    document.querySelectorAll('.social-tab-btn').forEach(b => b.classList.remove('active')); 
-    btn.classList.add('active'); 
-    renderUsers(AppState.social.sortCriteria); 
+function toggleSocialMode(mode, btn) {
+    AppState.social.mode = mode;
+    document.querySelectorAll('.social-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderUsers(AppState.social.sortCriteria);
 }
+
+// --- 팔로워/팔로잉 카운트 ---
+function formatFollowCount(n) {
+    if (n >= 999500000) return '999m+';
+    if (n >= 1000000) { const v = n / 1000000; return (v >= 10 ? Math.floor(v) : v.toFixed(1).replace(/\.0$/, '')) + 'm'; }
+    if (n >= 1000) { const v = n / 1000; return (v >= 10 ? Math.floor(v) : v.toFixed(1).replace(/\.0$/, '')) + 'k'; }
+    return String(n);
+}
+
+function updateProfileFollowCounts() {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const followingCount = (AppState.user.friends || []).length;
+    const followerCount = AppState.social.users.filter(u => Array.isArray(u.friends) && u.friends.includes(uid)).length;
+    const lang = AppState.currentLang;
+    const followingEl = document.getElementById('prof-following-count');
+    const followerEl = document.getElementById('prof-follower-count');
+    if (followingEl) followingEl.innerHTML = `<strong>${formatFollowCount(followingCount)}</strong> <span data-i18n="prof_following">${i18n[lang]?.prof_following || '팔로잉'}</span>`;
+    if (followerEl) followerEl.innerHTML = `<strong>${formatFollowCount(followerCount)}</strong> <span data-i18n="prof_followers">${i18n[lang]?.prof_followers || '팔로워'}</span>`;
+}
+
+window.goToSocialTab = (mode) => {
+    const socialNav = document.querySelector('.nav-item[data-tab="social"]');
+    if (socialNav) switchTab('social', socialNav);
+    const btn = document.querySelector(`.social-tab-btn[data-mode="${mode}"]`);
+    if (btn) toggleSocialMode(mode, btn);
+};
 
 // --- 로그인/인증 로직 ---
 function validatePassword(pw) {
@@ -7988,6 +8030,9 @@ function renderReelsCards(posts, lang) {
         const profileSrc = post.userPhoto ? sanitizeURL(post.userPhoto) : DEFAULT_PROFILE_SVG;
         const isMe = post.uid === auth.currentUser?.uid;
         const instaLink = post.userInstaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(post.userInstaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex; vertical-align:middle;">${instaSvg}</button>` : '';
+        const reelsLang = AppState.currentLang;
+        const isFollowingPost = (AppState.user.friends || []).includes(post.uid);
+        const followBtn = !isMe ? `<button class="btn-reels-follow ${isFollowingPost ? 'following' : ''}" onclick="event.stopPropagation();window.toggleFriend('${sanitizeAttr(post.uid)}')">${isFollowingPost ? (i18n[reelsLang]?.btn_added || '팔로잉') : (i18n[reelsLang]?.btn_add || '팔로우')}</button>` : '';
 
         // 시간표 블록 (폴딩/언폴딩 지원, 연속 동일 업무 합치기)
         const mergedBlocks = mergeConsecutiveBlocks(post.blocks);
@@ -8004,7 +8049,7 @@ function renderReelsCards(posts, lang) {
             <div class="reels-header">
                 <img class="reels-avatar" src="${profileSrc}" referrerpolicy="no-referrer" onerror="this.onerror=null;window._retryFirebaseImg(this,'${sanitizeAttr(profileSrc)}','${DEFAULT_PROFILE_SVG}')" alt="">
                 <div class="reels-user-info">
-                    <div class="reels-username">${sanitizeText(post.userName || '헌터')}${instaLink}${isMe ? ' <span style="color:var(--neon-gold); font-size:0.65rem;">(나)</span>' : ''}</div>
+                    <div class="reels-username">${sanitizeText(post.userName || '헌터')}${instaLink}${followBtn}${isMe ? ' <span style="color:var(--neon-gold); font-size:0.65rem;">(나)</span>' : ''}</div>
                     <div class="reels-user-meta">Lv.${post.userLevel} ${post.mood ? getMoodEmoji(post.mood) : ''}</div>
                     ${post.location ? `<div class="reels-location">📍 ${sanitizeText(post.location.name)}</div>` : ''}
                 </div>
