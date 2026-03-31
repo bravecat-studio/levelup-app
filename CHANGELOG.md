@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.87] - 2026-03-31
+
+### 변경
+- 상태창 기본 순서 변경 및 편집화면 순서 동기화
+
 ## [1.0.86] - 2026-03-31
 
 ### 변경
