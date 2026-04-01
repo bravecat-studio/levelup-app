@@ -4016,11 +4016,12 @@ function switchTab(tabId, el) {
         cleanupNativeAd();
     }
 
-    // 배너 광고: 던전 탭과 플래너 탭에서 표시
-    if (tabId === 'dungeon' || tabId === 'diary') {
-        showBannerAd();
-    } else {
-        hideBannerAd();
+    // 배너 광고 제거 → 네이티브 광고로 전환 (dungeon/diary 포함)
+    if (tabId === 'dungeon') {
+        setTimeout(() => loadAndShowNativeAd('dungeon'), 300);
+    }
+    if (tabId === 'diary') {
+        setTimeout(() => loadAndShowNativeAd('diary'), 300);
     }
 
     if(tabId === 'social') fetchSocialData();
@@ -7060,7 +7061,7 @@ let _nativeAdActiveTab = null; // 'social' | 'reels' | null — 현재 네이티
 
 /**
  * 네이티브 광고 로드 및 표시 (탭 공용)
- * @param {string} tabId - 'social' | 'reels'
+ * @param {string} tabId - 'social' | 'reels' | 'dungeon' | 'diary'
  */
 async function loadAndShowNativeAd(tabId) {
     if (!isNativePlatform) return;
@@ -7131,7 +7132,7 @@ async function loadAndShowNativeAd(tabId) {
 
 /**
  * placeholder 좌표를 계산하여 네이티브 광고 오버레이 위치 지정 (탭 공용)
- * @param {string} tabId - 'social' | 'reels'
+ * @param {string} tabId - 'social' | 'reels' | 'dungeon' | 'diary'
  */
 async function positionNativeAd(tabId) {
     const placeholderId = 'native-ad-placeholder-' + tabId;
@@ -7171,7 +7172,7 @@ async function positionNativeAd(tabId) {
 /**
  * 스크롤 동기화 설정 (탭 공용)
  * main 요소의 스크롤에 맞춰 네이티브 오버레이 Y좌표를 업데이트
- * @param {string} tabId - 'social' | 'reels'
+ * @param {string} tabId - 'social' | 'reels' | 'dungeon' | 'diary'
  */
 function setupNativeAdScrollSync(tabId) {
     cleanupNativeAdScrollSync();
