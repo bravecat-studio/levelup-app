@@ -331,17 +331,22 @@ async function handleGetPushLogs(request) {
         .get();
     console.log("[getPushLogs] Found", logsSnap.size, "logs");
 
-    // Build token-to-user map for resolving individual targets
+    // Build user lookup maps (by uid and by token)
     const usersSnap = await db.collection("users").get();
+    const uidToUser = {};
     const tokenToUser = {};
     for (const uDoc of usersSnap.docs) {
         const uData = uDoc.data();
+        const info = {
+            uid: uDoc.id,
+            displayName: String(uData.displayName || uData.nickname || uDoc.id.substring(0, 8)),
+            nickname: uData.nickname ? String(uData.nickname) : null
+        };
+        uidToUser[uDoc.id] = info;
         if (uData.fcmToken) {
-            tokenToUser[String(uData.fcmToken)] = {
-                uid: uDoc.id,
-                displayName: String(uData.displayName || uData.nickname || uDoc.id.substring(0, 8)),
-                nickname: uData.nickname ? String(uData.nickname) : null
-            };
+            tokenToUser[String(uData.fcmToken)] = info;
+            // Also map truncated token (as stored in logs: first 20 chars + "...")
+            tokenToUser[String(uData.fcmToken).substring(0, 20) + "..."] = info;
         }
     }
 
@@ -358,7 +363,8 @@ async function handleGetPushLogs(request) {
                 ts = String(data.timestamp || "");
             }
             const target = String(data.target || "");
-            const userInfo = tokenToUser[target] || null;
+            // Resolve user: prefer uid field, fallback to token matching
+            const userInfo = (data.uid && uidToUser[data.uid]) || tokenToUser[target] || null;
             logs.push({
                 id: String(doc.id),
                 timestamp: ts,
@@ -458,6 +464,15 @@ async function handleSendTestNotification(request) {
 
     const target = token ? String(token).substring(0, 20) + "..." : "topic:" + topic;
 
+    // Resolve uid from token for logging
+    let targetUid = null;
+    if (token) {
+        try {
+            const uSnap = await db.collection("users").where("fcmToken", "==", String(token)).limit(1).get();
+            if (!uSnap.empty) targetUid = uSnap.docs[0].id;
+        } catch (_e) { /* ignore lookup failure */ }
+    }
+
     try {
         const response = await messaging.send(message);
         console.log("[sendTestNotification] FCM success:", response);
@@ -468,7 +483,8 @@ async function handleSendTestNotification(request) {
             target: String(target),
             success: true,
             messageId: String(response),
-            sender: String(callerEmail)
+            sender: String(callerEmail),
+            uid: targetUid
         });
 
         return { success: true, messageId: String(response) };
@@ -481,7 +497,8 @@ async function handleSendTestNotification(request) {
                 target: String(target),
                 success: false,
                 error: String(e.code || e.message),
-                sender: String(callerEmail)
+                sender: String(callerEmail),
+                uid: targetUid
             });
         } catch (logErr) {
             console.error("[sendTestNotification] Log write failed:", logErr.message);
@@ -1572,9 +1589,19 @@ exports.sendStreakWarnings = onSchedule({
         };
 
         try {
-            await messaging.send(notification);
+            const response = await messaging.send(notification);
             if (isWarning) warningCount++;
             else brokenCount++;
+            // Log successful send
+            await db.collection("push_logs").add({
+                timestamp: new Date(),
+                type: msgType,
+                target: String(data.fcmToken).substring(0, 20) + "...",
+                success: true,
+                messageId: String(response),
+                sender: "system/sendStreakWarnings",
+                uid: doc.id
+            });
         } catch (e) {
             // 유효하지 않은 토큰 수집 (앱 삭제 등)
             if (e.code === "messaging/registration-token-not-registered" ||
@@ -1582,6 +1609,18 @@ exports.sendStreakWarnings = onSchedule({
                 invalidTokens.push(doc.id);
             }
             console.warn(`[스트릭 경고] ${doc.id} 발송 실패:`, e.code || e.message);
+            // Log failed send
+            try {
+                await db.collection("push_logs").add({
+                    timestamp: new Date(),
+                    type: msgType,
+                    target: String(data.fcmToken).substring(0, 20) + "...",
+                    success: false,
+                    error: String(e.code || e.message),
+                    sender: "system/sendStreakWarnings",
+                    uid: doc.id
+                });
+            } catch (_logErr) { /* ignore */ }
         }
     }
 
