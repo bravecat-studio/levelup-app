@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.90] - 2026-04-01
+
+### 변경
+- feat: 프로필 이미지 스크리닝 기능 추가 및 대시보드 세분화
+
 ## [1.0.89] - 2026-04-01
 
 ### 변경
