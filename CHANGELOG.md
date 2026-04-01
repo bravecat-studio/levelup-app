@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.111] - 2026-04-01
+
+### 변경
+- docs: add AppLogger incident analysis and remediation guide
+
 ## [1.0.110] - 2026-04-01
 
 ### 변경
