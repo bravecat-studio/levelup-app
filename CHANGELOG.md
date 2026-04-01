@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.102] - 2026-04-01
+
+### 변경
+- fix: requestFitnessScope()에 skipGoogleSignIn 가드 추가하여 모든 경로에서 팝업 차단
+
 ## [1.0.101] - 2026-04-01
 
 ### 변경
