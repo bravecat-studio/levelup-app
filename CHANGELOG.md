@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.97] - 2026-04-01
+
+### 변경
+- fix: 닉네임 저장 permission-denied 수정 (레거시 streak MAP 정리 + 규칙 보강)
+
 ## [1.0.96] - 2026-04-01
 
 ### 변경
