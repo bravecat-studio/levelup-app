@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.117] - 2026-04-01
+
+### 변경
+- fix: 던전 광고를 최하단 고정 위치로 이동
+
 ## [1.0.116] - 2026-04-01
 
 ### 변경
