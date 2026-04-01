@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.104] - 2026-04-01
+
+### 변경
+- fix: Firestore permission-denied 오류 3가지 근본 원인 수정
+
 ## [1.0.103] - 2026-04-01
 
 ### 변경
