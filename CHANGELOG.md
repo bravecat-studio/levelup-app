@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.110] - 2026-04-01
+
+### 변경
+- POST_MERGE_ACTIONS.md AdMob #4 완료 표시 및 docs 폴더로 이동
+
 ## [1.0.109] - 2026-04-01
 
 ### 변경
