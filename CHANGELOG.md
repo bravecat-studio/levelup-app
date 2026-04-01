@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.91] - 2026-04-01
+
+### 변경
+- feat: 관리자 유저 분석에 ISBN 기반 많이 읽은 책 Top 10 추가
+
 ## [1.0.90] - 2026-04-01
 
 ### 변경
