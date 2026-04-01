@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.103] - 2026-04-01
+
+### 변경
+- fix: Firestore permission-denied 및 이메일 로그인 시 Google 팝업 수정
+
 ## [1.0.102] - 2026-04-01
 
 ### 변경
