@@ -9208,11 +9208,7 @@ async function showPermissionPrompts() {
             if (!fitnessGranted && GoogleFit) {
                 const availability = await GoogleFit.isAvailable();
                 if (availability.available && !availability.hasPermissions) {
-                    if (availability.needsSignIn) {
-                        if (window.AppLogger) AppLogger.info('[PermPrompt] Google Fit requires sign-in, skipping auto-prompt');
-                    } else {
-                        fitnessGranted = await requestFitnessScope(true);
-                    }
+                    fitnessGranted = await requestFitnessScope(true);
                 }
             }
 
@@ -9354,27 +9350,7 @@ async function toggleHealthSync() {
         statusDiv.style.display = 'flex';
         statusDiv.innerHTML = `<span style="color:var(--text-sub);">건강 데이터 권한 요청 중...</span>`;
 
-        // Google Sign-In 필요 여부 사전 확인 (이메일 로그인 사용자 등 네이티브 Google 계정 없는 경우)
-        const { GoogleFit: GF, HealthConnect: HC } = (window.Capacitor && window.Capacitor.Plugins) || {};
-        let needsGoogleSignIn = false;
-        if (GF) {
-            const hcOk = HC ? (await HC.isAvailable()).available : false;
-            if (!hcOk) {
-                const gfStatus = await GF.isAvailable();
-                needsGoogleSignIn = gfStatus.needsSignIn === true;
-            }
-        }
-        if (needsGoogleSignIn) {
-            const lang = i18n[AppState.currentLang];
-            const msg = lang.fitness_needs_google_signin
-                || 'Google 피트니스 데이터를 사용하려면 Google 계정 로그인이 필요합니다.\n계속하시겠습니까?';
-            if (!confirm(msg)) {
-                toggle.checked = false;
-                statusDiv.innerHTML = '';
-                statusDiv.style.display = 'none';
-                return;
-            }
-        }
+        // Google Sign-In 필요 여부는 인포 모달에서 사전 안내 (confirm 팝업 제거)
 
         const granted = await requestFitnessScope();
         if (!granted) {
