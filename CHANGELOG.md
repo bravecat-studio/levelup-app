@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.112] - 2026-04-01
+
+### 변경
+- feat: permission-denied 발생 시 payload 상세 계측 로깅 추가
+
 ## [1.0.111] - 2026-04-01
 
 ### 변경
