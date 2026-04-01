@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.114] - 2026-04-01
+
+### 변경
+- Match Send History User column format with Push-Enabled Users tab
+
 ## [1.0.113] - 2026-04-01
 
 ### 변경
