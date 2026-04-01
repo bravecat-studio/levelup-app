@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.108] - 2026-04-01
+
+### 변경
+- 이메일 로그인 사용자 구글 피트니스 동기화 및 걸음수 완전 비활성화
+
 ## [1.0.107] - 2026-04-01
 
 ### 변경
