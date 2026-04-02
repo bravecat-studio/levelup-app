@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.120] - 2026-04-02
+
+### 변경
+- fix: 던전/플래너 광고가 탭 버튼에 가려지지 않도록 하단 여백 추가
+
 ## [1.0.119] - 2026-04-02
 
 ### 변경
