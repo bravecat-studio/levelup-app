@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.131] - 2026-04-02
+
+### 변경
+- fix: Part2(JSON 문자열 검증) 제거 — Part1 핵심 필드만 서버 검증
+
 ## [1.0.130] - 2026-04-02
 
 ### 변경
