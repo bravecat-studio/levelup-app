@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.128] - 2026-04-02
+
+### 변경
+- debug: B2를 B2a/B2b로 분리 — B2a(questStr~streakStr) 테스트
+
 ## [1.0.127] - 2026-04-02
 
 ### 변경
