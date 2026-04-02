@@ -135,8 +135,9 @@ service cloud.firestore {
         && (!('lastReelsPostTs' in d) || d.lastReelsPostTs == null || d.lastReelsPostTs is number);
     }
 
-    // Part B2: JSON 직렬화 문자열 필드 (17개)
-    function isValidUserDataPartB2() {
+    // Part B2를 B2a/B2b로 분리
+    // Part B2a: JSON 문자열 전반부 (8개)
+    function isValidUserDataPartB2a() {
       let d = request.resource.data;
       return
         (!('questStr' in d) || d.questStr == null || (d.questStr is string && d.questStr.size() <= 10000))
@@ -146,8 +147,14 @@ service cloud.firestore {
         && (!('diyQuestsStr' in d) || d.diyQuestsStr == null || (d.diyQuestsStr is string && d.diyQuestsStr.size() <= 50000))
         && (!('questHistoryStr' in d) || d.questHistoryStr == null || (d.questHistoryStr is string && d.questHistoryStr.size() <= 200000))
         && (!('titleHistoryStr' in d) || d.titleHistoryStr == null || (d.titleHistoryStr is string && d.titleHistoryStr.size() <= 50000))
-        && (!('streakStr' in d) || d.streakStr == null || (d.streakStr is string && d.streakStr.size() <= 5000))
-        && (!('rareTitleStr' in d) || d.rareTitleStr == null || (d.rareTitleStr is string && d.rareTitleStr.size() <= 10000))
+        && (!('streakStr' in d) || d.streakStr == null || (d.streakStr is string && d.streakStr.size() <= 5000));
+    }
+
+    // Part B2b: JSON 문자열 후반부 (8개)
+    function isValidUserDataPartB2b() {
+      let d = request.resource.data;
+      return
+        (!('rareTitleStr' in d) || d.rareTitleStr == null || (d.rareTitleStr is string && d.rareTitleStr.size() <= 10000))
         && (!('ddaysStr' in d) || d.ddaysStr == null || (d.ddaysStr is string && d.ddaysStr.size() <= 50000))
         && (!('ddayCaption' in d) || d.ddayCaption == null || (d.ddayCaption is string && d.ddayCaption.size() <= 200))
         && (!('lastBonusExpDate' in d) || d.lastBonusExpDate == null || (d.lastBonusExpDate is string && d.lastBonusExpDate.size() <= 10))
@@ -157,9 +164,9 @@ service cloud.firestore {
         && (!('ormCalcHistoryStr' in d) || d.ormCalcHistoryStr == null || (d.ormCalcHistoryStr is string && d.ormCalcHistoryStr.size() <= 10000));
     }
 
-    // DEBUG: 모든 검증을 분리된 함수로 호출 — 단일 함수 평가 한계 테스트
+    // DEBUG: PartA✅ B1✅ → B2a만 추가 (B2b 제외)
     function isValidUserData() {
-      return areWrittenFieldsAllowed() && isValidUserDataPartA() && isValidUserDataPartB1() && isValidUserDataPartB2();
+      return areWrittenFieldsAllowed() && isValidUserDataPartA() && isValidUserDataPartB1() && isValidUserDataPartB2a();
     }
 
     // ──────────────────────────────────────────────
