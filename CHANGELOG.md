@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.136] - 2026-04-02
+
+### 변경
+- feat: Life Status, D-Day, 개인정보 동의서, 러닝계산기 단위, 명언 번역
+
 ## [1.0.135] - 2026-04-02
 
 ### 변경
