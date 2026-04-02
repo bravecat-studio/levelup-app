@@ -72,53 +72,38 @@ service cloud.firestore {
         : request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedUserFields());
     }
 
-    // users 문서 필드 타입 검증 (request.resource.data = 쓰기 후 최종 상태)
-    function isValidUserData() {
+    // DEBUG: 타입 검증을 두 파트로 분리하여 실패 지점 추적
+    // Part A: 핵심 필드 + 맵 + 배열 + 불리언
+    function isValidUserDataPartA() {
       let d = request.resource.data;
       return
-        // 변경된 필드가 허용 목록에 있는지 확인
-        areWrittenFieldsAllowed()
-
-        // ── 핵심 필드 ──
-        // name: 문자열, 1~30자 (보안 강화: 50→30)
-        && (!('name' in d) || (d.name is string && d.name.size() >= 1 && d.name.size() <= 30))
-        // level: 정수, 1~999 (JavaScript에서는 int/float 구분 없으므로 number로 허용)
+        (!('name' in d) || (d.name is string && d.name.size() >= 1 && d.name.size() <= 30))
         && (!('level' in d) || (d.level is number && d.level >= 1 && d.level <= 999))
-        // points: 숫자, >= 0
         && (!('points' in d) || (d.points is number && d.points >= 0))
-        // photoURL: null 또는 문자열 (Storage URL)
         && (!('photoURL' in d) || d.photoURL == null || (d.photoURL is string && d.photoURL.size() <= 1024))
-
-        // ── 맵 필드 ──
         && (!('stats' in d) || isValidStatsMap(d.stats))
         && (!('pendingStats' in d) || isValidStatsMap(d.pendingStats))
         && (!('streak' in d) || isValidStreakMap(d.streak))
         && (!('stepData' in d) || isValidStepData(d.stepData))
-
-        // ── 배열 필드 ──
-        // friends: 문자열 배열, 최대 500명
         && (!('friends' in d) || (d.friends is list && d.friends.size() <= 500))
-
-        // ── 불리언 필드 ──
         && (!('syncEnabled' in d) || d.syncEnabled is bool)
         && (!('gpsEnabled' in d) || d.gpsEnabled is bool)
         && (!('pushEnabled' in d) || d.pushEnabled is bool)
         && (!('hasActiveReels' in d) || d.hasActiveReels is bool)
         && (!('_profileUploadFailed' in d) || d._profileUploadFailed is bool)
-        && (!('privateAccount' in d) || d.privateAccount is bool)
+        && (!('privateAccount' in d) || d.privateAccount is bool);
+    }
 
-        // ── 문자열 필드 (짧은) — null 허용: 레거시 문서에 null로 저장된 경우 대비 ──
-        // instaId: 인스타그램 ID, 최대 30자 (실제 IG 제한=30)
-        && (!('instaId' in d) || d.instaId == null || (d.instaId is string && d.instaId.size() <= 30))
+    // Part B: 문자열 + 숫자 필드
+    function isValidUserDataPartB() {
+      let d = request.resource.data;
+      return
+        (!('instaId' in d) || d.instaId == null || (d.instaId is string && d.instaId.size() <= 30))
         && (!('fcmToken' in d) || d.fcmToken == null || (d.fcmToken is string && d.fcmToken.size() <= 500))
         && (!('questWeekStart' in d) || d.questWeekStart == null || (d.questWeekStart is string && d.questWeekStart.size() <= 10))
         && (!('lastRouletteDate' in d) || d.lastRouletteDate == null || (d.lastRouletteDate is string && d.lastRouletteDate.size() <= 10))
-
-        // ── 타임스탬프/숫자 필드 ──
         && (!('nameLastChanged' in d) || d.nameLastChanged == null || d.nameLastChanged is number)
         && (!('lastReelsPostTs' in d) || d.lastReelsPostTs == null || d.lastReelsPostTs is number)
-
-        // ── 직렬화 JSON 문자열 (크기 제한) — null 허용: 레거시 문서 대비 ──
         && (!('questStr' in d) || d.questStr == null || (d.questStr is string && d.questStr.size() <= 10000))
         && (!('diaryStr' in d) || d.diaryStr == null || (d.diaryStr is string && d.diaryStr.size() <= 500000))
         && (!('reelsStr' in d) || d.reelsStr == null || (d.reelsStr is string && d.reelsStr.size() <= 500000))
@@ -135,6 +120,11 @@ service cloud.firestore {
         && (!('libraryStr' in d) || d.libraryStr == null || (d.libraryStr is string && d.libraryStr.size() <= 50000))
         && (!('runningCalcHistoryStr' in d) || d.runningCalcHistoryStr == null || (d.runningCalcHistoryStr is string && d.runningCalcHistoryStr.size() <= 10000))
         && (!('ormCalcHistoryStr' in d) || d.ormCalcHistoryStr == null || (d.ormCalcHistoryStr is string && d.ormCalcHistoryStr.size() <= 10000));
+    }
+
+    // 전체 검증 (areWrittenFieldsAllowed + PartA만 — PartB는 제외)
+    function isValidUserData() {
+      return areWrittenFieldsAllowed() && isValidUserDataPartA();
     }
 
     // ──────────────────────────────────────────────
