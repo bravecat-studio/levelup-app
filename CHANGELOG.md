@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.133] - 2026-04-02
+
+### 변경
+- 플래너 사진 추가 팝업 시 네이티브 광고 히든 처리
+
 ## [1.0.132] - 2026-04-02
 
 ### 변경
