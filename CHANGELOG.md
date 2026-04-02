@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.134] - 2026-04-02
+
+### 변경
+- feat: 뒤로가기 두 번 눌러 앱 종료 확인 로직 추가
+
 ## [1.0.133] - 2026-04-02
 
 ### 변경
