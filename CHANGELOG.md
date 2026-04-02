@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.130] - 2026-04-02
+
+### 변경
+- fix: Part2 문자열 필드에서 .size() 검사 제거하여 표현식 한도 내 유지
+
 ## [1.0.129] - 2026-04-02
 
 ### 변경
