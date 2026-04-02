@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.119] - 2026-04-02
+
+### 변경
+- fix: 던전/플래너 광고를 스크롤 가능하도록 수정
+
 ## [1.0.118] - 2026-04-01
 
 ### 변경
