@@ -11146,7 +11146,7 @@ function openLifeStatusSettings() {
     const savedUnit = config.remainUnit || 'hours';
 
     const _t = i18n[AppState.currentLang] || {};
-    const ageSuffix = _t.ls_unit_years_suffix || '세';
+    const ageSuffix = _t.ls_unit_years_suffix ?? '세';
     const ageOptions = [60,65,70,75,80,85,90,95,100].map(a =>
         `<option value="${a}" ${a === savedAge ? 'selected' : ''}>${a}${ageSuffix}</option>`
     ).join('');
