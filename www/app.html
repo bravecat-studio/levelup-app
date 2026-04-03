@@ -681,12 +681,13 @@
                         <!-- 타임박스 그리드 -->
                         <div id="planner-timebox-grid" class="planner-timebox-grid"></div>
 
-                        <!-- 전일 시간표 복사 체크박스 -->
-                        <div style="display:flex; justify-content:flex-start; align-items:center; margin:10px 0 6px 0;">
+                        <!-- 전일 시간표 복사 체크박스 + 오늘 적용 버튼 -->
+                        <div style="display:flex; justify-content:flex-start; align-items:center; margin:10px 0 6px 0; gap:10px;">
                             <label class="copy-prev-plan-label" id="copy-prev-schedule-label">
                                 <input type="checkbox" id="chk-copy-prev-schedule" onchange="window.copyPrevDaySchedule(this.checked)">
                                 <span data-i18n="copy_prev_schedule">전일 시간표 복사</span>
                             </label>
+                            <button class="btn-apply-today" id="btn-apply-today" onclick="window.openApplyTodayModal()" data-i18n="apply_today_btn">오늘 적용</button>
                         </div>
 
                         <!-- 사진 캡션 텍스트 -->
@@ -1745,6 +1746,22 @@
                         <span class="share-option-desc" data-i18n="share_link_desc">플래너 요약을 클립보드에 복사합니다</span>
                     </div>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 오늘 적용 확인 모달 -->
+    <div class="modal-overlay d-none" id="applyTodayModal" onclick="if(event.target===this){window.closeApplyTodayModal();}">
+        <div class="modal-content" style="max-width: 95%; width: 360px; padding: 20px;">
+            <div class="modal-header" style="margin-bottom: 12px; padding-bottom: 8px;">
+                <span id="apply-today-modal-title" style="font-weight:bold; color:var(--neon-gold);" data-i18n="apply_today_confirm_title">⚠️ 플래너 덮어쓰기 경고</span>
+                <button class="modal-close" onclick="window.closeApplyTodayModal()">×</button>
+            </div>
+            <div class="modal-body" id="apply-today-modal-body" style="color:var(--text); font-size:0.9rem; line-height:1.6;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button class="btn-share-option" id="btn-apply-today-cancel" style="flex:1;" onclick="window.closeApplyTodayModal()" data-i18n="apply_today_cancel_btn">취소</button>
+                <button class="btn-share-option" id="btn-apply-today-confirm" style="flex:1; background:var(--neon-blue); color:#fff;" onclick="window.confirmApplyToday()" data-i18n="apply_today_confirm_btn">적용하기</button>
             </div>
         </div>
     </div>
