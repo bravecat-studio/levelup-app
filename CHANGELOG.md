@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.141] - 2026-04-03
+
+### 변경
+- fix: 일본어 설정 시 영어로 표시되던 i18n 문제 수정
+
 ## [1.0.140] - 2026-04-03
 
 ### 변경
