@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.140] - 2026-04-03
+
+### 변경
+- feat: 비공개 계정 설정 시 경고문구 추가 (i18n 적용)
+
 ## [1.0.139] - 2026-04-02
 
 ### 변경
