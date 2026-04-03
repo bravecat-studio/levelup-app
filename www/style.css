@@ -836,6 +836,16 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 }
 .copy-prev-plan-label:hover { color: var(--neon-blue); }
 
+/* 오늘 적용 버튼 */
+.btn-apply-today {
+    font-size: 0.7rem; padding: 3px 10px; border-radius: 6px;
+    border: 1px solid var(--neon-blue); background: transparent;
+    color: var(--neon-blue); cursor: pointer; white-space: nowrap;
+    transition: background 0.2s, color 0.2s;
+}
+.btn-apply-today:hover:not(:disabled) { background: var(--neon-blue); color: #fff; }
+.btn-apply-today:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .planner-caption-box { margin-bottom: 12px; position: relative; }
 .planner-caption-input {
     width: 100%; min-height: 56px; max-height: 100px; padding: 10px; box-sizing: border-box;
