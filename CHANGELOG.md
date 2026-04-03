@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.156] - 2026-04-03
+
+### 변경
+- fix: 자동 버전 관리 무한 루프 버그 수정
+
 ## [1.0.155] - 2026-04-03
 
 ### 변경
