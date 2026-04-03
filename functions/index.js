@@ -1540,7 +1540,7 @@ exports.sendStreakWarnings = onSchedule({
 
     let warningCount = 0;
     let brokenCount = 0;
-    const invalidTokens = [];
+    let invalidTokenCount = 0;
 
     for (const doc of usersSnap.docs) {
         const data = doc.data();
@@ -1604,10 +1604,14 @@ exports.sendStreakWarnings = onSchedule({
                 uid: doc.id
             });
         } catch (e) {
-            // 유효하지 않은 토큰 수집 (앱 삭제 등)
+            // 유효하지 않은 토큰 즉시 정리 (앱 삭제 등)
             if (e.code === "messaging/registration-token-not-registered" ||
                 e.code === "messaging/invalid-registration-token") {
-                invalidTokens.push(doc.id);
+                invalidTokenCount++;
+                await db.collection("users").doc(doc.id).update({
+                    fcmToken: null,
+                    pushEnabled: false
+                });
             }
             console.warn(`[스트릭 경고] ${doc.id} 발송 실패:`, e.code || e.message);
             // Log failed send
@@ -1625,15 +1629,7 @@ exports.sendStreakWarnings = onSchedule({
         }
     }
 
-    // 유효하지 않은 토큰 정리
-    for (const uid of invalidTokens) {
-        await db.collection("users").doc(uid).update({
-            fcmToken: null,
-            pushEnabled: false
-        });
-    }
-
-    console.log(`[스트릭 경고] 경고: ${warningCount}명, 끊어짐: ${brokenCount}명, 토큰 정리: ${invalidTokens.length}건`);
+    console.log(`[스트릭 경고] 경고: ${warningCount}명, 끊어짐: ${brokenCount}명, 토큰 정리: ${invalidTokenCount}건`);
 });
 
 // ─── 4. 공지사항 수동 발송 (Callable Function — 관리자 전용) ───

@@ -2195,7 +2195,7 @@ async function loadUserDataFromDB(user) {
             if(data.gpsEnabled !== undefined) AppState.user.gpsEnabled = data.gpsEnabled;
             if(data.pushEnabled !== undefined) AppState.user.pushEnabled = data.pushEnabled;
             if(data.privateAccount !== undefined) { AppState.user.privateAccount = data.privateAccount; AppState._privateAccountExplicit = true; }
-            if(data.fcmToken) AppState.user.fcmToken = data.fcmToken;
+            if(data.fcmToken !== undefined) AppState.user.fcmToken = data.fcmToken || null;
             if(data.stepData) AppState.user.stepData = data.stepData;
             if(data.instaId) AppState.user.instaId = data.instaId;
             if(data.nameLastChanged != null) AppState.user.nameLastChanged = data.nameLastChanged;
@@ -10380,15 +10380,45 @@ async function initPushNotifications() {
 
     // 이미 활성화된 상태라면 토큰 갱신 및 메시지 리스너 설정
     if (AppState.user.pushEnabled) {
-        if (isNative) {
-            await setupNativePushListeners();
-        } else {
-            await setupWebPushListeners();
+        try {
+            let freshToken = null;
+            if (isNative) {
+                freshToken = await requestNativePushPermission();
+            } else {
+                freshToken = await requestWebPushPermission();
+            }
+
+            if (freshToken) {
+                if (freshToken !== AppState.user.fcmToken) {
+                    AppState.user.fcmToken = freshToken;
+                    saveUserData();
+                    if (window.AppLogger) AppLogger.info('[FCM] 시작 시 토큰 갱신됨');
+                }
+                if (isNative) {
+                    await setupNativePushListeners();
+                } else {
+                    await setupWebPushListeners();
+                }
+            } else {
+                // 토큰 획득 실패 — 푸시 비활성화
+                AppState.user.pushEnabled = false;
+                AppState.user.fcmToken = null;
+                pushToggle.checked = false;
+                saveUserData();
+                if (window.AppLogger) AppLogger.warn('[FCM] 시작 시 토큰 획득 실패, 푸시 비활성화');
+            }
+        } catch (e) {
+            if (window.AppLogger) AppLogger.warn('[FCM] 시작 시 토큰 갱신 실패: ' + (e.message || ''));
         }
+
         if (statusDiv) {
             statusDiv.style.display = 'flex';
             const lang = i18n[AppState.currentLang];
-            statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.push_on || '푸시 알림 활성화됨'}</span>`;
+            if (AppState.user.pushEnabled) {
+                statusDiv.innerHTML = `<span style="color:var(--neon-blue);">${lang.push_on || '푸시 알림 활성화됨'}</span>`;
+            } else {
+                statusDiv.innerHTML = `<span style="color:var(--text-sub);">${lang.push_off || '푸시 알림 중지됨'}</span>`;
+            }
         }
     }
 }
