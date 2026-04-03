@@ -7821,6 +7821,91 @@ window.copyPrevDaySchedule = function(checked) {
     }).join('');
 };
 
+// --- ★ 선택한 날짜 플랜 → 오늘 적용 기능 ★ ---
+window.openApplyTodayModal = function() {
+    const lang = AppState.currentLang;
+    const today = getTodayStr();
+
+    // 당일 선택 시 무시 (버튼 비활성화 상태이지만 방어)
+    if (diarySelectedDate === today) return;
+
+    const selectedEntry = getDiaryEntry(diarySelectedDate);
+    const hasBlocks = selectedEntry && selectedEntry.blocks && Object.keys(selectedEntry.blocks).length > 0;
+    const hasTasks = selectedEntry && selectedEntry.tasks && Array.isArray(selectedEntry.tasks) && selectedEntry.tasks.some(t => t.text);
+
+    if (!hasBlocks && !hasTasks) {
+        alert(i18n[lang]?.apply_today_no_data || '복사할 플랜 데이터가 없습니다.');
+        return;
+    }
+
+    // 모달 타이틀 & 본문 렌더링
+    const titleEl = document.getElementById('apply-today-modal-title');
+    const bodyEl = document.getElementById('apply-today-modal-body');
+    const confirmBtn = document.getElementById('btn-apply-today-confirm');
+    const cancelBtn = document.getElementById('btn-apply-today-cancel');
+
+    if (titleEl) titleEl.textContent = i18n[lang]?.apply_today_confirm_title || '⚠️ 플래너 덮어쓰기 경고';
+    if (confirmBtn) confirmBtn.textContent = i18n[lang]?.apply_today_confirm_btn || '적용하기';
+    if (cancelBtn) cancelBtn.textContent = i18n[lang]?.apply_today_cancel_btn || '취소';
+
+    const msgTemplate = i18n[lang]?.apply_today_confirm_msg || '<b>{date}</b>의 우선순위 태스크와 시간표가 오늘(<b>{today}</b>) 플래너에 덮어쓰기됩니다.';
+    if (bodyEl) bodyEl.innerHTML = msgTemplate.replace('{date}', diarySelectedDate).replace('{today}', today);
+
+    const modal = document.getElementById('applyTodayModal');
+    if (modal) { modal.classList.remove('d-none'); modal.classList.add('d-flex'); }
+};
+
+window.closeApplyTodayModal = function() {
+    const modal = document.getElementById('applyTodayModal');
+    if (modal) { modal.classList.add('d-none'); modal.classList.remove('d-flex'); }
+};
+
+window.confirmApplyToday = function() {
+    const lang = AppState.currentLang;
+    const today = getTodayStr();
+    const selectedEntry = getDiaryEntry(diarySelectedDate);
+    if (!selectedEntry) return;
+
+    // 오늘 기존 엔트리 로드
+    let diaries;
+    try { diaries = JSON.parse(localStorage.getItem('diary_entries') || '{}'); } catch(e) { diaries = {}; }
+    const todayEntry = diaries[today] || {};
+
+    // 우선순위 태스크 복사
+    if (selectedEntry.tasks && Array.isArray(selectedEntry.tasks)) {
+        todayEntry.tasks = selectedEntry.tasks.map(t => ({ text: t.text || '', ranked: !!t.ranked, rankOrder: t.rankOrder || 0 }));
+        todayEntry.priorities = todayEntry.tasks.filter(t => t.ranked && t.text).sort((a, b) => a.rankOrder - b.rankOrder).map(t => t.text);
+    }
+
+    // 시간표 블록 복사
+    if (selectedEntry.blocks && Object.keys(selectedEntry.blocks).length > 0) {
+        todayEntry.blocks = { ...selectedEntry.blocks };
+        todayEntry.text = Object.entries(selectedEntry.blocks).map(([t, v]) => `[${t}] ${v}`).join(' | ').substring(0, 500);
+    }
+
+    todayEntry.timestamp = Date.now();
+    diaries[today] = todayEntry;
+    localStorage.setItem('diary_entries', JSON.stringify(diaries));
+
+    // 모달 닫기
+    window.closeApplyTodayModal();
+
+    // 오늘 날짜로 이동 & 렌더링
+    diarySelectedDate = today;
+    renderPlannerCalendar();
+    loadPlannerForDate(today);
+
+    alert(i18n[lang]?.apply_today_success || '오늘 플래너에 적용되었습니다.');
+};
+
+// 오늘 적용 버튼 활성화/비활성화 업데이트
+function updateApplyTodayButton() {
+    const btn = document.getElementById('btn-apply-today');
+    if (!btn) return;
+    const today = getTodayStr();
+    btn.disabled = (diarySelectedDate === today);
+}
+
 // --- ★ Day1 포스트 → 내 플래너 복사 기능 ★ ---
 let _pendingCopyPost = null;
 let _reelsCachedPosts = []; // 렌더링된 포스트 캐시 (복사 기능용)
@@ -8003,6 +8088,7 @@ window.selectPlannerDate = function(dateStr) {
     diarySelectedDate = dateStr;
     renderPlannerCalendar();
     loadPlannerForDate(dateStr);
+    updateApplyTodayButton();
 };
 
 function loadPlannerForDate(dateStr) {
@@ -8128,6 +8214,9 @@ function loadPlannerForDate(dateStr) {
     if (saveBtn) saveBtn.disabled = isFuture;
     const addBtn = document.getElementById('btn-add-task');
     if (addBtn) addBtn.disabled = isFuture;
+
+    // 오늘 적용 버튼 상태 업데이트
+    updateApplyTodayButton();
 }
 
 let _plannerSaving = false; // 플래너 저장 진행 중 플래그

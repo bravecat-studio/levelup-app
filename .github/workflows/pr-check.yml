@@ -75,8 +75,8 @@ jobs:
             exit 1
           fi
           # 기본적인 구문 검증: match 블록 균형 확인
-          OPEN=$(grep -c '{' firestore.rules || true)
-          CLOSE=$(grep -c '}' firestore.rules || true)
+          OPEN=$(grep -o '{' firestore.rules | wc -l)
+          CLOSE=$(grep -o '}' firestore.rules | wc -l)
           if [ "$OPEN" -ne "$CLOSE" ]; then
             echo "::error::firestore.rules에 중괄호 불균형이 있습니다. 열기: $OPEN, 닫기: $CLOSE"
             exit 1
