@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.160] - 2026-04-03
+
+### 변경
+- fix: add firebase-config.js generation in CI/CD workflows
+
 ## [1.0.159] - 2026-04-03
 
 ### 변경
