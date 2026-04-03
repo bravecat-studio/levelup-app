@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   auto-version:
@@ -90,20 +91,41 @@ jobs:
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "📦 버전 업데이트: $CURRENT → $NEW_VERSION ($BUMP)"
 
-      # 6. 버전 동기화 (기존 version-bump.sh 재사용)
-      - name: 버전 동기화
+      # 6. 기존 버전 PR이 열려있는지 확인
+      - name: 기존 버전 PR 확인
         if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false'
-        run: bash scripts/version-bump.sh "${{ steps.new_version.outputs.version }}"
+        id: check_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING_PR=$(gh pr list --head "auto-version/v${{ steps.new_version.outputs.version }}" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "ℹ️ 이미 열린 버전 PR #${EXISTING_PR} 존재 — 스킵"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      # 7. CHANGELOG.md 자동 업데이트 (커밋 메시지 기반)
-      - name: CHANGELOG.md 업데이트
-        if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false'
+      # 7. 버전 브랜치 생성 및 파일 업데이트
+      - name: 버전 브랜치 생성 및 업데이트
+        if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false' && steps.check_pr.outputs.exists == 'false'
         run: |
           NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          BRANCH_NAME="auto-version/v${NEW_VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 새 브랜치 생성
+          git checkout -b "${BRANCH_NAME}"
+
+          # 버전 동기화
+          bash scripts/version-bump.sh "${NEW_VERSION}"
+
+          # CHANGELOG.md 업데이트
           TODAY=$(date -u +%Y-%m-%d)
           LAST_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo "")
 
-          # 마지막 태그 이후 커밋 메시지 수집 (머지 커밋, sync 커밋, [skip ci] 제외)
           if [ -n "$LAST_TAG" ]; then
             ENTRIES=$(git log "${LAST_TAG}..HEAD" --pretty=format:"- %s" \
               --no-merges \
@@ -115,12 +137,10 @@ jobs:
             ENTRIES="- 버전 자동 관리 시작"
           fi
 
-          # 커밋이 없는 경우 기본 메시지
           if [ -z "$ENTRIES" ]; then
             ENTRIES="- 소규모 업데이트 및 개선"
           fi
 
-          # 새 CHANGELOG 블록을 임시 파일에 생성
           {
             echo "## [${NEW_VERSION}] - ${TODAY}"
             echo ""
@@ -129,55 +149,82 @@ jobs:
             echo ""
           } > /tmp/changelog_block.txt
 
-          # 기존 첫 번째 ## [ 항목 앞에 삽입
           if grep -q "^## \[" CHANGELOG.md; then
             LINE_NUM=$(grep -n "^## \[" CHANGELOG.md | head -1 | cut -d: -f1)
             { head -n $((LINE_NUM - 1)) CHANGELOG.md; cat /tmp/changelog_block.txt; tail -n +"${LINE_NUM}" CHANGELOG.md; } > /tmp/changelog_new.md
             mv /tmp/changelog_new.md CHANGELOG.md
           else
-            # ## [ 항목이 없는 경우 파일 끝에 추가
             cat /tmp/changelog_block.txt >> CHANGELOG.md
           fi
 
-          echo "✅ CHANGELOG.md에 v${NEW_VERSION} 항목 추가됨"
-
-      # 8. 버전 변경사항 커밋 및 태그 생성
-      - name: 버전 변경사항 커밋 및 태그
-        if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false'
-        run: |
-          NEW_VERSION="${{ steps.new_version.outputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 변경된 파일 스테이징
+          # 변경된 파일 커밋
           git add VERSION CHANGELOG.md package.json functions/package.json 2>/dev/null || true
           git add sw.js www/sw.js 2>/dev/null || true
 
-          # 변경사항이 있을 때만 커밋
           if ! git diff --cached --quiet; then
             git commit -m "chore: v${NEW_VERSION} 자동 버전 업데이트 [skip ci]"
-
-            # 1) 커밋을 먼저 push (태그 충돌이 커밋 push를 막지 않도록 분리)
-            git pull --rebase origin main || true
-            git push origin main
-            echo "✅ v${NEW_VERSION} 커밋 push 완료"
-
-            # 2) 원격에 동일 태그가 있으면 삭제 (롤백 등으로 인한 태그 충돌 방지)
-            if git ls-remote --tags origin "refs/tags/v${NEW_VERSION}" | grep -q .; then
-              git push origin ":refs/tags/v${NEW_VERSION}" 2>/dev/null || true
-              echo "⚠️ 원격의 기존 v${NEW_VERSION} 태그 삭제 (충돌 방지)"
-            fi
-            git tag -d "v${NEW_VERSION}" 2>/dev/null || true
-
-            # 3) 새 태그 생성 및 push
-            git tag -a "v${NEW_VERSION}" -m "릴리즈 v${NEW_VERSION}"
-            git push origin "v${NEW_VERSION}"
-            echo "✅ v${NEW_VERSION} 태그 생성 및 push 완료"
+            git push origin "${BRANCH_NAME}"
+            echo "✅ 브랜치 ${BRANCH_NAME} push 완료"
           else
             echo "ℹ️ 버전 관련 변경사항 없음 — 스킵"
+            echo "no_changes=true" >> "$GITHUB_ENV"
           fi
 
-      # 9. 결과 요약
+      # 8. PR 생성 및 자동 머지
+      - name: PR 생성 및 자동 머지
+        if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false' && steps.check_pr.outputs.exists == 'false' && env.no_changes != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          BRANCH_NAME="auto-version/v${NEW_VERSION}"
+
+          # PR 생성
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "${BRANCH_NAME}" \
+            --title "chore: v${NEW_VERSION} 자동 버전 업데이트" \
+            --body "## 자동 버전 업데이트
+
+          버전 \`v${NEW_VERSION}\` 으로 자동 업데이트합니다.
+
+          ### 업데이트된 파일
+          - \`VERSION\`
+          - \`CHANGELOG.md\`
+          - \`package.json\`
+          - \`functions/package.json\`
+          - \`sw.js\` / \`www/sw.js\`
+
+          > 이 PR은 자동 생성되었습니다. 상태 체크 통과 후 자동 머지됩니다." 2>&1) || {
+            echo "::warning::PR 생성 실패. 리포지토리 설정에서 'Allow GitHub Actions to create and approve pull requests'를 활성화하거나 PAT_TOKEN 시크릿을 설정하세요."
+            echo "::warning::브랜치 '${BRANCH_NAME}'가 push되었습니다. 수동으로 PR을 생성할 수 있습니다: https://github.com/${{ github.repository }}/compare/main...${BRANCH_NAME}"
+            exit 0
+          }
+
+          echo "✅ PR 생성: ${PR_URL}"
+
+          # 자동 머지 활성화 (상태 체크 통과 후 자동으로 머지)
+          gh pr merge "${BRANCH_NAME}" --auto --squash --delete-branch || echo "⚠️ 자동 머지 설정 실패 — 수동 머지 필요"
+
+      # 9. 태그 생성
+      - name: 태그 생성
+        if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false' && steps.check_pr.outputs.exists == 'false' && env.no_changes != 'true'
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+
+          # 원격에 동일 태그가 있으면 삭제 (롤백 등으로 인한 태그 충돌 방지)
+          if git ls-remote --tags origin "refs/tags/v${NEW_VERSION}" | grep -q .; then
+            git push origin ":refs/tags/v${NEW_VERSION}" 2>/dev/null || true
+            echo "⚠️ 원격의 기존 v${NEW_VERSION} 태그 삭제 (충돌 방지)"
+          fi
+          git tag -d "v${NEW_VERSION}" 2>/dev/null || true
+
+          # 새 태그 생성 및 push
+          git tag -a "v${NEW_VERSION}" -m "릴리즈 v${NEW_VERSION}"
+          git push origin "v${NEW_VERSION}"
+          echo "✅ v${NEW_VERSION} 태그 생성 및 push 완료"
+
+      # 10. 결과 요약
       - name: 결과 요약
         if: steps.skip_check.outputs.skip == 'false' && steps.bootstrap.outputs.bootstrapped == 'false'
         run: |
