@@ -653,6 +653,24 @@
                         </div>
                     </div>
 
+                    <!-- 주간 플래너 캘린더 (탭 바로 위) -->
+                    <div class="calendar-wrapper" id="weekly-calendar-card" style="margin-bottom:12px;">
+                        <div class="cal-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <button class="planner-week-nav-btn" onclick="window.changePlannerWeek(-1)">◀</button>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span data-i18n="planner_weekly">주간 플래너</span>
+                                <span style="font-size:0.75rem; color:var(--text-sub);" id="planner-cal-month"></span>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <button class="planner-week-nav-btn" onclick="window.changePlannerWeek(1)">▶</button>
+                                <button class="planner-monthly-btn" id="btn-monthly-calendar" onclick="window.openMonthlyCalendar()">
+                                    📅 <span data-i18n="planner_monthly">월간</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="cal-grid" id="planner-calendar-grid"></div>
+                    </div>
+
                     <!-- 플래너 탭 버튼 -->
                     <div class="planner-tab-bar">
                         <button class="planner-tab-btn active" data-planner-tab="priority" data-i18n="planner_tab_priority">⭐ 우선순위 태스크</button>
@@ -750,25 +768,7 @@
                     </div>
                 </div>
 
-                <!-- 주간 플래너 캘린더 -->
-                <div class="system-card calendar-wrapper" id="weekly-calendar-card">
-                    <div class="cal-header" style="display:flex; justify-content:space-between; align-items:center;">
-                        <button class="planner-week-nav-btn" onclick="window.changePlannerWeek(-1)">◀</button>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span data-i18n="planner_weekly">주간 플래너</span>
-                            <span style="font-size:0.75rem; color:var(--text-sub);" id="planner-cal-month"></span>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:4px;">
-                            <button class="planner-week-nav-btn" onclick="window.changePlannerWeek(1)">▶</button>
-                            <button class="planner-monthly-btn" id="btn-monthly-calendar" onclick="window.openMonthlyCalendar()">
-                                📅 <span data-i18n="planner_monthly">월간</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="cal-grid" id="planner-calendar-grid"></div>
-                </div>
-
-                <!-- 월간 플래너 캘린더 (기본 숨김) -->
+                <!-- 월간 플래너 캘린더 (기본 숨김, 우선순위/시간표 하단) -->
                 <div class="system-card calendar-wrapper d-none" id="monthly-calendar-card">
                     <div class="cal-header" style="display:flex; justify-content:space-between; align-items:center;">
                         <button class="planner-week-nav-btn" onclick="window.changeMonthlyCalendar(-1)">◀</button>
