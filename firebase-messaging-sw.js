@@ -3,15 +3,9 @@
 
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js');
+importScripts('./firebase-config.js');
 
-firebase.initializeApp({
-    apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
-    authDomain: "levelup-app-53d02.firebaseapp.com",
-    projectId: "levelup-app-53d02",
-    storageBucket: "levelup-app-53d02.firebasestorage.app",
-    messagingSenderId: "233040099152",
-    appId: "1:233040099152:web:82310514d26c8c6d52de55"
-});
+firebase.initializeApp(self.__FIREBASE_CONFIG);
 
 const messaging = firebase.messaging();
 
