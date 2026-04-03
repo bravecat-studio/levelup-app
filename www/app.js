@@ -2782,6 +2782,11 @@ async function releaseUsername(name) {
     if (!key) return;
     if (window.AppLogger) AppLogger.info(`[ReleaseName] 해제 시도: "${name}" (key: "${key}")`);
     try {
+        const claim = await getDoc(doc(db, "usernames", key));
+        if (!claim.exists() || claim.data().uid !== auth.currentUser.uid) {
+            if (window.AppLogger) AppLogger.info(`[ReleaseName] 본인 소유 아님, 건너뜀: "${name}"`);
+            return;
+        }
         await deleteDoc(doc(db, "usernames", key));
         if (window.AppLogger) AppLogger.info(`[ReleaseName] 해제 성공: "${name}"`);
     } catch (e) {
@@ -14398,6 +14403,11 @@ window.renderLifeStatus = renderLifeStatus;
 // ========== Running Calculator ==========
 (function() {
     'use strict';
+
+    function getDateLocale() {
+        var lang = AppState.currentLang || 'ko';
+        return lang === 'ja' ? 'ja-JP' : lang === 'en' ? 'en-US' : 'ko-KR';
+    }
 
     let _paceMode = 'pace'; // 'pace' | 'distance' | 'time'
     let _rcUserInteracted = false; // Track if user modified inputs
