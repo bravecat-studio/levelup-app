@@ -8,15 +8,10 @@ import { getRemoteConfig, fetchAndActivate, getValue, getString } from "https://
 import { getAnalytics, logEvent as fbLogEvent } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
 
-const firebaseConfig = self.__FIREBASE_CONFIG || {
-    apiKey: "AIzaSyDRqykFBcgv1pfL9KFTO8ePEFlHAH25LqI",
-    authDomain: "levelup-app-53d02.firebaseapp.com",
-    projectId: "levelup-app-53d02",
-    storageBucket: "levelup-app-53d02.firebasestorage.app",
-    messagingSenderId: "233040099152",
-    appId: "1:233040099152:web:82310514d26c8c6d52de55",
-    measurementId: "G-4DBGG03CCJ"
-};
+if (!self.__FIREBASE_CONFIG) {
+    console.error('[App] firebase-config.js가 로드되지 않았습니다. npm run generate-config를 실행하세요.');
+}
+const firebaseConfig = self.__FIREBASE_CONFIG;
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
