@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.155] - 2026-04-03
+
+### 변경
+- docs: Tag 보호 룰셋 PAT 해결 방법 문서화
+
 ## [1.0.154] - 2026-04-03
 
 ### 변경
