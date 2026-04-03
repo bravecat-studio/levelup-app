@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.143] - 2026-04-03
+
+### 변경
+- fix: 영어 Expected Age에서 '세' 접미사가 제거되지 않던 문제 수정
+
 ## [1.0.142] - 2026-04-03
 
 ### 변경
