@@ -4083,6 +4083,50 @@ function updateLoginLangButtons(langCode) {
     });
 }
 
+/** 설정 화면의 동적 상태 메시지를 현재 언어로 갱신 */
+function refreshSettingsStatusMessages() {
+    const lang = i18n[AppState.currentLang];
+    if (!lang) return;
+
+    // 푸시 알림 상태
+    const pushStatus = document.getElementById('push-status');
+    if (pushStatus && pushStatus.style.display !== 'none') {
+        if (AppState.user.pushEnabled) {
+            pushStatus.innerHTML = `<span style="color:var(--neon-blue);">${lang.push_on || '푸시 알림 활성화됨'}</span>`;
+        } else {
+            pushStatus.innerHTML = `<span style="color:var(--text-sub);">${lang.push_off || '푸시 알림 중지됨'}</span>`;
+        }
+    }
+
+    // GPS 위치 상태
+    const gpsStatus = document.getElementById('gps-status');
+    if (gpsStatus && gpsStatus.style.display !== 'none') {
+        if (AppState.user.gpsEnabled) {
+            gpsStatus.innerHTML = `<span style="color:var(--neon-blue);">${lang.gps_on || '위치 권한 활성화됨'}</span>`;
+        } else {
+            gpsStatus.innerHTML = `<span style="color:var(--text-sub);">${lang.gps_off || '위치 탐색 중지됨'}</span>`;
+        }
+    }
+
+    // 카메라 상태
+    updateCameraToggleUI();
+
+    // Google Fit 동기화 상태
+    const syncStatus = document.getElementById('sync-status');
+    if (syncStatus && syncStatus.style.display !== 'none') {
+        if (AppState.user.syncEnabled) {
+            const totalSteps = AppState.user.stepData?.totalSteps || 0;
+            if (totalSteps === 0) {
+                syncStatus.innerHTML = `<span style="color:var(--neon-gold);">${lang.sync_no_steps || '걸음 수 기록이 없습니다. (0보)'}</span>`;
+            } else {
+                syncStatus.innerHTML = `<span style="color:var(--neon-blue);">${lang.sync_done || '동기화 완료'}</span>`;
+            }
+        } else {
+            syncStatus.innerHTML = `<span style="color:var(--text-sub);">${lang.sync_off || '동기화 해제됨'}</span>`;
+        }
+    }
+}
+
 function changeLanguage(langCode) {
     AppState.currentLang = langCode;
     try { localStorage.setItem('lang', langCode); } catch(e) {}
@@ -4116,24 +4160,38 @@ function changeLanguage(langCode) {
         loadPlayerName();
         updateReelsResetTimer(); // i18n 업데이트 후 버튼 쿨다운 상태 재적용
         updateStepCountUI();
+        refreshSettingsStatusMessages();
+        window._reelsFeedLastKey = null; // 언어 변경 시 리렌더 강제
+        renderReelsFeed();
         if (document.querySelector('.quest-tab-btn[data-quest-tab="stats"].active')) renderQuestStats();
     }
 }
 
 // --- 외부 API 연동 명언 ---
-async function renderQuote() {
+let _lastQuoteLang = null;
+async function renderQuote(forceReload) {
     const quoteEl = document.getElementById('daily-quote');
     const authorEl = document.getElementById('daily-quote-author');
     if(!quoteEl || !authorEl) return;
 
+    const lang = AppState.currentLang;
+    const _t = i18n[lang] || {};
+    const loadingText = _t.quote_loading || "위성 통신망에서 데이터를 수신 중입니다...";
+
+    // 언어가 바뀌면 강제 리로드
+    if (_lastQuoteLang && _lastQuoteLang !== lang) forceReload = true;
+
     // 이미 명언이 표시되어 있으면 다시 로드하지 않음
-    if(quoteEl.innerText && quoteEl.innerText !== "위성 통신망에서 데이터를 수신 중입니다..." && quoteEl.style.opacity !== '0') return;
+    if(!forceReload && quoteEl.innerText && quoteEl.innerText !== loadingText && quoteEl.style.opacity !== '0') return;
+
+    _lastQuoteLang = lang;
 
     try {
-        quoteEl.innerText = "위성 통신망에서 데이터를 수신 중입니다...";
+        quoteEl.innerText = loadingText;
         quoteEl.style.opacity = 1;
         authorEl.innerText = "";
 
+        // 일본어: 명언 API (zenquotes 프록시)
         let apiUrl = 'https://korean-advice-open-api.vercel.app/api/advice';
         if (AppState.currentLang === 'en' || AppState.currentLang === 'ja') {
             apiUrl = 'https://dummyjson.com/quotes/random';
@@ -4164,8 +4222,10 @@ async function renderQuote() {
 
     } catch (error) {
         console.error("명언 API 호출 실패:", error);
-        quoteEl.innerText = `"어떠한 시련 속에서도 꾸준함은 시스템을 지탱하는 가장 강력한 무기이다."`;
-        authorEl.innerText = `- System Offline -`;
+        const fallbackQuote = _t.quote_fallback || "어떠한 시련 속에서도 꾸준함은 시스템을 지탱하는 가장 강력한 무기이다.";
+        const fallbackAuthor = _t.quote_fallback_author || "System Offline";
+        quoteEl.innerText = `"${fallbackQuote}"`;
+        authorEl.innerText = `- ${fallbackAuthor} -`;
         quoteEl.style.opacity = 1;
         authorEl.style.opacity = 1;
     }
@@ -8412,7 +8472,8 @@ async function postToReels() {
             try {
                 const uid = auth.currentUser.uid;
                 const reelsLang = AppState.currentLang || 'ko';
-                const reelsProgressCb = createUploadProgressCallback(reelsLang === 'ko' ? '릴스 사진 업로드 중...' : 'Uploading reel photo...');
+                const _reelsUploadMsg = { ko: '릴스 사진 업로드 중...', en: 'Uploading reel photo...', ja: 'リール写真をアップロード中...' };
+                const reelsProgressCb = createUploadProgressCallback(_reelsUploadMsg[reelsLang] || _reelsUploadMsg.en);
                 // 릴스 사진 압축 (최대 480px, quality 0.6) — Storage 2MB 제한 대응
                 const compressedPhotoData = await compressBase64Image(photoData, 480, 0.6);
                 finalPhotoURL = await uploadImageToStorage(`reels_photos/${uid}/${postTimestamp}${getImageExtension()}`, compressedPhotoData, reelsProgressCb);
@@ -8528,7 +8589,8 @@ async function renderReelsFeed() {
             }
         }
     } else if (!window._reelsFeedLastKey) {
-        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-sub);">로딩 중...</div>';
+        const _loadingMsg = { ko: '로딩 중...', en: 'Loading...', ja: '読み込み中...' };
+        container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-sub);">${_loadingMsg[lang] || _loadingMsg.ko}</div>`;
     }
 
     // Firestore에서 최신 데이터 로드 (5초 타임아웃)
