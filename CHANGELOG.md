@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.142] - 2026-04-03
+
+### 변경
+- fix: 언어 변경 시 Life Status 카드 i18n 미적용 문제 수정
+
 ## [1.0.141] - 2026-04-03
 
 ### 변경
