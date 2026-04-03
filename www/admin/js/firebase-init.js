@@ -9,7 +9,7 @@ import {
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
 
 const firebaseConfig = self.__FIREBASE_CONFIG || {
-    apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
+    apiKey: "AIzaSyDRqykFBcgv1pfL9KFTO8ePEFlHAH25LqI",
     authDomain: "levelup-app-53d02.firebaseapp.com",
     projectId: "levelup-app-53d02",
     storageBucket: "levelup-app-53d02.firebasestorage.app",

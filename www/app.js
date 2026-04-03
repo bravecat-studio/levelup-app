@@ -9,7 +9,7 @@ import { getAnalytics, logEvent as fbLogEvent } from "https://www.gstatic.com/fi
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
 
 const firebaseConfig = self.__FIREBASE_CONFIG || {
-    apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
+    apiKey: "AIzaSyDRqykFBcgv1pfL9KFTO8ePEFlHAH25LqI",
     authDomain: "levelup-app-53d02.firebaseapp.com",
     projectId: "levelup-app-53d02",
     storageBucket: "levelup-app-53d02.firebasestorage.app",
@@ -4579,7 +4579,10 @@ async function simulateGoogleLogin() {
                 // refresh 실패 시 (최초 로그인 등) 대화형 로그인 진행
                 googleUser = await GoogleAuth.signIn();
             }
-            const idToken = googleUser.authentication.idToken;
+            const idToken = googleUser?.authentication?.idToken;
+            if (!idToken) {
+                throw new Error('Google 인증에서 idToken을 받지 못했습니다. authentication=' + JSON.stringify(googleUser?.authentication));
+            }
             const credential = GoogleAuthProvider.credential(idToken);
             const result = await signInWithCredential(auth, credential);
             ConversionTracker.loginComplete('google');

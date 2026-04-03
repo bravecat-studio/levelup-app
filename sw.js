@@ -27,17 +27,20 @@ const FIREBASE_CDN = [
 // --- Firebase Cloud Messaging (기존 firebase-messaging-sw.js 기능 통합) ---
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging-compat.js');
-try { importScripts('./firebase-config.js'); } catch (e) { /* firebase-config.js missing — use fallback */ }
+try { importScripts('./firebase-config.js'); } catch (e) {
+    console.warn('[SW] firebase-config.js 로드 실패 — FCM 비활성화');
+}
 
-firebase.initializeApp(self.__FIREBASE_CONFIG || {
-    apiKey: "AIzaSyDxNjHzj7ybZNLhG-EcbA5HKp9Sg4QhAno",
+const __fbConfig = self.__FIREBASE_CONFIG || {
+    apiKey: "AIzaSyDRqykFBcgv1pfL9KFTO8ePEFlHAH25LqI",
     authDomain: "levelup-app-53d02.firebaseapp.com",
     projectId: "levelup-app-53d02",
     storageBucket: "levelup-app-53d02.firebasestorage.app",
     messagingSenderId: "233040099152",
     appId: "1:233040099152:web:82310514d26c8c6d52de55",
     measurementId: "G-4DBGG03CCJ"
-});
+};
+firebase.initializeApp(__fbConfig);
 
 const messaging = firebase.messaging();
 
