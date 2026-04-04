@@ -9,7 +9,10 @@ import {
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
 
 if (!self.__FIREBASE_CONFIG) {
-    console.error('[App] firebase-config.js가 로드되지 않았습니다. npm run generate-config를 실행하세요.');
+    const msg = 'firebase-config.js가 로드되지 않았습니다. 배포 설정(FIREBASE_WEB_API_KEY)을 확인하세요.';
+    console.error('[App]', msg);
+    document.body.innerHTML = '<div style="color:#ff5252;padding:40px;text-align:center;font-family:sans-serif;">' + msg + '</div>';
+    throw new Error(msg);
 }
 const firebaseConfig = self.__FIREBASE_CONFIG;
 
