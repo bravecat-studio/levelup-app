@@ -832,7 +832,7 @@ td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middl
 <script src="firebase-config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getFirestore, collection, getDocs, addDoc, query, where, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
 
@@ -959,23 +959,48 @@ const MESSAGES = {
 
 let usersCache = [];
 
+function isMobileBrowser() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
 // --- Auth ---
 window.doLogin = async function() {
-    tlog("Auth", "Google login popup...");
     try {
-        const result = await signInWithPopup(auth, provider);
-        if (!(await isAdminUser(result.user))) {
-            twarn("Auth", "Access denied: " + result.user.email);
-            await signOut(auth);
-            document.getElementById("login-error").textContent = "Access denied. Admin only.";
+        if (isMobileBrowser()) {
+            tlog("Auth", "Google login redirect (mobile)...");
+            signInWithRedirect(auth, provider);
         } else {
-            tok("Auth", "Login success: " + result.user.email);
+            tlog("Auth", "Google login popup...");
+            const result = await signInWithPopup(auth, provider);
+            if (!(await isAdminUser(result.user))) {
+                twarn("Auth", "Access denied: " + result.user.email);
+                await signOut(auth);
+                document.getElementById("login-error").textContent = "Access denied. Admin only.";
+            } else {
+                tok("Auth", "Login success: " + result.user.email);
+            }
         }
     } catch (e) {
         terror("Auth", "Login failed: " + e.code + " — " + e.message);
         document.getElementById("login-error").textContent = e.message;
     }
 };
+
+// Handle redirect result (모바일 Google 로그인 복귀 시)
+getRedirectResult(auth).then(async (result) => {
+    if (result && result.user) {
+        if (!(await isAdminUser(result.user))) {
+            twarn("Auth", "Access denied: " + result.user.email);
+            await signOut(auth);
+            document.getElementById("login-error").textContent = "Access denied. Admin only.";
+        } else {
+            tok("Auth", "Login success (redirect): " + result.user.email);
+        }
+    }
+}).catch((e) => {
+    terror("Auth", "Redirect login failed: " + e.code + " — " + e.message);
+    document.getElementById("login-error").textContent = e.message;
+});
 
 window.doLogout = function() { tlog("Auth", "Logging out..."); signOut(auth); };
 
