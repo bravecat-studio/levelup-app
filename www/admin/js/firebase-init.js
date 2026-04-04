@@ -1,6 +1,6 @@
 // ─── Firebase Init (shared across admin modules) ───
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, getIdTokenResult }
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, getIdTokenResult }
     from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
     getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc,
@@ -22,7 +22,7 @@ const provider = new GoogleAuthProvider();
 export {
     app, auth, db, functions, provider, firebaseConfig,
     // Re-export commonly used Firebase utilities
-    GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, getIdTokenResult,
+    GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, getIdTokenResult,
     collection, doc, getDoc, getDocs, addDoc, setDoc, query, where, orderBy, limit, Timestamp,
     httpsCallable
 };

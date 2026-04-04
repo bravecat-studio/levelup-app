@@ -1,6 +1,6 @@
 // ─── Auth Module ───
 import {
-    auth, functions, provider, signInWithPopup, signOut, onAuthStateChanged, getIdTokenResult, httpsCallable
+    auth, functions, provider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, getIdTokenResult, httpsCallable
 } from "./firebase-init.js";
 
 let _currentUser = null;
@@ -55,10 +55,18 @@ export async function ensureFreshToken() {
     }
 }
 
-/** Google sign-in */
+function isMobileBrowser() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+/** Google sign-in (모바일: redirect, PC: popup) */
 export async function doLogin() {
     try {
-        await signInWithPopup(auth, provider);
+        if (isMobileBrowser()) {
+            signInWithRedirect(auth, provider);
+        } else {
+            await signInWithPopup(auth, provider);
+        }
     } catch (e) {
         console.error("[Login]", e.message);
         throw e;
@@ -83,6 +91,11 @@ async function syncClaimsFromServer(user) {
         console.warn("[syncClaims] Sync failed:", e.message);
     }
 }
+
+// Handle redirect result (모바일 Google 로그인 복귀 시 에러 처리)
+getRedirectResult(auth).catch(e => {
+    console.error("[Auth redirect]", e.code, e.message);
+});
 
 // Listen for auth state changes
 onAuthStateChanged(auth, async (user) => {
