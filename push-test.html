@@ -904,6 +904,12 @@ window.switchTab = function(tabId) {
 // ─── Firebase Init ───
 const firebaseConfig = self.__FIREBASE_CONFIG;
 
+if (!firebaseConfig) {
+    terror("Init", "firebase-config.js가 로드되지 않았습니다. 배포 시 FIREBASE_WEB_API_KEY 시크릿을 확인하세요.");
+    document.getElementById("login-error").textContent = "Firebase 설정 오류: firebase-config.js를 로드할 수 없습니다. 관리자에게 문의하세요.";
+    throw new Error("firebase-config.js not loaded — __FIREBASE_CONFIG is undefined");
+}
+
 tlog("Init", "Firebase SDK loading...");
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
