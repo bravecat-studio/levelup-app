@@ -8,6 +8,7 @@ let _isAdmin = false;
 let _isMaster = false;
 let _isAdminOperator = false;
 let _onAuthCallbacks = [];
+let _redirectError = null;
 
 export function getCurrentUser() { return _currentUser; }
 export function isAdmin() { return _isAdmin; }
@@ -63,12 +64,26 @@ function isMobileBrowser() {
 export async function doLogin() {
     try {
         if (isMobileBrowser()) {
-            signInWithRedirect(auth, provider);
+            await signInWithRedirect(auth, provider);
         } else {
             await signInWithPopup(auth, provider);
         }
     } catch (e) {
-        console.error("[Login]", e.message);
+        console.error("[Login]", e.code, e.message);
+
+        const errorMessages = {
+            'auth/popup-blocked': '팝업이 차단되었습니다. 브라우저 설정에서 팝업을 허용해주세요.',
+            'auth/popup-closed-by-user': null,
+            'auth/cancelled-popup-request': null,
+            'auth/unauthorized-domain': `이 도메인(${location.hostname})이 Firebase 승인 도메인에 등록되지 않았습니다.`,
+            'auth/network-request-failed': '네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.',
+            'auth/internal-error': 'Firebase 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        };
+
+        const userMessage = errorMessages[e.code];
+        if (userMessage === null) return; // 사용자 취소 — 무시
+
+        e.userMessage = userMessage || e.message;
         throw e;
     }
 }
@@ -95,6 +110,10 @@ async function syncClaimsFromServer(user) {
 // Handle redirect result (모바일 Google 로그인 복귀 시 에러 처리)
 getRedirectResult(auth).catch(e => {
     console.error("[Auth redirect]", e.code, e.message);
+    if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+        _redirectError = e.message || '리다이렉트 로그인 중 오류가 발생했습니다.';
+        window.dispatchEvent(new CustomEvent('admin-auth-error', { detail: _redirectError }));
+    }
 });
 
 // Listen for auth state changes
