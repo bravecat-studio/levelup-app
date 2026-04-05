@@ -307,6 +307,7 @@ async function handleGetTestUsers(request) {
                 uid: String(doc.id),
                 displayName: String(data.name || data.displayName || doc.id.substring(0, 8)),
                 nickname: data.name ? String(data.name) : null,
+                email: data.email ? String(data.email) : null,
                 lang: String(data.lang || "ko"),
                 fcmToken: data.fcmToken ? String(data.fcmToken) : null,
                 lastActiveDate,
@@ -340,7 +341,8 @@ async function handleGetPushLogs(request) {
         const info = {
             uid: uDoc.id,
             displayName: String(uData.name || uData.displayName || uDoc.id.substring(0, 8)),
-            nickname: uData.name ? String(uData.name) : null
+            nickname: uData.name ? String(uData.name) : null,
+            email: uData.email ? String(uData.email) : null
         };
         uidToUser[uDoc.id] = info;
         if (uData.fcmToken) {
@@ -376,7 +378,8 @@ async function handleGetPushLogs(request) {
                 sender: data.sender ? String(data.sender) : null,
                 uid: data.uid ? String(data.uid) : null,
                 userName: userInfo ? userInfo.displayName : null,
-                userNickname: userInfo ? userInfo.nickname : null
+                userNickname: userInfo ? userInfo.nickname : null,
+                userEmail: userInfo ? userInfo.email : null
             });
         } catch (docErr) {
             console.warn("[getPushLogs] Skipping doc", doc.id, docErr.message);

@@ -1234,6 +1234,7 @@ window.loadUsers = async function() {
                     uid: doc.id,
                     displayName: data.name || data.displayName || doc.id.substring(0, 8),
                     nickname: data.name || null,
+                    email: data.email || null,
                     lang: data.lang || "ko",
                     fcmToken: data.fcmToken || null,
                     lastActiveDate,
@@ -1254,7 +1255,7 @@ window.loadUsers = async function() {
         return;
     }
 
-    let html = '<table><thead><tr><th>User</th><th>Nickname</th><th>Lang</th><th>Streak Stage</th><th>Last Active</th><th>Token</th><th></th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>User</th><th>Email</th><th>Lang</th><th>Streak Stage</th><th>Last Active</th><th>Token</th><th></th></tr></thead><tbody>';
     for (const u of usersCache) {
         const diffClass = u.diffDays === null ? "" : u.diffDays >= 3 ? "badge-error" : u.diffDays >= 2 ? "badge-warning" : "badge-active";
         const diffText = u.diffDays === null ? "-" : u.diffDays === 0 ? "Today" : u.diffDays + "d ago";
@@ -1269,7 +1270,7 @@ window.loadUsers = async function() {
 
         html += `<tr>
             <td><strong>${esc(u.displayName)}</strong><br><span class="user-email">${esc(u.uid.substring(0, 12))}...</span></td>
-            <td>${esc(u.nickname || '-')}</td>
+            <td>${esc(u.email || '-')}</td>
             <td>${esc(u.lang)}</td>
             <td><span class="badge ${stageClass}">${stageLabel}</span></td>
             <td><span class="badge ${diffClass}">${diffText}</span></td>
@@ -1333,7 +1334,8 @@ window.loadLogs = async function() {
                     sender: data.sender || null,
                     uid: data.uid || null,
                     userName: null,
-                    userNickname: null
+                    userNickname: null,
+                    userEmail: null
                 });
             });
             // Attempt to resolve user names from usersCache for fallback
@@ -1352,6 +1354,7 @@ window.loadLogs = async function() {
                     if (matched) {
                         l.userName = matched.displayName;
                         l.userNickname = matched.nickname || null;
+                        l.userEmail = matched.email || null;
                     }
                 }
             }
@@ -1413,7 +1416,7 @@ window.applyLogFilters = function() {
         return;
     }
 
-    let html = '<table><thead><tr><th>Time</th><th>Type</th><th>Target</th><th>Result</th><th>ID</th><th>User</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>Time</th><th>Type</th><th>Target</th><th>Result</th><th>ID</th><th>Email</th><th>User</th></tr></thead><tbody>';
     for (const l of filtered) {
         const time = new Date(l.timestamp).toLocaleString("ko-KR", { hour12: false });
         const badge = l.success ? '<span class="badge badge-success">OK</span>' : '<span class="badge badge-error">FAIL</span>';
@@ -1426,6 +1429,7 @@ window.applyLogFilters = function() {
             <td style="max-width:120px; overflow:hidden; text-overflow:ellipsis;">${esc(l.target)}</td>
             <td>${badge}</td>
             <td style="font-size:0.7rem; color:var(--text-sub); max-width:140px; overflow:hidden; text-overflow:ellipsis;">${id}</td>
+            <td style="font-size:0.75rem;">${l.userEmail ? esc(l.userEmail) : '<span style="color:var(--text-sub)">-</span>'}</td>
             <td>${l.userName ? `<strong>${esc(l.userName)}</strong>` + (uidShort ? `<br><span class="user-email">${uidShort}</span>` : '') : '<span style="color:var(--text-sub)">-</span>'}</td>
         </tr>`;
     }
