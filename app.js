@@ -1916,6 +1916,7 @@ async function _doSaveUserData() {
             // 기존 문서에 없는 상태에서 기본값(false)을 전송하면 서버 규칙 미배포 시 permission-denied 발생
             ...(AppState._privateAccountExplicit ? { privateAccount: normalizeBooleanForFirestore(AppState.user.privateAccount) } : {}),
             fcmToken: AppState.user.fcmToken || null,
+            lang: AppState.currentLang || 'ko',
             stepData: normalizedStepData,
             instaId: AppState.user.instaId || "",
             nameLastChanged: normalizedNameLastChanged,
