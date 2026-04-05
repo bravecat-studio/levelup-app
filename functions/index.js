@@ -307,6 +307,7 @@ async function handleGetTestUsers(request) {
                 uid: String(doc.id),
                 displayName: String(data.name || data.displayName || doc.id.substring(0, 8)),
                 nickname: data.name ? String(data.name) : null,
+                email: data.email ? String(data.email) : null,
                 lang: String(data.lang || "ko"),
                 fcmToken: data.fcmToken ? String(data.fcmToken) : null,
                 lastActiveDate,
