@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.186] - 2026-04-05
+
+### 변경
+- feat: 푸시메시지 언어별 발송 — 언어별 FCM 토픽 분리로 비용 최적화
+
 ## [1.0.185] - 2026-04-05
 
 ### 변경
