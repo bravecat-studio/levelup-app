@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.179] - 2026-04-05
+
+### 변경
+- Add mileage summary and calendar to running calculator
+- Firebase Auth에서 이메일 조회하도록 수정
+
 ## [1.0.178] - 2026-04-05
 
 ### 변경
