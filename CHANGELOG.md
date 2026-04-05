@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.185] - 2026-04-05
+
+### 변경
+- feat: 플래너 버튼 우측 텍스트 표시 + 열람 시 보상형 광고
+
 ## [1.0.184] - 2026-04-05
 
 ### 변경
