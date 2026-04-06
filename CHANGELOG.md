@@ -5,6 +5,13 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.197] - 2026-04-06
+
+### 변경
+- fix: challenges.js 중복 함수 선언 제거 (getMsUntilNextKSTMidnight, formatCountdown)
+- fix: app.js 잔여 코드 제거 — NetworkMonitor 중복 선언 및 orphan 주석 수정
+- refactor: Phase 1 도메인 모듈 분리 — core 인프라 + 저결합 모듈 추출
+
 ## [1.0.196] - 2026-04-06
 
 ### 변경
