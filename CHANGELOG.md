@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.199] - 2026-04-06
+
+### 변경
+- fix: 계산기 무한보상·단위미저장·온보딩 재노출 버그 수정 + 보고서 업데이트
+
 ## [1.0.198] - 2026-04-06
 
 ### 변경
