@@ -5,6 +5,15 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.207] - 2026-04-06
+
+### 변경
+- fix: CROS 마스킹 대상 확장 및 data.js 보상 테이블 마스킹 보강
+- feat: CROS 제출 시 비공개 봉인 및 일부 공개(마스킹) 모드 추가
+- feat: CROS 저작권등록 제출용 패키지 자동 생성 기능 추가
+- feat: GitHub Actions 자동 백업 워크플로우 추가
+- feat: GitHub 백업 및 소스코드 압축 스크립트 추가
+
 ## [1.0.206] - 2026-04-06
 
 ### 변경
