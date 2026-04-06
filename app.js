@@ -42,7 +42,6 @@ window.addEventListener('offline', () => {
     disableNetwork(db).catch(e => console.warn('[Firestore] disableNetwork 실패:', e.message));
 });
 
-// Firebase Cloud Messaging 초기화 (웹 환경에서만)
 // --- 프로필 이미지 기본값 & 안전한 로드 ---
 const DEFAULT_PROFILE_SVG = "data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27 fill=%27%23555%27%3E%3Cpath d=%27M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%27/%3E%3C/svg%3E";
 
@@ -100,8 +99,6 @@ function setProfilePreview(url) {
     el.src = url;
 }
 
-// --- 네트워크 연결 품질 모니터 (제1원칙: 연결은 이분법이 아닌 스펙트럼) ---
-const NetworkMonitor = (() => {
 // --- Cloud Storage 헬퍼 ---
 function isBase64Image(str) {
     return typeof str === 'string' && str.startsWith('data:image/');
@@ -479,7 +476,6 @@ const googleProvider = new GoogleAuthProvider();
 // Google Fit: 네이티브 앱 플러그인(Health Connect / Google Fit SDK)만 사용
 // REST API 폴백 제거됨 — 모든 건강 데이터는 네이티브 SDK를 통해 조회
 
-// --- 상태 관리 객체 ---
 // --- 앱 초기 로드 ---
 let _initializedUid = null;
 
