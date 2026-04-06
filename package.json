@@ -16,7 +16,8 @@
     "backup:zip": "bash scripts/backup.sh --zip",
     "backup:full": "bash scripts/backup.sh --full",
     "backup:git": "bash scripts/github-backup.sh",
-    "backup:bundle": "bash scripts/github-backup.sh --bundle"
+    "backup:bundle": "bash scripts/github-backup.sh --bundle",
+    "backup:cros": "bash scripts/cros-package.sh"
   },
   "dependencies": {
     "@capacitor-community/admob": "^6.2.0",

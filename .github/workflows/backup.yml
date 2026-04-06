@@ -16,6 +16,7 @@ on:
           - full        # 소스코드 + Git 번들
           - source-only # 소스코드만
           - git-bundle  # Git 번들만
+          - cros        # CROS 저작권등록 제출용 패키지
         default: 'full'
       compression:
         description: '압축 형식'
@@ -165,6 +166,144 @@ jobs:
 
           echo "✅ Git Bundle 생성 완료: $(basename $BUNDLE_FILE) (${FILE_SIZE})"
 
+      # 4-1. CROS 저작권등록 제출용 패키지 생성
+      - name: CROS 저작권등록 패키지 생성
+        id: cros
+        if: steps.info.outputs.backup_type == 'cros'
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          TIMESTAMP="${{ steps.info.outputs.timestamp }}"
+          APP_NAME="LEVEL_UP_REBOOT"
+          COMPANY="BRAVECAT STUDIOS"
+
+          CROS_DIR="/tmp/backup/CROS_${APP_NAME}_v${VERSION}"
+          SOURCE_DIR="${CROS_DIR}/01_소스코드"
+          DOC_DIR="${CROS_DIR}/02_프로그램설명서"
+          EVIDENCE_DIR="${CROS_DIR}/03_창작증빙자료"
+          mkdir -p "$SOURCE_DIR" "$DOC_DIR" "$EVIDENCE_DIR"
+
+          # ── 1. 자체 저작 소스코드 복사 ──
+          echo "📦 소스코드 수집 중..."
+          for f in app.js app.html data.js style.css intro-style.css logger.js sw.js \
+                   firebase-messaging-sw.js index.html manifest.json \
+                   privacy.html terms.html usage-policy.html account-deletion.html \
+                   firestore.rules storage.rules firebase.json \
+                   capacitor.config.json package.json sync-www.sh; do
+            [ -f "$f" ] && cp "$f" "$SOURCE_DIR/"
+          done
+
+          cp -r native-plugins/ "$SOURCE_DIR/native-plugins/" 2>/dev/null || true
+          cp -r scripts/ "$SOURCE_DIR/scripts/" 2>/dev/null || true
+          mkdir -p "$SOURCE_DIR/functions"
+          cp functions/index.js functions/package.json "$SOURCE_DIR/functions/" 2>/dev/null || true
+          mkdir -p "$SOURCE_DIR/www/admin/js" "$SOURCE_DIR/www/admin/css"
+          cp www/admin/js/*.js "$SOURCE_DIR/www/admin/js/" 2>/dev/null || true
+          cp www/admin/css/*.css "$SOURCE_DIR/www/admin/css/" 2>/dev/null || true
+          cp www/admin/index.html "$SOURCE_DIR/www/admin/" 2>/dev/null || true
+          mkdir -p "$SOURCE_DIR/www/modules"
+          cp www/modules/*.js "$SOURCE_DIR/www/modules/" 2>/dev/null || true
+
+          # 소스코드 ZIP
+          cd "$CROS_DIR"
+          zip -r "01_소스코드.zip" 01_소스코드/ > /dev/null
+
+          # ── 2. 프로그램 설명서 ──
+          echo "📝 프로그램 설명서 생성 중..."
+          bash "$GITHUB_WORKSPACE/scripts/cros-package.sh" 2>/dev/null || true
+
+          # 스크립트가 실패하더라도 최소한의 설명서 생성
+          if [ ! -f "$DOC_DIR/프로그램_설명서.txt" ]; then
+            cat > "$DOC_DIR/프로그램_설명서.txt" << 'DESCEOF'
+          ================================================================
+          프로그램 설명서
+          ================================================================
+          저작물 명칭: LEVEL UP: REBOOT 모바일 애플리케이션
+          패키지 ID:  com.levelup.reboot
+          저작권자:   BRAVECAT STUDIOS
+
+          하이브리드 모바일 앱 (Capacitor 6.x + Firebase)
+          자기계발 게이미피케이션 플랫폼
+          Android 8.0+ 지원
+          ================================================================
+          DESCEOF
+            sed -i 's/^[[:space:]]*//' "$DOC_DIR/프로그램_설명서.txt"
+          fi
+
+          # ── 3. 소스코드 목록 및 통계 ──
+          echo "📊 소스코드 통계 생성 중..."
+          cd "$GITHUB_WORKSPACE"
+          {
+            echo "================================================================"
+            echo "소스코드 파일 목록 및 라인 수"
+            echo "================================================================"
+            echo "저작물: LEVEL UP: REBOOT v${VERSION}"
+            echo "생성일: $(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M:%S KST')"
+            echo "※ 자체 저작 코드만 포함 (오픈소스/제3자 코드 제외)"
+            echo "================================================================"
+            echo ""
+            TOTAL=0
+            COUNT=0
+            while IFS= read -r file; do
+              if echo "$file" | grep -qE "(node_modules|\.min\.|tesseract|android/|\.firebase|backups/|\.git/)"; then
+                continue
+              fi
+              if [ -f "$file" ]; then
+                LINES=$(wc -l < "$file")
+                printf "%-55s %8d줄\n" "${file#./}" "$LINES"
+                TOTAL=$((TOTAL + LINES))
+                COUNT=$((COUNT + 1))
+              fi
+            done < <(find . \( -name "*.js" -o -name "*.html" -o -name "*.css" -o -name "*.java" -o -name "*.sh" \) \
+              -not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/android/*" \
+              -not -path "*/backups/*" -not -path "*/.firebase/*" -not -path "*/tesseract*" \
+              -not -name "*.min.*" -not -name "firebase-config.js" | sort)
+            echo "================================================================"
+            printf "합계: %d개 파일, %d줄\n" "$COUNT" "$TOTAL"
+            echo "================================================================"
+          } > "$DOC_DIR/소스코드_목록.txt"
+
+          # ── 4. Git 이력 증빙 ──
+          echo "📜 Git 이력 증빙 생성 중..."
+          FIRST_DATE=$(git log --format="%ai" --reverse | head -1)
+          LATEST_DATE=$(git log --format="%ai" | head -1)
+          COMMITS=$(git rev-list --all --count)
+          {
+            echo "================================================================"
+            echo "Git 커밋 이력 요약 (창작과정 증빙)"
+            echo "================================================================"
+            echo "저작물: LEVEL UP: REBOOT v${VERSION}"
+            echo "저장소: $(git remote get-url origin 2>/dev/null || echo 'N/A')"
+            echo ""
+            echo "최초 커밋일 (창작연월일): ${FIRST_DATE}"
+            echo "최종 커밋일:              ${LATEST_DATE}"
+            echo "총 커밋 수:               ${COMMITS}개"
+            echo ""
+            echo "================================================================"
+            echo "전체 커밋 이력 (시간순)"
+            echo "================================================================"
+            git log --format="%h | %ai | %an | %s" --reverse
+            echo ""
+            echo "================================================================"
+            echo "월별 커밋 통계"
+            echo "================================================================"
+            git log --format="%ai" | cut -d'-' -f1-2 | sort | uniq -c | sort -k2
+            echo "================================================================"
+          } > "$EVIDENCE_DIR/Git_커밋이력.txt"
+
+          git log --stat --reverse > "$EVIDENCE_DIR/Git_상세이력.txt" 2>/dev/null || true
+
+          # ── 최종 ZIP ──
+          cd /tmp/backup
+          FINAL_ZIP="CROS_제출_LEVEL_UP_REBOOT_v${VERSION}_${TIMESTAMP}.zip"
+          zip -r "$FINAL_ZIP" "CROS_${APP_NAME}_v${VERSION}/" > /dev/null
+
+          FILE_SIZE=$(du -h "$FINAL_ZIP" | cut -f1)
+          echo "cros_package=/tmp/backup/$FINAL_ZIP" >> "$GITHUB_OUTPUT"
+          echo "filename=$FINAL_ZIP" >> "$GITHUB_OUTPUT"
+          echo "size=$FILE_SIZE" >> "$GITHUB_OUTPUT"
+
+          echo "✅ CROS 제출 패키지 생성 완료: $FINAL_ZIP (${FILE_SIZE})"
+
       # 5. 체크섬 생성
       - name: SHA256 체크섬 생성
         id: checksum
@@ -246,6 +385,16 @@ jobs:
           fi
           if [ -n "${{ steps.bundle.outputs.size }}" ]; then
             echo "| Git Bundle | \`${{ steps.bundle.outputs.filename }}\` (${{ steps.bundle.outputs.size }}) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -n "${{ steps.cros.outputs.size }}" ]; then
+            echo "| CROS 패키지 | \`${{ steps.cros.outputs.filename }}\` (${{ steps.cros.outputs.size }}) |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### CROS 제출 패키지 내용" >> $GITHUB_STEP_SUMMARY
+            echo "- \`01_소스코드/\` - 자체 저작 소스코드 (오픈소스 제외)" >> $GITHUB_STEP_SUMMARY
+            echo "- \`02_프로그램설명서/\` - 프로그램 설명서 + 소스코드 목록" >> $GITHUB_STEP_SUMMARY
+            echo "- \`03_창작증빙자료/\` - Git 커밋 이력 (창작일 입증)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> **추가 필요**: 스크린샷 5~10장, 저작자 신원확인 서류" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
