@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.196] - 2026-04-06
+
+### 변경
+- docs: 모듈 분리 보고서 보충 - IIFE 분석, 결합점, 리스크 완화
+- docs: app.js 도메인 모듈 분리 검토 보고서 추가
+
 ## [1.0.195] - 2026-04-06
 
 ### 변경
