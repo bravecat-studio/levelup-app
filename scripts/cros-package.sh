@@ -149,15 +149,33 @@ if [ "$SUBMIT_MODE" = "partial" ]; then
  * 원본 코드는 비공개 봉인본에 포함되어 있으며, 분쟁 시 개봉됩니다.
  * ================================================================ */"
 
-    # app.js - 경험치/레벨업 관련 함수 마스킹
+    # app.js - 게이미피케이션 핵심 로직 마스킹 (수치 치환 방식)
     if [ -f "$SOURCE_DIR/app.js" ]; then
-        # calcXP, addXP, levelUp 등 경험치 계산 로직 마스킹
-        sed -i -E "/function\s+(calcXP|calcExpNeeded|addXP|levelUp|calcLevelReward|calcStreakBonus|getStreakMultiplier)/,/^    \}|^  \}|^\}/ {
-            /function\s+(calcXP|calcExpNeeded|addXP|levelUp|calcLevelReward|calcStreakBonus|getStreakMultiplier)/! {
-                /^    \}|^  \}|^\}/! s/.*/    \/\/ [MASKED - 영업비밀 보호]/
-            }
-        }" "$SOURCE_DIR/app.js" 2>/dev/null || true
-        log_ok "app.js 핵심 로직 마스킹 완료"
+        sed -i \
+            -e 's/Math\.pow(1\.5,/Math.pow([MASKED_SCALE],/g' \
+            -e 's/Math\.floor(100 \*/Math.floor([MASKED_BASE] */g' \
+            -e 's/\* 1\.2\b/* [MASKED_MULT]/g' \
+            -e 's/\* 1\.5\b/* [MASKED_MULT]/g' \
+            -e 's/\* 2\.0\b/* [MASKED_MULT]/g' \
+            -e 's/\* 3\.0\b/* [MASKED_MULT]/g' \
+            -e 's/decayDays \* 0\.1/decayDays * [MASKED_DECAY]/g' \
+            -e 's/0\.15)/[MASKED_CRIT_RATE])/g' \
+            -e 's/0\.30)/[MASKED_CRIT_DIST])/g' \
+            -e 's/pointReward = 20/pointReward = [MASKED_REWARD]/g' \
+            -e 's/statReward = 0\.5/statReward = [MASKED_REWARD]/g' \
+            -e 's/pts = 200/pts = [MASKED_REWARD]/g' \
+            -e 's/statInc = 2\.0/statInc = [MASKED_REWARD]/g' \
+            "$SOURCE_DIR/app.js" 2>/dev/null || true
+        log_ok "app.js 게이미피케이션 수치 마스킹 완료"
+    fi
+
+    # data.js - 보상 테이블/루트 테이블 마스킹
+    if [ -f "$SOURCE_DIR/data.js" ]; then
+        sed -i \
+            -e 's/weight: [0-9]\+/weight: [MASKED_WEIGHT]/g' \
+            -e "s/value: [0-9]\+\(\.[0-9]\+\)\?/value: [MASKED_VALUE]/g" \
+            "$SOURCE_DIR/data.js" 2>/dev/null || true
+        log_ok "data.js 보상 테이블 마스킹 완료"
     fi
 
     # exercise-calc.js - VO2max 계수, VDOT 공식 마스킹
@@ -211,30 +229,58 @@ if [ "$SUBMIT_MODE" = "partial" ]; then
 
 [위험도: HIGH] 게이미피케이션 핵심 알고리즘
   파일: app.js
-  대상: 경험치 계산, 레벨업 공식, 스트릭 보너스, 보상 시스템
+  대상 함수/로직:
+    - processLevelUp()     : 레벨업 비용 공식 (지수 스케일링 계수)
+    - getStreakMultiplier() : 스트릭 보상 배율 (단계별 임계값·배수)
+    - applyStreakAndDecay() : 비활동 패널티 감쇠 공식
+    - rollCritical()       : 크리티컬 히트 확률 및 배수 분포
+    - 퀘스트 보상 기본값    : 포인트·스탯 보상 수치
+    - 던전 클리어 보상      : 보상 배수 및 주말 보너스
   사유: 앱의 핵심 차별화 요소이며, 게임 밸런스에 직결되는
        독자적 수치 체계로 영업비밀에 해당
 
+[위험도: HIGH] 보상/루트 테이블
+  파일: data.js
+  대상:
+    - 루트 드롭 가중치      : 등급별 확률 분포 (Common~Legendary)
+    - 등급별 보상값          : 포인트·스탯 보상 수치
+    - 주간 챌린지 보상 테이블 : 목표치 및 보상 구성
+    - 칭호 해제 조건         : 마일스톤 임계값 및 희귀도 매핑
+  사유: 게임 이코노미의 핵심 파라미터로, 유출 시 경쟁사가
+       동일한 보상 체계를 복제할 수 있음
+
 [위험도: HIGH] 운동 과학 계산 계수
   파일: www/modules/exercise-calc.js
-  대상: VO2max 계산 계수, VDOT 공식 파라미터, 운동 강도 구간
+  대상:
+    - calcVO2()         : 산소 소비량 계산 계수 (0.182258, 0.000104)
+    - calcPctVO2max()   : VO2max 비율 감쇠 파라미터 (0.1894393 등)
+    - calcLander()      : Lander 공식 커스텀 계수 (2.67123)
+    - 훈련 강도 구간    : 5단계 구간별 속도 비율
   사유: 커스터마이징된 운동 과학 공식의 독자적 계수값으로
        경쟁 서비스 대비 차별화 핵심 요소
 
 [위험도: MEDIUM] 콘텐츠 스크리닝 임계값
   파일: functions/index.js
-  대상: NSFW 감지 임계값, Azure Content Safety 심각도 매핑
+  대상:
+    - nsfwProbToLikelihood() : NSFW 확률→등급 변환 임계값
+    - screenImage()          : 2단계 하이브리드 스크리닝 분기 조건
+    - Azure 심각도 매핑       : severity→likelihood 변환 기준
   사유: 콘텐츠 필터링 정확도를 결정하는 튜닝 파라미터로
-       서비스 품질에 직접적 영향
+       노출 시 필터링 우회에 악용 가능
 
 ================================================================
 마스킹 방법
 ================================================================
 
-- 함수 본문: 내부 코드를 "// [MASKED - 영업비밀 보호]"로 치환
-- 수치 계수: 구체적 값을 "[MASKED_COEFF]"로 치환
-- 임계값:    구체적 값을 "[MASKED_THRESHOLD]"로 치환
-- 심각도:    구체적 값을 "[MASKED_SEVERITY]"로 치환
+- 스케일 계수: 값을 "[MASKED_SCALE]"로 치환 (예: 1.5 → [MASKED_SCALE])
+- 배율 값:    값을 "[MASKED_MULT]"로 치환 (예: 3.0 → [MASKED_MULT])
+- 보상 수치:  값을 "[MASKED_REWARD]"로 치환 (예: 200 → [MASKED_REWARD])
+- 가중치:     값을 "[MASKED_WEIGHT]"로 치환 (예: 60 → [MASKED_WEIGHT])
+- 확률 값:    값을 "[MASKED_CRIT_RATE]"로 치환 (예: 0.15 → [MASKED_CRIT_RATE])
+- 감쇠 계수:  값을 "[MASKED_DECAY]"로 치환
+- 수학 계수:  값을 "[MASKED_COEFF]"로 치환
+- 임계값:     값을 "[MASKED_THRESHOLD]"로 치환
+- 심각도:     값을 "[MASKED_SEVERITY]"로 치환
 
 ※ 원본 코드는 비공개 봉인본에 별도 보관됩니다.
 ※ 마스킹은 저작물의 존재와 구조를 증명하면서도
