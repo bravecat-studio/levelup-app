@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.202] - 2026-04-06
+
+### 변경
+- fix: use Otsu variance to select grayscale method + reorder OCR regions
+
 ## [1.0.201] - 2026-04-06
 
 ### 변경
