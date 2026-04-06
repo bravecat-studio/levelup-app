@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.203] - 2026-04-06
+
+### 변경
+- fix: request HD camera resolution for ISBN barcode/OCR scanning
+
 ## [1.0.202] - 2026-04-06
 
 ### 변경
