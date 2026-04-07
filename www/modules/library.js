@@ -1035,7 +1035,7 @@
         // 뒤로가기 시 상태창으로 이동
         const statusNav = document.querySelector('.nav-item[data-tab="status"]');
         if (statusNav) {
-            switchTab('status', statusNav);
+            window.switchTab('status', statusNav);
         }
     };
 
@@ -2022,7 +2022,7 @@
         });
         if (category === 'read') {
             grantReadReward(AppState.library.books[AppState.library.books.length - 1]);
-            checkReadingRareTitles();
+            if (typeof window.checkReadingRareTitles === 'function') window.checkReadingRareTitles();
         }
         window.saveUserData();
         window.updateLibraryCardCount();
@@ -2046,7 +2046,7 @@
         if (newCategory === 'read' && !book.finishedDate) book.finishedDate = getTodayStr();
         if (newCategory === 'read') {
             grantReadReward(book);
-            checkReadingRareTitles();
+            if (typeof window.checkReadingRareTitles === 'function') window.checkReadingRareTitles();
         }
         window.saveUserData();
         updateLibraryCounts();
@@ -2229,7 +2229,7 @@
             if (window.AppLogger) AppLogger.info('[ISBN] Camera started successfully');
             AppState.user.cameraEnabled = true;
             window.saveUserData();
-            updateCameraToggleUI();
+            if (typeof window.updateCameraToggleUI === 'function') window.updateCameraToggleUI();
 
             // Native BarcodeDetector: parallel high-performance barcode scanning
             if ('BarcodeDetector' in window) {
@@ -2306,12 +2306,12 @@
             if (e && (e.name === 'NotAllowedError' || (e.message && e.message.indexOf('Permission') >= 0))) {
                 AppState.user.cameraEnabled = false;
                 window.saveUserData();
-                updateCameraToggleUI();
+                if (typeof window.updateCameraToggleUI === 'function') window.updateCameraToggleUI();
                 if (overlay) overlay.classList.add('d-none');
                 const lang = i18n[AppState.currentLang];
                 const msg = lang.cam_denied_go_settings || '카메라 권한이 거부되었습니다.\n앱 설정에서 카메라 권한을 허용하시겠습니까?';
                 if (confirm(msg)) {
-                    openAppSettings();
+                    if (typeof window.openAppSettings === 'function') window.openAppSettings();
                 }
             } else {
                 if (statusEl) statusEl.textContent = 'Scanner error: ' + (e.message || e);
