@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.218] - 2026-04-07
+
+### 변경
+- docs: IIFE 패턴 유지한 저결합 모듈 추가 분리 검토 계획서
+
 ## [1.0.217] - 2026-04-07
 
 ### 변경
