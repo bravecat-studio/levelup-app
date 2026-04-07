@@ -4097,10 +4097,10 @@ function updatePointUI() {
     if (display.isRare) {
         const rarityClass = rarityConfig[display.rarity]?.class || '';
         badgeEl.className = 'title-badge-combined';
-        badgeEl.innerHTML = `<span class="title-badge" style="margin-bottom:0;">${display.baseIcon} ${sanitizeText(display.baseText)}</span><span class="title-badge ${rarityClass}" style="margin-bottom:0;">${display.rareIcon} ${sanitizeText(display.rareText)}</span> ℹ️`;
+        badgeEl.innerHTML = `<span class="title-badge" style="margin-bottom:0;">${display.baseIcon} ${sanitizeText(display.baseText)}</span><span class="title-badge ${rarityClass}" style="margin-bottom:0;">${display.rareIcon} ${sanitizeText(display.rareText)}</span><span class="title-info-icon">ℹ️</span>`;
     } else {
         badgeEl.className = 'title-badge';
-        badgeEl.innerHTML = `${display.baseIcon} ${sanitizeText(display.baseText)} ℹ️`;
+        badgeEl.innerHTML = `${display.baseIcon} ${sanitizeText(display.baseText)} <span class="title-info-icon">ℹ️</span>`;
     }
 }
 

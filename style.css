@@ -168,11 +168,12 @@ h2 { font-size: 1rem; color: var(--neon-blue); margin-top: 0; margin-bottom: 12p
 .profile-img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 .upload-overlay { position: absolute; bottom: -5px; right: -5px; background: var(--neon-blue); width: 20px; height: 20px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; cursor: pointer; border: 2px solid var(--bg-dark); z-index: 5; }
 
-.title-badge { display: inline-block; padding: 2px 6px; font-size: 0.65rem; font-weight: bold; background: linear-gradient(45deg, rgba(181, 60, 255, 0.2), transparent); border: 1px solid var(--neon-purple); color: var(--neon-purple); border-radius: 4px; margin-bottom: 3px; cursor: pointer;}
+.title-badge { display: inline-block; padding: 2px 6px; font-size: 0.65rem; font-weight: bold; background: linear-gradient(45deg, rgba(181, 60, 255, 0.2), transparent); border: 1px solid var(--neon-purple); color: var(--neon-purple); border-radius: 4px; margin-bottom: 3px; cursor: pointer; white-space: nowrap; }
 
 /* 기존 호칭 + 희귀 호칭 병렬 표시 */
-.title-badge-combined { display: inline-flex; align-items: center; gap: 3px; flex-wrap: wrap; margin-bottom: 3px; cursor: pointer; }
+.title-badge-combined { display: inline-flex; align-items: center; gap: 3px; flex-wrap: nowrap; margin-bottom: 3px; cursor: pointer; white-space: nowrap; }
 .title-badge-combined .title-badge { font-size: 0.55rem; padding: 1px 4px; margin-bottom: 0; }
+.title-info-icon { font-size: 0.45rem; vertical-align: middle; margin-left: 1px; }
 
 /* ===== 희귀 호칭 등급별 스타일 ===== */
 .title-badge.rarity-uncommon { background: linear-gradient(45deg, rgba(0,180,0,0.2), transparent); border-color: #00cc66; color: #00cc66; }
@@ -210,7 +211,9 @@ h2 { font-size: 1rem; color: var(--neon-blue); margin-top: 0; margin-bottom: 12p
 
 .name-container { display: flex; align-items: center; gap: 5px; }
 .btn-edit-name { background: none; border: none; font-size: 0.8rem; cursor: pointer; padding: 0; color: var(--text-sub); }
+.compact-right-area { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
 .compact-score-box { text-align: right; }
+.compact-score-label { font-size: 0.55rem; color: var(--text-sub); white-space: nowrap; }
 .compact-score-val { font-size: 1.6rem; font-weight: 900; color: var(--neon-blue); line-height: 1; }
 
 .levelup-panel-compact { display: flex; justify-content: space-between; align-items: center; background: rgba(255, 204, 0, 0.05); border: 1px solid var(--neon-gold); padding: 10px 12px; border-radius: 6px; }
@@ -1611,7 +1614,7 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 /* ===== Hamburger Menu Button ===== */
 .btn-hamburger-menu {
     background: none; border: none; color: var(--text-sub); cursor: pointer;
-    padding: 6px; margin-left: 8px; display: flex; align-items: center; justify-content: center;
+    padding: 4px 6px; margin-left: 0; display: flex; align-items: center; justify-content: center;
     border-radius: 6px; transition: background 0.2s;
 }
 .btn-hamburger-menu:active { background: rgba(255,255,255,0.1); }
