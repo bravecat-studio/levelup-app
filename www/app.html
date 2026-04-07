@@ -253,7 +253,7 @@
                                 <input type="file" id="imageUpload" accept="image/*" class="d-none">
                             </div>
                             <div>
-                                <div class="title-badge" id="prof-title-badge" style="cursor:pointer;">신규 각성자 ℹ️</div>
+                                <div class="title-badge" id="prof-title-badge" style="cursor:pointer;">신규 각성자 <span class="title-info-icon">ℹ️</span></div>
                                 <div class="name-container">
                                     <div style="font-size: 1rem; font-weight: bold;" id="prof-name" data-i18n="prof_name">플레이어 (나)</div>
                                     <button class="btn-edit-name" id="btn-edit-name">✏️</button>
@@ -272,15 +272,17 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="compact-score-box">
-                            <div style="font-size: 0.65rem; color: var(--text-sub);" data-i18n="tot_score">종합 스코어</div>
-                            <div class="compact-score-val" id="totalScore">0</div>
+                        <div class="compact-right-area">
+                            <div class="compact-score-box">
+                                <div class="compact-score-label" data-i18n="tot_score">종합 스코어</div>
+                                <div class="compact-score-val" id="totalScore">0</div>
+                            </div>
+                            <button id="btn-hamburger-menu" class="btn-hamburger-menu" aria-label="Menu">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                                </svg>
+                            </button>
                         </div>
-                        <button id="btn-hamburger-menu" class="btn-hamburger-menu" aria-label="Menu">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
-                                <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
-                            </svg>
-                        </button>
                     </div>
 
                     <div class="levelup-panel-compact">
