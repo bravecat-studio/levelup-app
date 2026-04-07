@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.221] - 2026-04-07
+
+### 변경
+- refactor: 뽀모도로 타이머 IIFE를 modules/pomodoro.js로 분리
+
 ## [1.0.220] - 2026-04-07
 
 ### 변경
