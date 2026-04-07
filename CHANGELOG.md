@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.211] - 2026-04-07
+
+### 변경
+- fix: 던전 가이드 팝업 호출시 네이티브 광고 숨김 처리
+- docs: 게임 완성도(82점) 및 손익 예상 보고서 v1.0.210 기준 업데이트
+
 ## [1.0.210] - 2026-04-07
 
 ### 변경
