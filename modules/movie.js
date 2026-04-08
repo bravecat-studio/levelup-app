@@ -1014,27 +1014,9 @@
 
     // ── i18n 기본값 보완 ──
     (function() {
-        var defaults = {
-            mov_babel_cinema: '바벨의 영화관',
-            mov_stack_view: '쌓아보기',
-            mov_list_view: '리스트형 보기',
-            mov_save_image: '이미지 저장'
-        };
-        ['ko','en','ja'].forEach(function(lang) {
-            if (!i18n[lang]) return;
-            for (var k in defaults) {
-                if (!i18n[lang][k]) i18n[lang][k] = defaults[k];
-            }
-        });
-        if (i18n.en) {
-            if (!i18n.en.mov_babel_cinema) i18n.en.mov_babel_cinema = 'Tower of Cinema';
-            if (!i18n.en.mov_stack_view) i18n.en.mov_stack_view = 'Stack View';
-            if (!i18n.en.mov_list_view) i18n.en.mov_list_view = 'List View';
-            if (!i18n.en.mov_save_image) i18n.en.mov_save_image = 'Save Image';
-        }
-        if (i18n.ja) {
-            if (!i18n.ja.mov_babel_cinema) i18n.ja.mov_babel_cinema = 'バベルの映画館';
-        }
+        if (i18n.ko && !i18n.ko.mov_babel_cinema) i18n.ko.mov_babel_cinema = '바벨의 영화관';
+        if (i18n.en && !i18n.en.mov_babel_cinema) i18n.en.mov_babel_cinema = 'Tower of Cinema';
+        if (i18n.ja && !i18n.ja.mov_babel_cinema) i18n.ja.mov_babel_cinema = 'バベルの映画館';
     })();
 
     // ── Util ──
