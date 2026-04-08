@@ -1268,6 +1268,104 @@ async function handleSearchBooks(request) {
     return { books: [], hasMore: false, totalCount: 0 };
 }
 
+// ─── 영화 키워드 검색 (TMDB API) ───
+async function handleSearchMovies(request) {
+    const query = (request.data?.query || "").trim();
+    const page = Math.max(1, parseInt(request.data?.page) || 1);
+    if (!query) {
+        throw new HttpsError("invalid-argument", "검색어를 입력해주세요.");
+    }
+
+    const tmdbKey = process.env.TMDB_API_KEY;
+    if (!tmdbKey) {
+        console.warn("[searchMovies] TMDB_API_KEY not configured");
+        throw new HttpsError("unavailable", "Movie search is not configured.");
+    }
+
+    try {
+        const url = `https://api.themoviedb.org/3/search/movie?api_key=${tmdbKey}&query=${encodeURIComponent(query)}&page=${page}&language=ko-KR&include_adult=false`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            console.warn(`[searchMovies] TMDB HTTP ${res.status}: ${res.statusText}`);
+            throw new HttpsError("unavailable", `TMDB API error: ${res.status}`);
+        }
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+            const movies = data.results.map(m => ({
+                tmdbId: m.id,
+                title: m.title || m.original_title || "",
+                originalTitle: m.original_title || "",
+                posterPath: m.poster_path || "",
+                releaseDate: m.release_date || "",
+                voteAverage: m.vote_average || 0,
+                overview: m.overview || "",
+                genreIds: m.genre_ids || []
+            }));
+            return {
+                movies: movies,
+                hasMore: page < (data.total_pages || 1),
+                totalCount: data.total_results || 0
+            };
+        }
+    } catch (e) {
+        if (e instanceof HttpsError) throw e;
+        console.warn("[searchMovies] TMDB error:", e.message);
+    }
+
+    return { movies: [], hasMore: false, totalCount: 0 };
+}
+
+// ─── 영화 상세 조회 (TMDB API) ───
+async function handleLookupMovie(request) {
+    const tmdbId = String(request.data?.tmdbId || "").trim();
+    if (!tmdbId) {
+        throw new HttpsError("invalid-argument", "Movie ID is required.");
+    }
+
+    const tmdbKey = process.env.TMDB_API_KEY;
+    if (!tmdbKey) {
+        throw new HttpsError("unavailable", "Movie search is not configured.");
+    }
+
+    try {
+        const url = `https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${tmdbKey}&language=ko-KR&append_to_response=credits`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            console.warn(`[lookupMovie] TMDB HTTP ${res.status}`);
+            return { movie: null };
+        }
+        const d = await res.json();
+
+        const directors = (d.credits?.crew || [])
+            .filter(c => c.job === "Director")
+            .map(c => c.name)
+            .join(", ");
+        const castArr = (d.credits?.cast || [])
+            .slice(0, 5)
+            .map(c => c.name);
+        const genres = (d.genres || []).map(g => g.name).join(", ");
+
+        return {
+            movie: {
+                tmdbId: d.id,
+                title: d.title || d.original_title || "",
+                originalTitle: d.original_title || "",
+                director: directors,
+                cast: castArr.join(", "),
+                posterPath: d.poster_path || "",
+                releaseDate: d.release_date || "",
+                voteAverage: d.vote_average || 0,
+                overview: d.overview || "",
+                genres: genres,
+                runtime: d.runtime || 0
+            }
+        };
+    } catch (e) {
+        console.warn("[lookupMovie] TMDB error:", e.message);
+        return { movie: null };
+    }
+}
+
 exports.ping = onCall(pingCallableOpts, async (request) => {
     // ── Action router: handle admin actions via ping ──
     const action = request.data?.action;
@@ -1339,6 +1437,12 @@ exports.ping = onCall(pingCallableOpts, async (request) => {
                 // ─── 도서 키워드 검색 ───
                 case "searchBooks":
                     return await handleSearchBooks(request);
+                // ─── 영화 키워드 검색 ───
+                case "searchMovies":
+                    return await handleSearchMovies(request);
+                // ─── 영화 상세 조회 ───
+                case "lookupMovie":
+                    return await handleLookupMovie(request);
                 default:
                     throw new HttpsError("invalid-argument", "Unknown action: " + action);
             }
