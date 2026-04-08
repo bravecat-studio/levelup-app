@@ -790,7 +790,7 @@ function initNavDragReorder() {
 }
 
 // --- 상태창 카드 순서 재배치 (길게 눌러 상하 이동) ---
-const DEFAULT_STATUS_CARD_ORDER = ['step-count', 'stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'pomodoro', 'dday', 'dday-caption', 'daily-quote', 'notification'];
+const DEFAULT_STATUS_CARD_ORDER = ['step-count', 'stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'pomodoro', 'dday', 'dday-caption', 'daily-quote'];
 
 function saveStatusCardOrder() {
     const cards = Array.from(document.querySelectorAll('#status .status-reorderable'));
@@ -919,10 +919,9 @@ const STATUS_CARD_LABELS = {
     'my-library': { name_key: 'card_my_library', name: '내 서재', icon: '📚' },
     'my-movies': { name_key: 'card_my_movies', name: '내 영화', icon: '🎬' },
     'running-calc': { name_key: 'card_running_calc', name: '러닝 계산기', icon: '🏃' },
-    'orm-calc': { name_key: 'card_orm_calc', name: '1RM 계산기', icon: '🏋️' },
-    'notification': { name_key: 'card_notification', name: '알림', icon: '🔔' }
+    'orm-calc': { name_key: 'card_orm_calc', name: '1RM 계산기', icon: '🏋️' }
 };
-const ALL_CARD_IDS = ['step-count', 'stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'pomodoro', 'dday', 'dday-caption', 'daily-quote', 'notification'];
+const ALL_CARD_IDS = ['step-count', 'stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'pomodoro', 'dday', 'dday-caption', 'daily-quote'];
 // 삭제 불가 카드 (이동만 가능)
 const NON_REMOVABLE_CARDS = ['stat-radar', 'bonus-exp'];
 
@@ -4075,7 +4074,7 @@ function switchTab(tabId, el) {
     const mainEl = document.querySelector('main');
     if(tabId === 'status') {
         mainEl.style.overflowY = 'auto';
-        drawRadarChart(); updatePointUI(); renderQuote(); renderDDayList(); renderDDayCaption(); renderLifeStatus(); if (window.AdManager) window.AdManager.renderBonusExp(); if (window.updateLibraryCardCount) window.updateLibraryCardCount(); if (window.updateMovieCardCount) window.updateMovieCardCount(); if (window.NotificationModule) window.NotificationModule.render();
+        drawRadarChart(); updatePointUI(); renderQuote(); renderDDayList(); renderDDayCaption(); renderLifeStatus(); if (window.AdManager) window.AdManager.renderBonusExp(); if (window.updateLibraryCardCount) window.updateLibraryCardCount(); if (window.updateMovieCardCount) window.updateMovieCardCount();
     } else {
         mainEl.style.overflowY = 'auto';
     }
@@ -10041,6 +10040,14 @@ function registerBackButtonHandler() {
                 }
                 return;
             }
+        }
+
+        // 2-a) 알림 모달이 열려있으면 닫기
+        const notiModal = document.getElementById('notification-modal');
+        if (notiModal && !notiModal.classList.contains('d-none')) {
+            if (window.NotificationModule) window.NotificationModule.closeModal();
+            else notiModal.classList.add('d-none');
+            return;
         }
 
         // 2) 카드 에디터가 열려있으면 닫기

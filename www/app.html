@@ -518,19 +518,6 @@
                     </button>
                 </div>
 
-                <!-- Notification Card (알림/공지사항) -->
-                <div class="system-card status-reorderable" data-card-id="notification" style="margin-top: 10px; margin-bottom: 0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <span style="font-size:1.2rem;">🔔</span>
-                            <h2 style="margin:0;" data-i18n="card_notification">알림</h2>
-                        </div>
-                        <button class="btn-info-sm" id="btn-noti-clear" style="font-size:0.7rem;" data-i18n="noti_clear_history">이력 지우기</button>
-                    </div>
-                    <div id="noti-announcements-area"></div>
-                    <div id="noti-history-area"></div>
-                </div>
-
                 <!-- btn-myinfo removed: replaced by hamburger menu -->
                 <button class="btn-myinfo" id="btn-myinfo" data-i18n="btn_myinfo" style="display:none;">&#9881; 내 정보</button>
 
@@ -1797,6 +1784,28 @@
             </button>
         </div>
         <div id="editor-card-list" class="editor-card-list"></div>
+        <div class="editor-bottom-actions">
+            <button id="btn-editor-notification" class="editor-action-btn">
+                <span style="font-size:1.1rem;">🔔</span>
+                <span data-i18n="card_notification">알림</span>
+                <span id="noti-unread-badge" class="noti-editor-badge" style="display:none;"></span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Modal (알림/공지사항) -->
+    <div id="notification-modal" class="notification-modal d-none">
+        <div class="notification-modal-header">
+            <button id="btn-noti-back" class="editor-nav-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/></svg>
+            </button>
+            <h2 class="editor-title" data-i18n="card_notification">알림</h2>
+            <button id="btn-noti-clear" class="editor-nav-btn" style="font-size:0.7rem; width:auto; padding:0 8px;" data-i18n="noti_clear_history">이력 지우기</button>
+        </div>
+        <div class="notification-modal-body">
+            <div id="noti-announcements-area"></div>
+            <div id="noti-history-area"></div>
+        </div>
     </div>
 
     <!-- Card Selection Modal (추가할 카드 선택) -->

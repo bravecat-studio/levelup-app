@@ -206,6 +206,14 @@ service cloud.firestore {
     }
 
     // ──────────────────────────────────────────────
+    // announcements: 인증된 유저 읽기, Cloud Functions Admin SDK에서만 쓰기
+    // ──────────────────────────────────────────────
+    match /announcements/{announcementId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ──────────────────────────────────────────────
     // user_backups: 관리자만 읽기 (Cloud Functions Admin SDK에서만 쓰기)
     // ──────────────────────────────────────────────
     match /user_backups/{backupId} {
