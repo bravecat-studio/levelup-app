@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.224] - 2026-04-08
+
+### 변경
+- feat: 바벨의 도서관 다크 테마 기본 적용, 색상 3종 선택, 리스트 최신순 정렬
+
 ## [1.0.223] - 2026-04-07
 
 ### 변경
