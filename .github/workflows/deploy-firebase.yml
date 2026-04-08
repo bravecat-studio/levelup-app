@@ -137,6 +137,8 @@ jobs:
           AZURE_CS_KEY=${{ secrets.AZURE_CS_KEY }}
           ALADIN_TTB_KEY=${{ secrets.ALADIN_TTB_KEY }}
           KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
+          KOBIS_API_KEY=${{ secrets.KOBIS_API_KEY }}
+          KMDB_API_KEY=${{ secrets.KMDB_API_KEY }}
           EOF
           # 각 줄 앞의 공백 제거 (HEREDOC 들여쓰기)
           sed -i 's/^[[:space:]]*//' functions/.env
