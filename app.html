@@ -366,6 +366,43 @@
                     </div>
                 </div>
 
+                <!-- 명상 타이머 -->
+                <div class="system-card status-reorderable" data-card-id="meditation" style="margin-top:10px; margin-bottom:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h2 style="margin:0; color:#00e5a0;" data-i18n="med_title">MEDITATION</h2>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <span id="med-session-count" style="font-size:0.7rem; color:var(--text-sub);">0</span>
+                            <button class="btn-info-sm" id="btn-med-settings" style="font-size:0.7rem;">⚙️</button>
+                        </div>
+                    </div>
+                    <div id="med-timer-container" style="display:flex; align-items:center; gap:16px;">
+                        <div id="med-clock" style="position:relative; width:120px; height:120px; flex-shrink:0;">
+                            <svg viewBox="0 0 200 200" width="120" height="120">
+                                <circle cx="100" cy="100" r="90" fill="none" stroke="var(--border-color)" stroke-width="6" opacity="0.3"/>
+                                <circle id="med-progress-ring" cx="100" cy="100" r="90" fill="none"
+                                    stroke="#00e5a0" stroke-width="6" stroke-linecap="round"
+                                    stroke-dasharray="565.48" stroke-dashoffset="0"
+                                    transform="rotate(-90 100 100)" style="transition:stroke-dashoffset 1s linear;"/>
+                            </svg>
+                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
+                                <div id="med-time-display" style="font-size:1.6rem; font-weight:900; color:var(--text-main); font-variant-numeric:tabular-nums;">10:00</div>
+                                <div id="med-phase-label" style="font-size:0.65rem; color:#00e5a0; font-weight:700;" data-i18n="med_ready">준비</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:flex-start; gap:8px; flex:1;">
+                            <div style="display:flex; gap:8px; width:100%;">
+                                <button id="med-start-btn" class="btn-primary" style="flex:1; padding:8px 0; font-size:0.85rem; background:linear-gradient(135deg, #00e5a0, #00b87a); border-radius:20px;" onclick="window.toggleMeditation()">
+                                    <span data-i18n="med_start">시작</span>
+                                </button>
+                                <button id="med-reset-btn" style="flex:1; padding:8px 0; font-size:0.85rem; background:rgba(255,255,255,0.06); border:1px solid var(--border-color); border-radius:20px; color:var(--text-sub); cursor:pointer;" onclick="window.resetMeditation()">
+                                    <span data-i18n="med_reset">초기화</span>
+                                </button>
+                            </div>
+                            <div id="med-preset-btns" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- P5: 보상형 광고 일일 보너스 EXP -->
                 <div class="system-card status-reorderable" data-card-id="bonus-exp" style="padding:12px; text-align:center; margin-top:10px;">
                     <button id="btn-bonus-exp" onclick="window.claimBonusExp()" style="width:100%; padding:16px 20px; background:linear-gradient(135deg, #FFD700, #FFA500); border:2px solid rgba(255,215,0,0.6); border-radius:12px; cursor:pointer; display:flex; align-items:center; gap:14px; transition:all 0.2s ease; box-shadow:0 2px 12px rgba(255,215,0,0.25);">

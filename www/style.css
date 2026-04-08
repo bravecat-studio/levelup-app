@@ -1709,6 +1709,37 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 }
 [data-theme="light"] .pomo-settings-modal input[type="number"] { background: rgba(0,0,0,0.04); }
 
+/* 명상 타이머 */
+#med-progress-ring { transition: stroke-dashoffset 1s linear, stroke 0.3s; }
+.med-preset-chip {
+    padding: 4px 10px; border-radius: 12px; font-size: 0.65rem; cursor: pointer;
+    background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.3);
+    color: #00e5a0; transition: all 0.2s;
+}
+.med-preset-chip.active {
+    background: #00e5a0; color: #000; font-weight: 700;
+    box-shadow: 0 0 8px rgba(0,229,160,0.4);
+}
+.med-settings-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
+    background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.3s;
+}
+.med-settings-overlay.active { opacity: 1; }
+.med-settings-modal {
+    background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px;
+    padding: 20px; width: 280px; max-width: 90%;
+}
+.med-settings-modal label {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; font-size: 0.8rem; color: var(--text-main);
+}
+.med-settings-modal input[type="number"] {
+    width: 60px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color);
+    background: rgba(255,255,255,0.05); color: var(--text-main); font-size: 0.85rem; text-align: center;
+}
+[data-theme="light"] .med-settings-modal input[type="number"] { background: rgba(0,0,0,0.04); }
+
 /* ===== Hamburger Menu Button ===== */
 .btn-hamburger-menu {
     background: none; border: none; color: var(--text-sub); cursor: pointer;
