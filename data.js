@@ -562,6 +562,8 @@ const i18n = {
         mov_delete: "삭제", mov_confirm_delete: "이 영화를 삭제하시겠습니까?",
         mov_total: "전체", mov_monthly: "월간",
         mov_empty: "등록된 영화가 없습니다. 검색하여 추가해보세요!",
+        mov_searching: "검색 중...",
+        mov_search_error: "검색 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
         mov_move_watched: "본 영화로 이동", mov_move_watching: "보는 중으로 이동", mov_move_want: "보고 싶은 영화로 이동",
 
         // History labels
@@ -1139,6 +1141,8 @@ const i18n = {
         mov_delete: "Delete", mov_confirm_delete: "Delete this movie?",
         mov_total: "Total", mov_monthly: "Monthly",
         mov_empty: "No movies yet. Search and add movies!",
+        mov_searching: "Searching...",
+        mov_search_error: "Search failed. Please try again later.",
         mov_move_watched: "Move to Watched", mov_move_watching: "Move to Watching", mov_move_want: "Move to Want to Watch",
 
         // History labels
@@ -1716,6 +1720,8 @@ const i18n = {
         mov_delete: "削除", mov_confirm_delete: "この映画を削除しますか？",
         mov_total: "全体", mov_monthly: "月間",
         mov_empty: "登録された映画がありません。検索して追加してみましょう！",
+        mov_searching: "検索中...",
+        mov_search_error: "検索中にエラーが発生しました。しばらくしてから再試行してください。",
         mov_move_watched: "視聴済みに移動", mov_move_watching: "視聴中に移動", mov_move_want: "観たい映画に移動",
 
         // 履歴ラベル
