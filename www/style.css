@@ -1323,6 +1323,44 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
     background: rgba(33, 150, 243, 0.08);
 }
 
+/* 알림 모달 (풀스크린 오버레이) */
+.notification-modal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 260; background: var(--bg-dark, #050508);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.notification-modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 60px 20px 16px; position: sticky; top: 0;
+    background: var(--bg-dark, #050508); z-index: 1;
+}
+.notification-modal-body {
+    padding: 0 16px 40px;
+}
+[data-theme="light"] .notification-modal { background: #f5f5f5; }
+[data-theme="light"] .notification-modal-header { background: #f5f5f5; }
+
+/* 홈 화면 편집 하단 액션 영역 */
+.editor-bottom-actions {
+    padding: 12px 16px 30px; border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+}
+.editor-action-btn {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 14px 16px;
+    background: var(--panel-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; color: var(--text-main);
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+}
+.editor-action-btn:active { background: rgba(0, 217, 255, 0.08); }
+.noti-editor-badge {
+    display: inline-block; background: var(--neon-red, #ff5252);
+    color: #fff; font-size: 0.6rem; font-weight: 800;
+    padding: 2px 6px; border-radius: 8px; margin-left: auto;
+}
+
 /* --- 오프라인 상태 배너 --- */
 .offline-banner {
     position: fixed; top: 0; left: 0; right: 0; z-index: 10000;

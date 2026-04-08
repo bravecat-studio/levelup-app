@@ -1,4 +1,4 @@
-// ===== 알림/공지사항 모듈 =====
+// ===== 알림/공지사항 모듈 (모달 방식) =====
 (function() {
     'use strict';
 
@@ -8,12 +8,6 @@
     // 외부 의존은 window.* 경유
     const AppState = window.AppState;
     const i18n = window.i18n;
-    const db = window._db;
-    const collection = window._collection;
-    const getDocs = window._getDocs;
-    const query = window._query;
-    const where = window._where;
-    const orderBy = window._orderBy;
     const sanitizeText = window.sanitizeText;
     const httpsCallable = window._httpsCallable;
     const functions = window._functions;
@@ -52,11 +46,12 @@
             read: false
         });
         saveHistory(list);
+        updateUnreadBadge();
     }
 
     function clearHistory() {
         localStorage.removeItem(STORAGE_KEY);
-        renderNotificationCard();
+        render();
     }
 
     function markAllRead() {
@@ -64,9 +59,26 @@
         let changed = false;
         list.forEach(item => { if (!item.read) { item.read = true; changed = true; } });
         if (changed) saveHistory(list);
+        updateUnreadBadge();
     }
 
-    // --- 공지사항 로드 (Firestore 또는 Cloud Function) ---
+    function getUnreadCount() {
+        return getHistory().filter(item => !item.read).length;
+    }
+
+    function updateUnreadBadge() {
+        const badge = document.getElementById('noti-unread-badge');
+        if (!badge) return;
+        const count = getUnreadCount();
+        if (count > 0) {
+            badge.style.display = '';
+            badge.textContent = count > 9 ? '9+' : String(count);
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // --- 공지사항 로드 (Cloud Function) ---
     async function fetchAnnouncements() {
         const now = Date.now();
         if (_announcementsCache && (now - _lastFetchTime) < CACHE_TTL) {
@@ -74,7 +86,6 @@
         }
 
         try {
-            // Cloud Function 경유 (Firestore 보안 규칙 우회 불필요)
             if (httpsCallable && functions) {
                 const fn = httpsCallable(functions, 'ping');
                 const result = await fn({ action: 'getActiveAnnouncements' });
@@ -83,30 +94,6 @@
                     _lastFetchTime = now;
                     return _announcementsCache;
                 }
-            }
-
-            // Firestore 직접 쿼리 (폴백)
-            if (db && collection && getDocs && query && where && orderBy) {
-                const q = query(
-                    collection(db, 'announcements'),
-                    where('active', '==', true),
-                    orderBy('createdAt', 'desc')
-                );
-                const snap = await getDocs(q);
-                const list = [];
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    list.push({
-                        id: doc.id,
-                        title: d.title,
-                        body: d.body,
-                        pinned: d.pinned || false,
-                        createdAt: d.createdAt ? d.createdAt.toMillis() : 0
-                    });
-                });
-                _announcementsCache = list;
-                _lastFetchTime = now;
-                return list;
             }
         } catch(e) {
             if (window.AppLogger) window.AppLogger.warn('[Notification] 공지사항 로드 실패: ' + e.message);
@@ -142,8 +129,25 @@
         return (d.getMonth() + 1) + '/' + d.getDate();
     }
 
+    // --- 모달 열기/닫기 ---
+    function openModal() {
+        const modal = document.getElementById('notification-modal');
+        if (modal) {
+            modal.classList.remove('d-none');
+            render();
+        }
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('notification-modal');
+        if (modal) {
+            modal.classList.add('d-none');
+        }
+        markAllRead();
+    }
+
     // --- UI 렌더링 ---
-    function renderNotificationCard() {
+    function render() {
         const annArea = document.getElementById('noti-announcements-area');
         const histArea = document.getElementById('noti-history-area');
         if (!annArea || !histArea) return;
@@ -154,7 +158,8 @@
         // 공지사항 렌더링
         fetchAnnouncements().then(announcements => {
             if (!announcements || announcements.length === 0) {
-                annArea.innerHTML = '';
+                annArea.innerHTML = '<div class="noti-section-label">📢 ' + sanitizeText(t('noti_announcements')) + '</div>'
+                    + '<div class="noti-empty">' + sanitizeText(t('noti_no_announcements')) + '</div>';
                 return;
             }
 
@@ -204,13 +209,11 @@
                 + '</div>';
         });
         histArea.innerHTML = html;
-
-        // 렌더 후 읽음 처리
-        markAllRead();
     }
 
     // --- 초기화 ---
     function init() {
+        // 이력 지우기 버튼
         const clearBtn = document.getElementById('btn-noti-clear');
         if (clearBtn) {
             clearBtn.addEventListener('click', () => {
@@ -221,15 +224,31 @@
                 }
             });
         }
-        renderNotificationCard();
+
+        // 모달 뒤로가기 버튼
+        const backBtn = document.getElementById('btn-noti-back');
+        if (backBtn) {
+            backBtn.addEventListener('click', closeModal);
+        }
+
+        // 홈 화면 편집에서 알림 버튼
+        const editorBtn = document.getElementById('btn-editor-notification');
+        if (editorBtn) {
+            editorBtn.addEventListener('click', openModal);
+        }
+
+        updateUnreadBadge();
     }
 
     // window에 모듈 노출
     window.NotificationModule = {
         init: init,
-        render: renderNotificationCard,
+        render: render,
         addNotification: addNotification,
-        clearHistory: clearHistory
+        clearHistory: clearHistory,
+        openModal: openModal,
+        closeModal: closeModal,
+        updateBadge: updateUnreadBadge
     };
 
     // DOM 준비 후 초기화
