@@ -120,6 +120,12 @@ service cloud.firestore {
       // 계정 삭제: 본인 문서만 삭제 가능 (Google 정책 준수)
       allow delete: if request.auth != null
         && request.auth.uid == userId;
+
+      // 알림 이력: 본인만 읽기 가능, 쓰기는 Cloud Functions 전용
+      match /notifications/{notifId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
     }
 
     // ──────────────────────────────────────────────

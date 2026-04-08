@@ -9911,8 +9911,8 @@ function registerEarlyPushListeners() {
             // 앱이 이미 준비된 경우 바로 네비게이션
             handleNotificationAction(data);
         } else {
-            // 앱 초기화 중 — 대기열에 저장
-            _pendingNotificationData = data;
+            // 앱 초기화 중 — 대기열에 저장 (이력 저장용 title/body 포함)
+            _pendingNotificationData = { ...data, _notifTitle: noti?.title, _notifBody: noti?.body };
             if (window.AppLogger) AppLogger.info('[FCM] 콜드 스타트 알림 데이터 대기: ' + JSON.stringify(data));
         }
     });
@@ -10107,6 +10107,16 @@ function processPendingNotification() {
     _appNavigationReady = true;
     if (_pendingNotificationData) {
         if (window.AppLogger) AppLogger.info('[FCM] 대기 중인 알림 처리: ' + JSON.stringify(_pendingNotificationData));
+
+        // 콜드 스타트 시 저장하지 못한 알림 이력 저장
+        if (window.NotificationModule && _pendingNotificationData._notifTitle) {
+            window.NotificationModule.addNotification(
+                _pendingNotificationData._notifTitle,
+                _pendingNotificationData._notifBody || '',
+                _pendingNotificationData.type || 'unknown'
+            );
+        }
+
         // 약간의 지연으로 DOM 렌더링 완료 후 탭 전환
         setTimeout(() => {
             handleNotificationAction(_pendingNotificationData);
