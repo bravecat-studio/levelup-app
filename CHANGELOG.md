@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.242] - 2026-04-08
+
+### 변경
+- feat: 서버 사이드 유저별 알림 이력 저장 및 클라이언트 병합
+
 ## [1.0.241] - 2026-04-08
 
 ### 변경
