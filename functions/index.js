@@ -426,6 +426,57 @@ async function handleGetClientErrorLogs(request) {
     return { logs };
 }
 
+/** 유저 본인의 알림 이력 조회 */
+async function handleGetMyNotifications(request) {
+    if (!request.auth) {
+        throw new HttpsError("unauthenticated", "로그인이 필요합니다.");
+    }
+    const uid = request.auth.uid;
+    const notifSnap = await db.collection("users").doc(uid)
+        .collection("notifications")
+        .orderBy("timestamp", "desc")
+        .limit(50)
+        .get();
+
+    const notifications = notifSnap.docs.map(doc => {
+        const d = doc.data();
+        return {
+            id: doc.id,
+            type: d.type || "unknown",
+            title: d.title || "",
+            body: d.body || "",
+            timestamp: d.timestamp?.toMillis ? d.timestamp.toMillis() : (d.timestamp || 0),
+            read: d.read || false
+        };
+    });
+
+    return { notifications };
+}
+
+/** 유저별 알림 이력 저장 (notifications 서브컬렉션) */
+async function writeUserNotification(uid, { type, title, body }) {
+    if (!uid) return;
+    try {
+        const notifRef = db.collection("users").doc(uid).collection("notifications");
+        await notifRef.add({
+            type: type || "unknown",
+            title: title || "LEVEL UP",
+            body: body || "",
+            timestamp: new Date(),
+            read: false
+        });
+        // 최대 50건 유지 — 초과분 삭제
+        const snap = await notifRef.orderBy("timestamp", "desc").offset(50).get();
+        if (!snap.empty) {
+            const batch = db.batch();
+            snap.docs.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+        }
+    } catch (e) {
+        console.warn("[writeUserNotification] Failed:", e.message);
+    }
+}
+
 async function handleSendTestNotification(request) {
     const callerEmail = request.auth?.token?.email;
     const reqData = request.data || {};
@@ -501,6 +552,8 @@ async function handleSendTestNotification(request) {
             sender: String(callerEmail),
             uid: targetUid
         });
+
+        await writeUserNotification(targetUid, { type: type || "raid_start", title: notification.title, body: notification.body });
 
         return { success: true, messageId: String(response) };
     } catch (e) {
@@ -1594,6 +1647,8 @@ exports.ping = onCall(pingCallableOpts, async (request) => {
                     return await handleGetAnnouncements(request);
                 case "getActiveAnnouncements":
                     return await handleGetActiveAnnouncements(request);
+                case "getMyNotifications":
+                    return await handleGetMyNotifications(request);
                 case "getClientErrorLogs":
                     return await handleGetClientErrorLogs(request);
                 case "adminListUsers":
@@ -1991,6 +2046,7 @@ exports.sendStreakWarnings = onSchedule({
                 sender: "system/sendStreakWarnings",
                 uid: doc.id
             });
+            await writeUserNotification(doc.id, { type: msgType, title: msg.title, body: msg.body });
         } catch (e) {
             // 유효하지 않은 토큰 즉시 정리 (앱 삭제 등)
             if (e.code === "messaging/registration-token-not-registered" ||
@@ -2116,6 +2172,7 @@ exports.sendComebackPush = onSchedule({
                 sender: "system/sendComebackPush",
                 uid: doc.id
             });
+            await writeUserNotification(doc.id, { type: msgType, title: msg.title, body: msg.body });
         } catch (e) {
             if (e.code === "messaging/registration-token-not-registered" ||
                 e.code === "messaging/invalid-registration-token") {

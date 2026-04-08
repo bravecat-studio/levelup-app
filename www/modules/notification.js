@@ -3,6 +3,7 @@
     'use strict';
 
     const STORAGE_KEY = 'notification_history';
+    const CLEAR_TS_KEY = 'notification_cleared_at';
     const MAX_HISTORY = 50;
 
     // 외부 의존은 window.* 경유
@@ -14,6 +15,8 @@
 
     let _announcementsCache = null;
     let _lastFetchTime = 0;
+    let _serverNotifCache = null;
+    let _lastServerFetchTime = 0;
     const CACHE_TTL = 5 * 60 * 1000; // 5분
 
     // --- 알림 이력 관리 (localStorage) ---
@@ -51,6 +54,8 @@
 
     function clearHistory() {
         localStorage.removeItem(STORAGE_KEY);
+        try { localStorage.setItem(CLEAR_TS_KEY, String(Date.now())); } catch(e) {}
+        _serverNotifCache = null;
         render();
     }
 
@@ -76,6 +81,64 @@
         } else {
             badge.style.display = 'none';
         }
+    }
+
+    // --- 서버 알림 이력 로드 (Cloud Function) ---
+    async function fetchServerHistory() {
+        const now = Date.now();
+        if (_serverNotifCache && (now - _lastServerFetchTime) < CACHE_TTL) {
+            return _serverNotifCache;
+        }
+
+        try {
+            if (httpsCallable && functions) {
+                const fn = httpsCallable(functions, 'ping');
+                const result = await fn({ action: 'getMyNotifications' });
+                if (result.data && result.data.notifications) {
+                    _serverNotifCache = result.data.notifications;
+                    _lastServerFetchTime = now;
+                    return _serverNotifCache;
+                }
+            }
+        } catch(e) {
+            if (window.AppLogger) window.AppLogger.warn('[Notification] 서버 이력 로드 실패: ' + e.message);
+        }
+        return _serverNotifCache || [];
+    }
+
+    /** 서버 이력과 로컬 이력 병합 (중복 제거, 최신순 정렬) */
+    function mergeHistories(local, server) {
+        // 이력 지우기 시점 이후의 서버 레코드만 포함
+        let clearedAt = 0;
+        try {
+            const v = localStorage.getItem(CLEAR_TS_KEY);
+            if (v) clearedAt = parseInt(v, 10) || 0;
+        } catch(e) {}
+
+        const filtered = server.filter(s => s.timestamp > clearedAt);
+
+        // 서버 레코드 기준으로 로컬과 매칭 (type + timestamp 10초 이내 = 중복)
+        const merged = [...local];
+        for (const s of filtered) {
+            const isDuplicate = merged.some(m =>
+                m.type === s.type && Math.abs(m.timestamp - s.timestamp) < 10000
+            );
+            if (!isDuplicate) {
+                merged.push({
+                    id: s.id || Date.now().toString(36),
+                    title: s.title || '',
+                    body: s.body || '',
+                    type: s.type || 'unknown',
+                    timestamp: s.timestamp || 0,
+                    read: s.read || false,
+                    _server: true
+                });
+            }
+        }
+
+        // 최신순 정렬, 최대 50건
+        merged.sort((a, b) => b.timestamp - a.timestamp);
+        return merged.slice(0, MAX_HISTORY);
     }
 
     // --- 공지사항 로드 (Cloud Function) ---
@@ -146,6 +209,30 @@
         markAllRead();
     }
 
+    // --- 이력 HTML 렌더링 ---
+    function renderHistory(histArea, history, t) {
+        if (!history || history.length === 0) {
+            histArea.innerHTML = '<div class="noti-section-label">🔔 ' + sanitizeText(t('noti_push_history')) + '</div>'
+                + '<div class="noti-empty">' + sanitizeText(t('noti_no_history')) + '</div>';
+            return;
+        }
+
+        let html = '<div class="noti-section-label">🔔 ' + sanitizeText(t('noti_push_history')) + '</div>';
+        history.forEach(item => {
+            const unreadClass = item.read ? '' : ' noti-unread';
+            const newBadge = item.read ? '' : '<span class="noti-badge-new">' + sanitizeText(t('noti_new_badge')) + '</span>';
+            html += '<div class="noti-history-item' + unreadClass + '">'
+                + '<div class="noti-history-icon">' + getTypeIcon(item.type) + '</div>'
+                + '<div class="noti-history-body">'
+                + '<div class="noti-history-title">' + sanitizeText(item.title || 'LEVEL UP') + newBadge + '</div>'
+                + '<div class="noti-history-text">' + sanitizeText(item.body || '') + '</div>'
+                + '<div class="noti-time">' + formatTime(item.timestamp) + '</div>'
+                + '</div>'
+                + '</div>';
+        });
+        histArea.innerHTML = html;
+    }
+
     // --- UI 렌더링 ---
     function render() {
         const annArea = document.getElementById('noti-announcements-area');
@@ -187,28 +274,17 @@
             annArea.innerHTML = html;
         });
 
-        // 푸시 이력 렌더링
-        const history = getHistory();
-        if (history.length === 0) {
-            histArea.innerHTML = '<div class="noti-section-label">🔔 ' + sanitizeText(t('noti_push_history')) + '</div>'
-                + '<div class="noti-empty">' + sanitizeText(t('noti_no_history')) + '</div>';
-            return;
-        }
+        // 푸시 이력 렌더링: 로컬 먼저 표시 후 서버 병합
+        const localHistory = getHistory();
+        renderHistory(histArea, localHistory, t);
 
-        let html = '<div class="noti-section-label">🔔 ' + sanitizeText(t('noti_push_history')) + '</div>';
-        history.forEach(item => {
-            const unreadClass = item.read ? '' : ' noti-unread';
-            const newBadge = item.read ? '' : '<span class="noti-badge-new">' + sanitizeText(t('noti_new_badge')) + '</span>';
-            html += '<div class="noti-history-item' + unreadClass + '">'
-                + '<div class="noti-history-icon">' + getTypeIcon(item.type) + '</div>'
-                + '<div class="noti-history-body">'
-                + '<div class="noti-history-title">' + sanitizeText(item.title || 'LEVEL UP') + newBadge + '</div>'
-                + '<div class="noti-history-text">' + sanitizeText(item.body || '') + '</div>'
-                + '<div class="noti-time">' + formatTime(item.timestamp) + '</div>'
-                + '</div>'
-                + '</div>';
+        // 서버 이력 비동기 병합
+        fetchServerHistory().then(serverHistory => {
+            if (serverHistory && serverHistory.length > 0) {
+                const merged = mergeHistories(localHistory, serverHistory);
+                renderHistory(histArea, merged, t);
+            }
         });
-        histArea.innerHTML = html;
     }
 
     // --- 초기화 ---
