@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.256] - 2026-04-09
+
+### 변경
+- feat: Phase 4-6 OSS 독립 HTML + 인앱 일원화 (모달→독립 페이지)
+
 ## [1.0.255] - 2026-04-09
 
 ### 변경
