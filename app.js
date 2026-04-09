@@ -911,7 +911,7 @@ const STATUS_CARD_LABELS = {
     'step-count': { name_key: 'card_step_count', name: '걸음수', icon: '🚶' },
     'stat-radar': { name: 'STAT RADAR', icon: '📊' },
     'bonus-exp': { name_key: 'card_bonus_exp', name: '보너스 EXP', icon: '🎬' },
-    'pomodoro': { name: 'POMODORO', icon: '🍅' },
+    'pomodoro': { name_key: 'card_pomodoro', name: 'POMODORO', icon: '🍅' },
     'life-status': { name: 'LIFE STATUS', icon: '📅' },
     'dday': { name: 'D-DAY', icon: '⏰' },
     'dday-caption': { name_key: 'card_dday_caption', name: '목표/좌우명', icon: '💬' },
