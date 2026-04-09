@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.259] - 2026-04-09
+
+### 변경
+- fix: pomodoro.js 알림 채널 name/description i18n 재적용
+- fix: pomo_title을 한국어(뽀모도로)/일본어(ポモドーロ)로 변경
+
 ## [1.0.258] - 2026-04-09
 
 ### 변경
