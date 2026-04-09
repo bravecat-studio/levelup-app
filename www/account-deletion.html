@@ -45,19 +45,10 @@
         .hidden { display: none !important; }
         a { color: #00d9ff; }
         .footer { margin-top: 40px; text-align: center; font-size: 0.75rem; color: #555; }
-        .lang-switch { text-align: center; margin-bottom: 20px; }
-        .lang-switch button { background: none; border: 1px solid rgba(255,255,255,0.15); color: #888; border-radius: 6px; padding: 4px 10px; font-size: 0.75rem; cursor: pointer; margin: 0 2px; }
-        .lang-switch button.active { border-color: #00d9ff; color: #00d9ff; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="lang-switch">
-            <button onclick="setLang('ko')" id="lang-ko" class="active">한국어</button>
-            <button onclick="setLang('en')" id="lang-en">English</button>
-            <button onclick="setLang('ja')" id="lang-ja">日本語</button>
-        </div>
-
         <div class="logo">
             <h1>BRAVECAT LevelUp</h1>
             <p data-i18n="subtitle">계정 삭제 요청</p>
@@ -256,76 +247,9 @@
                 confirm2: "마지막 확인입니다.\n계정을 삭제하면 되돌릴 수 없습니다.\n\n정말 삭제하시겠습니까?",
                 processing: "삭제 처리 중...", done: "계정이 성공적으로 삭제되었습니다. 이용해 주셔서 감사합니다.", fail: "계정 삭제에 실패했습니다: "
             },
-            en: {
-                subtitle: "Account Deletion Request", title: "Account Deletion",
-                desc1: "In accordance with Google Play policy, users may delete their account and associated data at any time.",
-                what_deleted: "Data to be deleted", del_item1: "Firebase authentication account (email, Google login)",
-                del_item2: "Game data (level, points, stats, quest history)", del_item3: "Profile info (nickname, profile photo)",
-                del_item4: "Social data (friends list, Day1 posts)", del_item5: "Planner and diary data",
-                what_retained: "Data retained temporarily", retained_desc: "The following data may be retained as a backup for up to 30 days after deletion, after which it will be permanently deleted:",
-                ret_item1: "Anonymized backup data for account recovery",
-                warning: "Account deletion is irreversible. Even if you sign up again with the same account, your previous data cannot be recovered.",
-                login_desc: "Please log in to verify your identity before proceeding with account deletion.",
-                btn_login: "Sign in with Google", or: "or",
-                email_placeholder: "Email", password_placeholder: "Password",
-                btn_email_login: "Sign in with Email",
-                email_empty: "Please enter your email and password.",
-                email_invalid: "Invalid email or password.",
-                email_too_many: "Too many login attempts. Please try again later.",
-                email_fail: "Login failed: ",
-                btn_logout: "Sign out",
-                delete_desc: "Clicking the button below will permanently delete the account shown above and all associated data.",
-                btn_delete: "Permanently Delete Account", privacy_link: "Privacy Policy",
-                confirm1: "Are you sure you want to delete your account?\n\nThis action cannot be undone and all game data will be permanently deleted.",
-                confirm2: "Final confirmation.\nDeleting your account is irreversible.\n\nAre you sure you want to proceed?",
-                processing: "Deleting account...", done: "Your account has been successfully deleted. Thank you for using our service.", fail: "Failed to delete account: "
-            },
-            ja: {
-                subtitle: "アカウント削除リクエスト", title: "アカウント削除について",
-                desc1: "Google Playポリシーに従い、ユーザーはいつでもアカウントおよび関連データを削除できます。",
-                what_deleted: "削除されるデータ", del_item1: "Firebase認証アカウント（メール、Googleログイン情報）",
-                del_item2: "ゲームデータ（レベル、ポイント、ステータス、クエスト履歴）", del_item3: "プロフィール情報（ニックネーム、プロフィール写真）",
-                del_item4: "ソーシャルデータ（フレンドリスト、Day1投稿）", del_item5: "プランナーおよび日記データ",
-                what_retained: "一時保管されるデータ", retained_desc: "以下のデータは削除後最大30日間バックアップとして保管され、その後完全に削除されます：",
-                ret_item1: "アカウント復旧のための匿名化されたバックアップデータ",
-                warning: "アカウント削除は取り消せません。同じアカウントで再登録しても、以前のデータは復元されません。",
-                login_desc: "アカウント削除を進めるには、本人確認のためログインしてください。",
-                btn_login: "Googleアカウントでログイン", or: "または",
-                email_placeholder: "メールアドレス", password_placeholder: "パスワード",
-                btn_email_login: "メールでログイン",
-                email_empty: "メールアドレスとパスワードを入力してください。",
-                email_invalid: "メールアドレスまたはパスワードが正しくありません。",
-                email_too_many: "ログイン試行回数が多すぎます。しばらくしてから再度お試しください。",
-                email_fail: "ログインに失敗しました: ",
-                btn_logout: "ログアウト",
-                delete_desc: "以下のボタンをクリックすると、上記のアカウントおよびすべての関連データが完全に削除されます。",
-                btn_delete: "アカウントを完全に削除", privacy_link: "プライバシーポリシー",
-                confirm1: "本当にアカウントを削除しますか？\n\n削除されたアカウントは復元できず、すべてのゲームデータが完全に削除されます。",
-                confirm2: "最終確認です。\nアカウントを削除すると元に戻せません。\n\n本当に削除しますか？",
-                processing: "削除処理中...", done: "アカウントが正常に削除されました。ご利用ありがとうございました。", fail: "アカウントの削除に失敗しました: "
-            }
         };
 
-        window.setLang = function(lang) {
-            window._i18n = LANG[lang] || LANG.ko;
-            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
-            document.getElementById('lang-' + lang)?.classList.add('active');
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (window._i18n[key]) el.textContent = window._i18n[key];
-            });
-            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-                const key = el.getAttribute('data-i18n-placeholder');
-                if (window._i18n[key]) el.placeholder = window._i18n[key];
-            });
-            document.documentElement.lang = lang;
-        };
-
-        // detect browser language
-        const browserLang = (navigator.language || 'ko').substring(0, 2);
-        if (['ko', 'en', 'ja'].includes(browserLang)) {
-            window.setLang(browserLang);
-        }
+        window._i18n = LANG.ko;
     </script>
 </body>
 </html>
