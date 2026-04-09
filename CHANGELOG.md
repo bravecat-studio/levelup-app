@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.245] - 2026-04-09
+
+### 변경
+- feat: 명상 시작/완료 시 티베트 종소리(싱잉볼) 재생 기능 추가
+
 ## [1.0.244] - 2026-04-09
 
 ### 변경
