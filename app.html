@@ -999,10 +999,10 @@
                 <div class="system-card" style="margin-top: 20px;">
                     <h2 style="margin-bottom: 10px;" data-i18n="legal_title">법적 고지</h2>
                     <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalModal('oss')" data-i18n="legal_oss">오픈소스 라이선스</button>
-                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalModal('terms')" data-i18n="legal_terms">소비자 약관</button>
-                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalModal('usage-policy')" data-i18n="legal_usage">이용 정책</button>
-                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalModal('privacy')" data-i18n="legal_privacy">개인정보 처리방침</button>
+                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalPage('oss')" data-i18n="legal_oss">오픈소스 라이선스</button>
+                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalPage('terms')" data-i18n="legal_terms">소비자 약관</button>
+                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalPage('usage-policy')" data-i18n="legal_usage">이용 정책</button>
+                        <button class="btn-primary" style="flex:1 1 calc(50% - 4px); min-width:0; background:rgba(0,217,255,0.1); border:1px solid var(--neon-blue); color:var(--neon-blue); font-size:0.7rem; padding:8px 4px; white-space:nowrap;" onclick="openLegalPage('privacy')" data-i18n="legal_privacy">개인정보 처리방침</button>
                     </div>
                 </div>
 
@@ -1917,15 +1917,7 @@
     </div>
 
 
-    <div class="modal-overlay d-none" id="legalModal" onclick="if(event.target===this){document.getElementById('legalModal').classList.add('d-none');document.getElementById('legalModal').classList.remove('d-flex');}">
-        <div class="modal-content" style="max-width: 95%; width: 420px; padding: 15px; max-height: 80vh;">
-            <div class="modal-header" style="margin-bottom: 8px; padding-bottom: 8px;">
-                <span id="legal-modal-title" style="font-weight:bold; color:var(--neon-blue);" data-i18n="legal_modal_title">약관</span>
-                <button class="modal-close" onclick="document.getElementById('legalModal').classList.add('d-none');document.getElementById('legalModal').classList.remove('d-flex');">×</button>
-            </div>
-            <div id="legal-modal-body" style="overflow-y:auto; flex-grow:1; max-height:60vh; font-size:0.8rem; color:var(--text-main); line-height:1.7;"></div>
-        </div>
-    </div>
+    <!-- legalModal 제거됨 — 법적 페이지는 독립 HTML로 이전 -->
 
     <!-- DIY 퀘스트 생성/수정 모달 -->
     <div class="modal-overlay d-none" id="diyQuestModal" onclick="if(event.target===this){closeDiyQuestModal();}">
