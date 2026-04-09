@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.252] - 2026-04-09
+
+### 변경
+- docs: 구현 계획서 업데이트 - Phase 4 인앱 일원화 추가, Phase 1 완료 표시
+
 ## [1.0.251] - 2026-04-09
 
 ### 변경
