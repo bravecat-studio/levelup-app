@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.260] - 2026-04-09
+
+### 변경
+- 관리자 유저분석: 많이 본 영화 Top 10 탭 추가
+
 ## [1.0.259] - 2026-04-09
 
 ### 변경
