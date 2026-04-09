@@ -251,7 +251,7 @@ const i18n = {
         pomo_guide_title: "사용 방법",
         pomo_guide_body: "1. 시작 버튼을 눌러 집중 타이머를 시작하세요.<br>2. 집중 시간이 끝나면 자동으로 휴식이 시작됩니다.<br>3. 4세트를 완료하면 긴 휴식이 주어집니다.<br>4. 매일 4세트 완료 시 +10P & AGI +0.3 보상!",
 
-        card_meditation: "명상", med_title: "MEDITATION",
+        card_meditation: "명상", med_title: "명상",
         med_ready: "준비", med_meditating: "명상 중", med_completed: "완료",
         med_start: "시작", med_pause: "일시정지", med_reset: "초기화", med_resume: "재개",
         med_reward: "명상 완료: +10P & VIT +0.3",
@@ -853,7 +853,7 @@ const i18n = {
         pomo_guide_title: "How to Use",
         pomo_guide_body: "1. Tap Start to begin the focus timer.<br>2. A break starts automatically after focus ends.<br>3. A long break is given after 4 sets.<br>4. Complete 4 sets daily for +10P & AGI +0.3 reward!",
 
-        card_meditation: "Meditation", med_title: "MEDITATION",
+        card_meditation: "Meditation", med_title: "Meditation",
         med_ready: "Ready", med_meditating: "Meditating", med_completed: "Done",
         med_start: "Start", med_pause: "Pause", med_reset: "Reset", med_resume: "Resume",
         med_reward: "Meditation done: +10P & VIT +0.3",
@@ -1455,7 +1455,7 @@ const i18n = {
         pomo_guide_title: "使い方",
         pomo_guide_body: "1. 開始ボタンを押して集中タイマーを開始します。<br>2. 集中時間が終わると自動的に休憩が始まります。<br>3. 4セット完了で長い休憩が与えられます。<br>4. 毎日4セット完了で +10P & AGI +0.3 報酬！",
 
-        card_meditation: "瞑想", med_title: "MEDITATION",
+        card_meditation: "瞑想", med_title: "瞑想",
         med_ready: "準備", med_meditating: "瞑想中", med_completed: "完了",
         med_start: "開始", med_pause: "一時停止", med_reset: "リセット", med_resume: "再開",
         med_reward: "瞑想完了: +10P & VIT +0.3",
