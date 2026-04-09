@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.265] - 2026-04-09
+
+### 변경
+- 러닝 상태창 UX 통합: 마일리지 상단 대형 표시, 최종기록 제거
+
 ## [1.0.264] - 2026-04-09
 
 ### 변경
