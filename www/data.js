@@ -250,6 +250,8 @@ const i18n = {
         pomo_save: "저장", pomo_reward: "4세트 완료: +10P & AGI +0.3",
         pomo_guide_title: "사용 방법",
         pomo_guide_body: "1. 시작 버튼을 눌러 집중 타이머를 시작하세요.<br>2. 집중 시간이 끝나면 자동으로 휴식이 시작됩니다.<br>3. 4세트를 완료하면 긴 휴식이 주어집니다.<br>4. 매일 4세트 완료 시 +10P & AGI +0.3 보상!",
+        pomo_notif_channel_name: "뽀모도로 알림", pomo_notif_channel_desc: "뽀모도로 타이머 알림",
+        card_pomodoro: "뽀모도로",
 
         card_meditation: "명상", med_title: "명상",
         med_ready: "준비", med_meditating: "명상 중", med_completed: "완료",
@@ -853,6 +855,8 @@ const i18n = {
         pomo_save: "Save", pomo_reward: "4 sets done: +10P & AGI +0.3",
         pomo_guide_title: "How to Use",
         pomo_guide_body: "1. Tap Start to begin the focus timer.<br>2. A break starts automatically after focus ends.<br>3. A long break is given after 4 sets.<br>4. Complete 4 sets daily for +10P & AGI +0.3 reward!",
+        pomo_notif_channel_name: "Pomodoro Notifications", pomo_notif_channel_desc: "Pomodoro timer notifications",
+        card_pomodoro: "Pomodoro",
 
         card_meditation: "Meditation", med_title: "Meditation",
         med_ready: "Ready", med_meditating: "Meditating", med_completed: "Done",
@@ -1456,6 +1460,8 @@ const i18n = {
         pomo_save: "保存", pomo_reward: "4セット完了: +10P & AGI +0.3",
         pomo_guide_title: "使い方",
         pomo_guide_body: "1. 開始ボタンを押して集中タイマーを開始します。<br>2. 集中時間が終わると自動的に休憩が始まります。<br>3. 4セット完了で長い休憩が与えられます。<br>4. 毎日4セット完了で +10P & AGI +0.3 報酬！",
+        pomo_notif_channel_name: "ポモドーロ通知", pomo_notif_channel_desc: "ポモドーロタイマー通知",
+        card_pomodoro: "ポモドーロ",
 
         card_meditation: "瞑想", med_title: "瞑想",
         med_ready: "準備", med_meditating: "瞑想中", med_completed: "完了",
