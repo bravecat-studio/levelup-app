@@ -6012,8 +6012,20 @@ window.sharePlannerLink = function() {
     m.classList.remove('d-flex');
 };
 
-// --- ★ 약관 모달 (인앱 표시 - 인라인) ★ ---
-const legalContents = {
+// --- ★ 법적 페이지 (독립 HTML 호출) ★ ---
+window.openLegalPage = function(type) {
+    const pages = {
+        'terms': 'terms.html',
+        'usage-policy': 'usage-policy.html',
+        'privacy': 'privacy.html',
+        'oss': 'oss.html'
+    };
+    const url = pages[type];
+    if (url) window.open(url, '_blank');
+};
+
+/* legalContents 제거됨 — 모든 법적 콘텐츠는 독립 HTML 페이지로 이전
+const _legalContents_removed = {
     oss: {
         title: { ko: '오픈소스 라이선스', en: 'Open Source Licenses', ja: 'オープンソースライセンス' },
         html: `<div class="legal-date" style="font-size:0.75rem;color:#888;margin-bottom:20px;">최종 확인: 2026년 3월 26일</div>
@@ -6186,19 +6198,7 @@ const legalContents = {
         }
     }
 };
-
-window.openLegalModal = function(type) {
-    const info = legalContents[type];
-    if (!info) return;
-    const lang = (typeof AppState !== 'undefined' && AppState.currentLang) || 'ko';
-    const modal = document.getElementById('legalModal');
-    const title = document.getElementById('legal-modal-title');
-    const body = document.getElementById('legal-modal-body');
-    title.innerText = (typeof info.title === 'object') ? (info.title[lang] || info.title.ko) : info.title;
-    body.innerHTML = (typeof info.html === 'object') ? (info.html[lang] || info.html.ko) : info.html;
-    modal.classList.remove('d-none');
-    modal.classList.add('d-flex');
-};
+legalContents 제거 완료 */
 
 // --- ★ P3: 주간 도전과제 시스템 ★ ---
 const weeklyChallengeTemplates = [
