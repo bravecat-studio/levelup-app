@@ -2621,6 +2621,72 @@ function recordStreakActiveDate(dateStr) {
     AppState.user.streak.activeDates = AppState.user.streak.activeDates.filter(d => d >= cutoffStr);
 }
 
+// --- 스트릭 가이드 모달 ---
+function openStreakGuideModal() {
+    const existing = document.getElementById('streak-guide-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'streak-guide-modal-overlay';
+    overlay.className = 'report-modal-overlay';
+
+    overlay.innerHTML = `
+        <div class="report-modal-content streak-guide-modal">
+            <h3 class="report-modal-title">🔥 스트릭 & 스탯 감소 가이드</h3>
+            <div class="streak-guide-body">
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">📌 스트릭이란?</div>
+                    <p>매일 <b>퀘스트를 완료</b>하면 연속 활동일(스트릭)이 쌓입니다.<br>
+                    3일 연속 달성 시 보상 배율이 증가합니다.</p>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">⚠️ 단순 접속 ≠ 활동</div>
+                    <p>앱을 열기만 해서는 스트릭이 유지되지 않습니다.<br>
+                    아래 활동 중 <b>최소 1개</b>를 완료해야 합니다:</p>
+                    <ul class="streak-guide-list">
+                        <li>✅ 일반 퀘스트 완료</li>
+                        <li>✅ DIY 퀘스트 완료</li>
+                        <li>✅ 던전 보스 처치</li>
+                    </ul>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">📉 스탯 감소 조건</div>
+                    <table class="streak-guide-table">
+                        <tr><th>미활동 기간</th><th>결과</th></tr>
+                        <tr><td>1일</td><td>정상 (스트릭 유지)</td></tr>
+                        <tr><td>2~3일</td><td>스트릭 초기화 (스탯 유지)</td></tr>
+                        <tr><td>4일 이상</td><td>스탯 감소 시작<br><span class="streak-guide-sub">(-0.1 × (미활동일-3), 최대 30일분)</span></td></tr>
+                    </table>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">💡 팁</div>
+                    <p>하루에 퀘스트 1개만 완료해도 스트릭이 유지됩니다.<br>
+                    꾸준히 활동하여 배율 보너스를 놓치지 마세요!</p>
+                </div>
+            </div>
+            <div class="report-modal-actions">
+                <button class="report-modal-btn report-modal-submit streak-guide-close">확인</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('active'));
+
+    const close = () => {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 200);
+    };
+    overlay.querySelector('.streak-guide-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+}
+
+// 스트릭 가이드 버튼 이벤트 바인딩
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('streak-guide-btn');
+    if (btn) btn.addEventListener('click', openStreakGuideModal);
+});
+
 // --- ★ 희귀 호칭 시스템 ★ ---
 
 // 우선순위: rank_global > rank_stat > streak > steps (높을수록 우선)
