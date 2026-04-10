@@ -2621,6 +2621,84 @@ function recordStreakActiveDate(dateStr) {
     AppState.user.streak.activeDates = AppState.user.streak.activeDates.filter(d => d >= cutoffStr);
 }
 
+// --- 스트릭 가이드 모달 ---
+function openStreakGuideModal() {
+    const existing = document.getElementById('streak-guide-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'streak-guide-modal-overlay';
+    overlay.className = 'report-modal-overlay';
+
+    overlay.innerHTML = `
+        <div class="report-modal-content streak-guide-modal">
+            <h3 class="report-modal-title">🔥 스트릭 시스템 가이드</h3>
+            <div class="streak-guide-body">
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">📌 스트릭이란?</div>
+                    <p>매일 <b>퀘스트를 완료</b>하면 연속 활동일(스트릭)이 쌓입니다.<br>
+                    스트릭에 따라 보상 배율이 상승합니다.</p>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">🎁 스트릭 보상 배율</div>
+                    <table class="streak-guide-table">
+                        <tr><th>연속 일수</th><th>배율</th></tr>
+                        <tr><td>1~2일</td><td>x1.0 (기본)</td></tr>
+                        <tr><td>3일 이상</td><td class="streak-tier-up">x1.2</td></tr>
+                        <tr><td>7일 이상</td><td class="streak-tier-up">x1.5</td></tr>
+                        <tr><td>14일 이상</td><td class="streak-tier-up">x2.0</td></tr>
+                        <tr><td>30일 이상</td><td class="streak-tier-max">x3.0</td></tr>
+                    </table>
+                    <p class="streak-guide-sub" style="margin-top:6px;">배율은 퀘스트 완료 시 획득 포인트에 적용됩니다.</p>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">⚠️ 단순 접속 ≠ 활동</div>
+                    <p>앱을 열기만 해서는 스트릭이 유지되지 않습니다.<br>
+                    아래 활동 중 <b>최소 1개</b>를 완료해야 합니다:</p>
+                    <ul class="streak-guide-list">
+                        <li>✅ 일반 퀘스트 완료</li>
+                        <li>✅ DIY 퀘스트 완료</li>
+                        <li>✅ 던전 보스 처치</li>
+                    </ul>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">📉 스탯 감소 조건</div>
+                    <table class="streak-guide-table">
+                        <tr><th>미활동 기간</th><th>결과</th></tr>
+                        <tr><td>1일</td><td>정상 (스트릭 유지)</td></tr>
+                        <tr><td>2~3일</td><td>스트릭 초기화 (스탯 유지)</td></tr>
+                        <tr><td>4일 이상</td><td>스탯 감소 시작<br><span class="streak-guide-sub">(-0.1 × (미활동일-3), 최대 30일분)</span></td></tr>
+                    </table>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">💡 팁</div>
+                    <p>하루에 퀘스트 1개만 완료해도 스트릭이 유지됩니다.<br>
+                    꾸준히 활동하여 배율 보너스를 놓치지 마세요!</p>
+                </div>
+            </div>
+            <div class="report-modal-actions">
+                <button class="report-modal-btn report-modal-submit streak-guide-close">확인</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('active'));
+
+    const close = () => {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 200);
+    };
+    overlay.querySelector('.streak-guide-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+}
+
+// 스트릭 가이드 버튼 이벤트 바인딩
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('streak-guide-btn');
+    if (btn) btn.addEventListener('click', openStreakGuideModal);
+});
+
 // --- ★ 희귀 호칭 시스템 ★ ---
 
 // 우선순위: rank_global > rank_stat > streak > steps (높을수록 우선)
@@ -5215,20 +5293,6 @@ function openStatusInfoModal() {
         html += `<tr><td style="text-align:center"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${k.toUpperCase()}</span><br><b style="font-size:0.75rem; color:var(--text-main); display:inline-block; margin-top:3px;">${i18n[lang][k]}</b></td><td style="color:var(--text-sub); line-height:1.5;">${i18n[lang]['desc_'+k]}</td></tr>`;
     });
     html += `</tbody></table>`;
-
-    // P0: 스트릭 시스템 & 스탯 감소 안내
-    const streakGuide = {
-        ko: { title: '🔥 스트릭 시스템', desc: '매일 퀘스트를 완료하면 연속 접속일(스트릭)이 증가합니다. 스트릭에 따라 보상 배율이 상승합니다.', decay: '⚠️ 3일 이상 미접속 시 스탯이 감소합니다.', tiers: '3일 → x1.2 | 7일 → x1.5 | 14일 → x2.0 | 30일 → x3.0' },
-        en: { title: '🔥 Streak System', desc: 'Complete quests daily to build your streak. Higher streaks give higher reward multipliers.', decay: '⚠️ Stats decrease after 3+ days of inactivity.', tiers: '3d → x1.2 | 7d → x1.5 | 14d → x2.0 | 30d → x3.0' },
-        ja: { title: '🔥 ストリークシステム', desc: '毎日クエストを完了するとストリークが増加します。ストリークに応じて報酬倍率が上昇します。', decay: '⚠️ 3日以上未接続でステータスが減少します。', tiers: '3日 → x1.2 | 7日 → x1.5 | 14日 → x2.0 | 30日 → x3.0' }
-    };
-    const sg = streakGuide[lang] || streakGuide.ko;
-    html += `<div style="margin-top:14px; background:rgba(255,100,0,0.06); border:1px solid rgba(255,100,0,0.3); padding:10px; border-radius:6px;">
-        <div style="font-weight:bold; color:#ff6a00; margin-bottom:6px;">${sg.title}</div>
-        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 6px 0;">${sg.desc}</p>
-        <div style="font-size:0.7rem; color:var(--neon-gold); font-weight:bold; margin-bottom:6px;">${sg.tiers}</div>
-        <p style="font-size:0.7rem; color:var(--neon-red); margin:0;">${sg.decay}</p>
-    </div>`;
 
     body.innerHTML = html;
     const m = document.getElementById('infoModal');

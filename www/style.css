@@ -720,6 +720,59 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 .streak-status-text.danger { color: #ff3c3c; }
 .streak-status-text.boost { color: #00e676; }
 
+/* 스트릭 상태 행 (텍스트 + 가이드 버튼) */
+.streak-status-row {
+    display: flex; align-items: center; gap: 3px; justify-content: center;
+}
+.streak-guide-btn {
+    width: 13px; height: 13px; border-radius: 50%; border: 1px solid var(--text-sub, #888);
+    background: transparent; color: var(--text-sub, #888);
+    font-size: 0.4rem; font-weight: 700; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    padding: 0; flex-shrink: 0; transition: all 0.15s;
+}
+.streak-guide-btn:hover {
+    border-color: var(--neon-blue, #00d9ff); color: var(--neon-blue, #00d9ff);
+}
+
+/* 스트릭 가이드 모달 */
+.streak-guide-modal { max-width: 360px; }
+.streak-guide-body {
+    display: flex; flex-direction: column; gap: 14px;
+    font-size: 0.82rem; color: var(--text-main, #e0e0e0);
+    line-height: 1.55;
+}
+.streak-guide-body p { margin: 4px 0 0 0; }
+.streak-guide-subtitle {
+    font-weight: 700; font-size: 0.88rem; margin-bottom: 2px;
+    color: var(--neon-blue, #00d9ff);
+}
+.streak-guide-list {
+    margin: 6px 0 0 0; padding-left: 6px; list-style: none;
+}
+.streak-guide-list li { padding: 2px 0; }
+.streak-guide-table {
+    width: 100%; border-collapse: collapse; margin-top: 6px;
+    font-size: 0.78rem;
+}
+.streak-guide-table th,
+.streak-guide-table td {
+    padding: 7px 8px; text-align: left;
+    border-bottom: 1px solid var(--border-color, #2a2a3e);
+}
+.streak-guide-table th {
+    font-weight: 700; color: var(--text-sub, #aaa);
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.streak-guide-table tr:last-child td { border-bottom: none; }
+.streak-guide-sub { font-size: 0.7rem; color: var(--text-sub, #aaa); }
+.streak-tier-up { color: #00e676; font-weight: 700; }
+.streak-tier-max { color: #ffd740; font-weight: 700; }
+
+/* 라이트 테마 */
+[data-theme="light"] .streak-guide-btn { border-color: #999; color: #999; }
+[data-theme="light"] .streak-guide-btn:hover { border-color: #0088cc; color: #0088cc; }
+
 /* ===== 스트릭 뱃지 ===== */
 .streak-badge {
     display: flex; align-items: center; gap: 3px;
