@@ -766,6 +766,8 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 }
 .streak-guide-table tr:last-child td { border-bottom: none; }
 .streak-guide-sub { font-size: 0.7rem; color: var(--text-sub, #aaa); }
+.streak-tier-up { color: #00e676; font-weight: 700; }
+.streak-tier-max { color: #ffd740; font-weight: 700; }
 
 /* 라이트 테마 */
 [data-theme="light"] .streak-guide-btn { border-color: #999; color: #999; }

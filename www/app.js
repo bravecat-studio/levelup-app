@@ -2632,12 +2632,24 @@ function openStreakGuideModal() {
 
     overlay.innerHTML = `
         <div class="report-modal-content streak-guide-modal">
-            <h3 class="report-modal-title">🔥 스트릭 & 스탯 감소 가이드</h3>
+            <h3 class="report-modal-title">🔥 스트릭 시스템 가이드</h3>
             <div class="streak-guide-body">
                 <div class="streak-guide-section">
                     <div class="streak-guide-subtitle">📌 스트릭이란?</div>
                     <p>매일 <b>퀘스트를 완료</b>하면 연속 활동일(스트릭)이 쌓입니다.<br>
-                    3일 연속 달성 시 보상 배율이 증가합니다.</p>
+                    스트릭에 따라 보상 배율이 상승합니다.</p>
+                </div>
+                <div class="streak-guide-section">
+                    <div class="streak-guide-subtitle">🎁 스트릭 보상 배율</div>
+                    <table class="streak-guide-table">
+                        <tr><th>연속 일수</th><th>배율</th></tr>
+                        <tr><td>1~2일</td><td>x1.0 (기본)</td></tr>
+                        <tr><td>3일 이상</td><td class="streak-tier-up">x1.2</td></tr>
+                        <tr><td>7일 이상</td><td class="streak-tier-up">x1.5</td></tr>
+                        <tr><td>14일 이상</td><td class="streak-tier-up">x2.0</td></tr>
+                        <tr><td>30일 이상</td><td class="streak-tier-max">x3.0</td></tr>
+                    </table>
+                    <p class="streak-guide-sub" style="margin-top:6px;">배율은 퀘스트 완료 시 획득 포인트에 적용됩니다.</p>
                 </div>
                 <div class="streak-guide-section">
                     <div class="streak-guide-subtitle">⚠️ 단순 접속 ≠ 활동</div>
@@ -5281,20 +5293,6 @@ function openStatusInfoModal() {
         html += `<tr><td style="text-align:center"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${k.toUpperCase()}</span><br><b style="font-size:0.75rem; color:var(--text-main); display:inline-block; margin-top:3px;">${i18n[lang][k]}</b></td><td style="color:var(--text-sub); line-height:1.5;">${i18n[lang]['desc_'+k]}</td></tr>`;
     });
     html += `</tbody></table>`;
-
-    // P0: 스트릭 시스템 & 스탯 감소 안내
-    const streakGuide = {
-        ko: { title: '🔥 스트릭 시스템', desc: '매일 퀘스트를 완료하면 연속 접속일(스트릭)이 증가합니다. 스트릭에 따라 보상 배율이 상승합니다.', decay: '⚠️ 3일 이상 미접속 시 스탯이 감소합니다.', tiers: '3일 → x1.2 | 7일 → x1.5 | 14일 → x2.0 | 30일 → x3.0' },
-        en: { title: '🔥 Streak System', desc: 'Complete quests daily to build your streak. Higher streaks give higher reward multipliers.', decay: '⚠️ Stats decrease after 3+ days of inactivity.', tiers: '3d → x1.2 | 7d → x1.5 | 14d → x2.0 | 30d → x3.0' },
-        ja: { title: '🔥 ストリークシステム', desc: '毎日クエストを完了するとストリークが増加します。ストリークに応じて報酬倍率が上昇します。', decay: '⚠️ 3日以上未接続でステータスが減少します。', tiers: '3日 → x1.2 | 7日 → x1.5 | 14日 → x2.0 | 30日 → x3.0' }
-    };
-    const sg = streakGuide[lang] || streakGuide.ko;
-    html += `<div style="margin-top:14px; background:rgba(255,100,0,0.06); border:1px solid rgba(255,100,0,0.3); padding:10px; border-radius:6px;">
-        <div style="font-weight:bold; color:#ff6a00; margin-bottom:6px;">${sg.title}</div>
-        <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0 0 6px 0;">${sg.desc}</p>
-        <div style="font-size:0.7rem; color:var(--neon-gold); font-weight:bold; margin-bottom:6px;">${sg.tiers}</div>
-        <p style="font-size:0.7rem; color:var(--neon-red); margin:0;">${sg.decay}</p>
-    </div>`;
 
     body.innerHTML = html;
     const m = document.getElementById('infoModal');
