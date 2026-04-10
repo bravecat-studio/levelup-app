@@ -38,7 +38,7 @@
         <button class="back-btn" onclick="history.back()">←</button>
         <span class="legal-title" id="page-title">이용 정책</span>
     </div>
-    <div class="legal-date" id="page-date">시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 9일</div>
+    <div class="legal-date" id="page-date">시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 10일</div>
 
     <!-- 한국어 -->
     <div class="content-block active" id="content-ko">
@@ -131,6 +131,17 @@
         <p>Life Status 기능은 사용자가 입력한 생년월일과 기대수명 정보를 기반으로 남은 생애를 시각적으로 표시합니다. 이 기능은 별도의 개인정보 수집 및 이용 동의를 거친 후 활성화됩니다.</p>
         <ul>
             <li>Life Status 정보를 타인에게 불쾌감을 주는 방식으로 사용하는 행위는 금지됩니다</li>
+        </ul>
+        <h3>4.4 내 서재 (My Library)</h3>
+        <p>내 서재 기능��� ISBN 바코드 스캔(카메라) 또�� 검색을 통해 도서를 등록하고 독서 기록을 관리하는 도구입니다. 보상형 광고를 시청하여 독서 보상을 획득할 수 있습니다.</p>
+        <ul>
+            <li>허위 도서 등록을 통해 보상을 부정 취득하는 행위는 금지됩니다</li>
+            <li>카메라 권한은 ISBN 바코드 스캔 목적으로만 사용되며, 다른 용도로 악용해서는 안 됩니다</li>
+        </ul>
+        <h3>4.5 내 영화 (My Movies)</h3>
+        <p>내 영화 기능은 KOBIS/KMDb API를 통해 영화를 검색하고 감상 기록을 관리하는 도구입니다. 보상형 광고를 시청하여 감상 보상을 획득할 수 있습니다.</p>
+        <ul>
+            <li>허위 영화 감상 기록을 등록하여 보상을 부정 취득하는 행위는 금지됩니다</li>
         </ul>
     </div>
 
@@ -276,6 +287,17 @@
         <ul>
             <li>Using Life Status information in ways that cause discomfort to others is prohibited</li>
         </ul>
+        <h3>4.4 My Library</h3>
+        <p>The My Library feature allows users to register books via ISBN barcode scanning (camera) or search and manage reading records. Users may earn reading rewards by watching rewarded ads.</p>
+        <ul>
+            <li>Fraudulently registering books to obtain rewards is prohibited</li>
+            <li>Camera permissions are used solely for ISBN barcode scanning and must not be misused for other purposes</li>
+        </ul>
+        <h3>4.5 My Movies</h3>
+        <p>The My Movies feature allows users to search movies via the KOBIS/KMDb API and manage viewing records. Users may earn viewing rewards by watching rewarded ads.</p>
+        <ul>
+            <li>Registering false movie viewing records to fraudulently obtain rewards is prohibited</li>
+        </ul>
     </div>
 
     <div class="section">
@@ -420,6 +442,17 @@
         <ul>
             <li>Life Status情報を他人に不快感を与える方法で使用する行為は禁止されています</li>
         </ul>
+        <h3>4.4 マイ書斎（My Library）</h3>
+        <p>マイ書斎機能は、ISBNバーコードスキャン（カメラ）または検索により書籍を登録し、読書記録を管理するツールです。リワード広告を視聴して読書報酬を獲得できます。</p>
+        <ul>
+            <li>虚偽の書籍登録により報酬を不正取得する行為は禁止されています</li>
+            <li>カメラ権限はISBNバーコードスキャン目的でのみ使用され、他の目的に悪用してはなりません</li>
+        </ul>
+        <h3>4.5 マイ映画（My Movies）</h3>
+        <p>マイ映画機能は、KOBIS/KMDb APIを通じて映画を検索し、鑑賞記録を管理するツールです。リワード広告を視聴して鑑賞報酬を獲得できます。</p>
+        <ul>
+            <li>虚偽の映画鑑賞記録を登録して報酬を不正取得する行為は禁止されています</li>
+        </ul>
     </div>
 
     <div class="section">
@@ -475,9 +508,9 @@
 
     <script>
     const TITLES = {
-        ko: { title: '이용 정책', date: '시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 9일' },
-        en: { title: 'Usage Policy', date: 'Effective: March 1, 2025 | Last updated: April 9, 2026' },
-        ja: { title: '利用ポリシー', date: '施行日: 2025年3月1日 | 最終更新: 2026年4月9日' }
+        ko: { title: '이용 정책', date: '시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 10일' },
+        en: { title: 'Usage Policy', date: 'Effective: March 1, 2025 | Last updated: April 10, 2026' },
+        ja: { title: '利用ポリシー', date: '施行日: 2025年3月1日 | 最終更新: 2026年4月10日' }
     };
     function setLang(lang) {
         const t = TITLES[lang] || TITLES.ko;

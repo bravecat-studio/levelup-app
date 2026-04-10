@@ -40,7 +40,7 @@
         <button class="back-btn" onclick="history.back()">←</button>
         <span class="legal-title" id="page-title">개인정보 처리방침</span>
     </div>
-    <div class="legal-date" id="page-date">시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 9일</div>
+    <div class="legal-date" id="page-date">시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 10일</div>
 
     <!-- 한국어 -->
     <div class="content-block active" id="content-ko">
@@ -113,6 +113,16 @@
                 <td>사용자 직접 입력</td>
             </tr>
             <tr>
+                <td>내 서재 (My Library)</td>
+                <td>ISBN, 책 제목, 저자, 출판사, 표지 이미지 URL, 독서 상태, 카메라 접근(ISBN 스캔)</td>
+                <td>ISBN 바코드 스캔(카메라) 또는 사용자 검색/입력, 외부 도서 API 조회</td>
+            </tr>
+            <tr>
+                <td>내 영화 (My Movies)</td>
+                <td>영화 제목, 감독, 장르, 개봉연도, 포스터 이��지 URL, 감상 상태</td>
+                <td>KOBIS/KMDb API를 통한 검색, 사용자 선택/입력</td>
+            </tr>
+            <tr>
                 <td>언어 설정</td>
                 <td>앱 언어 선택(한국어, 영어, 일본어)</td>
                 <td>사용자 선택 시 자동 저장</td>
@@ -147,6 +157,8 @@
             <li><strong>Life Status:</strong> 기대수명 기반 생명 상태 시각화, 기기 간 동기화</li>
             <li><strong>운동 기록:</strong> 러닝 마일리지 관리, 1RM 기록 관리, STR 보상 산정</li>
             <li><strong>D-Day:</strong> 목표 날짜 관리 및 남은 일수 표시</li>
+            <li><strong>내 서재:</strong> 독서 기록 관리, ISBN 바코드 스캔을 통한 도서 검색, 독서 보상 지급</li>
+            <li><strong>내 영화:</strong> 영화 감상 기록 관리, KOBIS/KMDb API를 통한 영화 검색, 감상 보상 지급</li>
             <li><strong>푸시 알림:</strong> 퀘스트 알림, 레이드 알림, 스트릭 알림, 서비스 공지 전달(언어별 분리 발송)</li>
             <li><strong>광고:</strong> 서비스 운영 비용 충당을 위한 광고 표시(Google AdMob)</li>
             <li><strong>서비스 개선:</strong> 이용 통계 분석, 오류 진단 및 서비스 품질 향상</li>
@@ -205,6 +217,16 @@
             </tr>
             <tr>
                 <td>D-Day 데이터</td>
+                <td>회원 탈퇴 시까지 (Firestore 동기화)</td>
+                <td>로그아웃 시 로컬 데이터 삭제, 서버 데이터는 탈퇴 시 삭제</td>
+            </tr>
+            <tr>
+                <td>내 서재 데이터</td>
+                <td>회원 탈퇴 시까지 (Firestore 동기화)</td>
+                <td>로그아웃 시 로컬 데이터 삭제, 서버 데이터는 탈퇴 시 삭제</td>
+            </tr>
+            <tr>
+                <td>내 영화 데이터</td>
                 <td>회원 탈퇴 시까지 (Firestore 동기화)</td>
                 <td>로그아웃 시 로컬 데이터 삭제, 서버 데이터는 탈퇴 시 삭제</td>
             </tr>
@@ -416,6 +438,16 @@
                 <td>User input</td>
             </tr>
             <tr>
+                <td>My Library</td>
+                <td>ISBN, book title, author, publisher, cover image URL, reading status, camera access (ISBN scanning)</td>
+                <td>ISBN barcode scanning (camera) or user search/input, external book API lookup</td>
+            </tr>
+            <tr>
+                <td>My Movies</td>
+                <td>Movie title, director, genre, release year, poster image URL, viewing status</td>
+                <td>Search via KOBIS/KMDb API, user selection/input</td>
+            </tr>
+            <tr>
                 <td>Language Settings</td>
                 <td>App language selection (Korean, English, Japanese)</td>
                 <td>Automatically saved on user selection</td>
@@ -450,6 +482,8 @@
             <li><strong>Life Status:</strong> Life expectancy-based visualization, cross-device sync</li>
             <li><strong>Exercise Records:</strong> Running mileage management, 1RM record management, STR reward calculation</li>
             <li><strong>D-Day:</strong> Target date management and remaining days display</li>
+            <li><strong>My Library:</strong> Reading record management, book search via ISBN barcode scanning, reading rewards</li>
+            <li><strong>My Movies:</strong> Movie viewing record management, movie search via KOBIS/KMDb API, viewing rewards</li>
             <li><strong>Push Notifications:</strong> Quest alerts, raid alerts, streak alerts, service announcements (sent by language)</li>
             <li><strong>Advertising:</strong> Ad display to cover service operating costs (Google AdMob)</li>
             <li><strong>Service Improvement:</strong> Usage analytics, error diagnosis and service quality improvement</li>
@@ -508,6 +542,16 @@
             </tr>
             <tr>
                 <td>D-Day Data</td>
+                <td>Until account deletion (synced via Firestore)</td>
+                <td>Local data deleted on logout; server data deleted on withdrawal</td>
+            </tr>
+            <tr>
+                <td>My Library Data</td>
+                <td>Until account deletion (synced via Firestore)</td>
+                <td>Local data deleted on logout; server data deleted on withdrawal</td>
+            </tr>
+            <tr>
+                <td>My Movies Data</td>
                 <td>Until account deletion (synced via Firestore)</td>
                 <td>Local data deleted on logout; server data deleted on withdrawal</td>
             </tr>
@@ -719,6 +763,16 @@
                 <td>ユーザー直接入力</td>
             </tr>
             <tr>
+                <td>マイ書斎（My Library）</td>
+                <td>ISBN、書籍タイトル、著者、出版社、表紙画像URL、読書状態、カメラアクセス（ISBNスキャン）</td>
+                <td>ISBNバーコードスキャン（カメラ）またはユーザー検索/入力、外部図書API照会</td>
+            </tr>
+            <tr>
+                <td>マイ映画（My Movies）</td>
+                <td>映画タイトル、監督、ジャンル、公開年、ポスター画像URL、鑑賞状態</td>
+                <td>KOBIS/KMDb APIによる検索、ユーザー選択/入力</td>
+            </tr>
+            <tr>
                 <td>言語設定</td>
                 <td>アプリ言語選択（韓国語、英語、日本語）</td>
                 <td>ユーザー選択時に自動保存</td>
@@ -753,6 +807,8 @@
             <li><strong>Life Status:</strong> 期待寿命ベースの生命状態可視化、デバイス間同期</li>
             <li><strong>運動記録:</strong> ランニング距離管理、1RM記録管理、STR報酬算定</li>
             <li><strong>D-Day:</strong> 目標日管理および残日数表示</li>
+            <li><strong>マイ書斎:</strong> 読書記録管理、ISBNバーコードスキャンによる書籍検索、読書報酬</li>
+            <li><strong>マイ映画:</strong> 映画鑑賞記録管理、KOBIS/KMDb APIによる映画検索、鑑賞報酬</li>
             <li><strong>プッシュ通知:</strong> クエスト通知、レイド通知、ストリーク通知、サービスお知らせ（言語別分離送信）</li>
             <li><strong>広告:</strong> サービス運営費用充当のための広告表示（Google AdMob）</li>
             <li><strong>サービス改善:</strong> 利用統計分析、エラー診断およびサービス品質向上</li>
@@ -811,6 +867,16 @@
             </tr>
             <tr>
                 <td>D-Dayデータ</td>
+                <td>退会時まで（Firestore同期）</td>
+                <td>ログアウト時ローカルデータ削除、サーバーデータは退会時削除</td>
+            </tr>
+            <tr>
+                <td>マイ書斎データ</td>
+                <td>退会時まで（Firestore同期）</td>
+                <td>ログアウト時ローカルデータ削除、サーバーデータは退会時削除</td>
+            </tr>
+            <tr>
+                <td>マイ映画データ</td>
                 <td>退会時まで（Firestore同期）</td>
                 <td>ログアウト時ローカルデータ削除、サーバーデータは退会時削除</td>
             </tr>
@@ -954,9 +1020,9 @@
 
 <script>
 const TITLES = {
-    ko: { title: '개인정보 처리방침', date: '시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 9일' },
-    en: { title: 'Privacy Policy', date: 'Effective: March 1, 2025 | Last updated: April 9, 2026' },
-    ja: { title: 'プライバシーポリシー', date: '施行日: 2025年3月1日 | 最終更新: 2026年4月9日' }
+    ko: { title: '개인정보 처리방침', date: '시행일: 2025년 3월 1일 | 최종 수정: 2026년 4월 10일' },
+    en: { title: 'Privacy Policy', date: 'Effective: March 1, 2025 | Last updated: April 10, 2026' },
+    ja: { title: 'プライバシーポリシー', date: '施行日: 2025年3月1日 | 最終更新: 2026年4月10日' }
 };
 function setLang(lang) {
     const t = TITLES[lang] || TITLES.ko;
