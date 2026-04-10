@@ -1394,23 +1394,14 @@
 
         var added = window.addBookToLibrary(bookInfo, category);
         if (added) {
-            // 검색 결과 닫고 쌓아보기(최초 진입화면)로 전환
-            _apiSearchResults = [];
-            _apiSearchQuery = '';
-            _apiSearchPage = 1;
-            _apiSearchHasMore = false;
-            var sr = document.getElementById('library-search-results');
-            if (sr) { sr.classList.add('d-none'); sr.innerHTML = ''; }
-            var searchInput = document.getElementById('library-search-input');
-            if (searchInput) searchInput.value = '';
-            _libSearchQuery = '';
-            _libCurrentTab = 'read';
-            _libCurrentView = 'tower';
-            showLibraryMainContent(true);
-            updateLibraryTabs();
-            updateLibraryViewToggle();
-            updateLibraryCounts();
-            renderLibrary();
+            // Update button to show "added"
+            var addBtn = item ? item.querySelector('.search-result-add-btn') : null;
+            if (addBtn) {
+                addBtn.classList.add('added');
+                addBtn.disabled = true;
+                addBtn.textContent = '✓';
+                addBtn.onclick = null;
+            }
             showLibToast(t('lib_book_added'));
         }
     };
@@ -2551,13 +2542,11 @@
             _pendingBook = null;
             window.closeIsbnScanner();
 
-            // 쌓아보기(최초 진입화면)로 전환
+            // Refresh library view if open
             const libOverlay = document.getElementById('library-overlay');
             if (libOverlay && !libOverlay.classList.contains('d-none')) {
-                _libCurrentTab = 'read';
-                _libCurrentView = 'tower';
+                _libCurrentTab = category;
                 updateLibraryTabs();
-                updateLibraryViewToggle();
                 updateLibraryCounts();
                 renderLibrary();
             }
@@ -2593,13 +2582,10 @@
             window.closeIsbnScanner();
             _pendingBook = null;
 
-            // 쌓아보기(최초 진입화면)로 전환
             const libOverlay = document.getElementById('library-overlay');
             if (libOverlay && !libOverlay.classList.contains('d-none')) {
-                _libCurrentTab = 'read';
-                _libCurrentView = 'tower';
+                _libCurrentTab = category;
                 updateLibraryTabs();
-                updateLibraryViewToggle();
                 updateLibraryCounts();
                 renderLibrary();
             }
@@ -2655,13 +2641,11 @@
         const added = window.addBookToLibrary(bookInfo, category);
         if (added) {
             if (overlay) { overlay.classList.add('d-none'); overlay.classList.remove('d-flex'); }
-            // 쌓아보기(최초 진입화면)로 전환
+            // Refresh library view if open
             const libOverlay = document.getElementById('library-overlay');
             if (libOverlay && !libOverlay.classList.contains('d-none')) {
-                _libCurrentTab = 'read';
-                _libCurrentView = 'tower';
+                _libCurrentTab = category;
                 updateLibraryTabs();
-                updateLibraryViewToggle();
                 updateLibraryCounts();
                 renderLibrary();
             }
