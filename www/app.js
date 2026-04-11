@@ -1486,6 +1486,15 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {
                 console.warn('[Config] 로그 설정 로드 실패:', e);
                 if (settingsLogCard) settingsLogCard.style.display = isDev ? 'block' : 'none';
+                if (isDev) {
+                    // Firestore 실패 시에도 localStorage 캐시 기반으로 초기화면 로그 토글 상태 복원
+                    const cachedLoginLog = localStorage.getItem('loginLogVisible') === '1';
+                    const loginLogToggle = document.getElementById('admin-login-log-toggle');
+                    if (loginLogToggle) {
+                        loginLogToggle.checked = cachedLoginLog;
+                        document.getElementById('admin-login-log-toggle-status').textContent = cachedLoginLog ? '초기화면에 표시 중' : '초기화면에 숨김';
+                    }
+                }
             }
 
             document.querySelector('main').style.overflowY = 'auto';
@@ -1781,13 +1790,17 @@ function bindEvents() {
     // 관리자 초기화면 하단 로그 토글
     document.getElementById('admin-login-log-toggle').addEventListener('change', async function() {
         const visible = this.checked;
+        // 즉시 UI 반영 (optimistic update)
+        localStorage.setItem('loginLogVisible', visible ? '1' : '0');
+        document.getElementById('admin-login-log-toggle-status').textContent = visible ? '초기화면에 표시 중' : '초기화면에 숨김';
         try {
             await setDoc(doc(db, "app_config", "settings"), { loginLogVisible: visible }, { merge: true });
-            localStorage.setItem('loginLogVisible', visible ? '1' : '0');
-            document.getElementById('admin-login-log-toggle-status').textContent = visible ? '초기화면에 표시 중' : '초기화면에 숨김';
         } catch(e) {
             console.error('[Config] 초기화면 로그 설정 저장 실패:', e);
-            this.checked = !visible; // 롤백
+            // Firestore 실패 시 롤백
+            this.checked = !visible;
+            localStorage.setItem('loginLogVisible', !visible ? '1' : '0');
+            document.getElementById('admin-login-log-toggle-status').textContent = !visible ? '초기화면에 표시 중' : '초기화면에 숨김';
         }
     });
 
