@@ -88,13 +88,10 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
-      - name: 루트 ↔ www/ 양방향 동기화
-        run: bash sync-www.sh
-
       - name: 웹 빌드 디렉토리 준비
         run: |
-          mkdir -p www
-          cp app.html www/index.html
+          # Capacitor는 www/index.html을 엔트리포인트로 사용 — app.html 내용으로 오버라이드
+          cp www/app.html www/index.html
 
       - name: Google Web Client ID 주입
         if: env.GOOGLE_WEB_CLIENT_ID != ''
@@ -393,13 +390,10 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
-      - name: 루트 ↔ www/ 양방향 동기화
-        run: bash sync-www.sh
-
       - name: 웹 빌드 디렉토리 준비
         run: |
-          mkdir -p www
-          cp app.html www/index.html
+          # Capacitor는 www/index.html을 엔트리포인트로 사용 — app.html 내용으로 오버라이드
+          cp www/app.html www/index.html
 
       - name: Google Web Client ID 주입
         if: env.GOOGLE_WEB_CLIENT_ID != ''

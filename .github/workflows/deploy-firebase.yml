@@ -9,7 +9,6 @@ on:
       - 'firestore.indexes.json'
       - 'firebase.json'
       - 'www/**'
-      - 'push-test.html'
   workflow_dispatch:
     inputs:
       deploy_target:
@@ -101,7 +100,7 @@ jobs:
           if echo "$CHANGED" | grep -qE '^functions/'; then
             DEPLOY_FUNCTIONS=true
           fi
-          if echo "$CHANGED" | grep -qE '^(www/|push-test\.html)'; then
+          if echo "$CHANGED" | grep -qE '^www/'; then
             DEPLOY_HOSTING=true
           fi
           if echo "$CHANGED" | grep -qE '^(firestore\.rules|firestore\.indexes\.json)'; then
@@ -216,7 +215,7 @@ jobs:
         env:
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
         run: |
-          cat > firebase-config.js <<JSEOF
+          cat > www/firebase-config.js <<JSEOF
           var __FIREBASE_CONFIG = {
               apiKey: "${FIREBASE_WEB_API_KEY}",
               authDomain: "levelup-app-53d02.firebaseapp.com",
@@ -227,9 +226,8 @@ jobs:
               measurementId: "G-4DBGG03CCJ"
           };
           JSEOF
-          sed -i 's/^[[:space:]]*//' firebase-config.js
-          cp firebase-config.js www/firebase-config.js
-          echo "✅ firebase-config.js 생성 완료"
+          sed -i 's/^[[:space:]]*//' www/firebase-config.js
+          echo "✅ www/firebase-config.js 생성 완료"
 
       - name: firebase-config.js API 키 검증
         if: steps.detect.outputs.deploy_hosting == 'true'
@@ -239,14 +237,6 @@ jobs:
             exit 1
           fi
           echo "✅ firebase-config.js API 키 검증 완료"
-
-      - name: push-test.html 동기화 (root → www)
-        if: steps.detect.outputs.deploy_hosting == 'true'
-        run: |
-          if [ -f push-test.html ]; then
-            cp push-test.html www/push-test.html
-            echo "root push-test.html → www/push-test.html 동기화 완료"
-          fi
 
       - name: Firebase Hosting 배포
         if: steps.detect.outputs.deploy_hosting == 'true'

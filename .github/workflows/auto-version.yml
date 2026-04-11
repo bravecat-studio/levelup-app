@@ -167,8 +167,8 @@ jobs:
 
           # 변경된 파일 커밋
           git add VERSION CHANGELOG.md package.json functions/package.json 2>/dev/null || true
-          git add sw.js www/sw.js 2>/dev/null || true
-          git add app.js www/app.js 2>/dev/null || true
+          git add www/sw.js 2>/dev/null || true
+          git add www/app.js 2>/dev/null || true
 
           if ! git diff --cached --quiet; then
             git commit -m "chore: v${NEW_VERSION} 자동 버전 업데이트 [auto-version]"
@@ -202,7 +202,8 @@ jobs:
           - \`CHANGELOG.md\`
           - \`package.json\`
           - \`functions/package.json\`
-          - \`sw.js\` / \`www/sw.js\`
+          - \`www/sw.js\`
+          - \`www/app.js\`
 
           > 이 PR은 자동 생성되었습니다. 상태 체크 통과 후 자동 머지됩니다." 2>&1) || {
             echo "::warning::PR 생성 실패. 리포지토리 설정에서 'Allow GitHub Actions to create and approve pull requests'를 활성화하거나 PAT_TOKEN 시크릿을 설정하세요."
@@ -264,5 +265,5 @@ jobs:
           echo "- \`CHANGELOG.md\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`package.json\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`functions/package.json\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`sw.js\` / \`www/sw.js\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`app.js\` / \`www/app.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`www/sw.js\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`www/app.js\`" >> $GITHUB_STEP_SUMMARY
