@@ -9,7 +9,7 @@ on:
   workflow_dispatch:  # 수동 트리거 허용
 
 permissions:
-  contents: write  # app.js → www/app.js 자동 동기화 커밋에 필요
+  contents: write  # 빌드 아티팩트 및 태그 push에 필요
 
 jobs:
   build:
@@ -33,7 +33,7 @@ jobs:
       - name: 소스코드 체크아웃
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0  # 전체 이력 — git 타임스탬프 기반 양방향 동기화에 필요
+          fetch-depth: 0  # 전체 이력 — 버전 태그 감지에 필요
           ref: ${{ github.event_name == 'workflow_run' && 'main' || '' }}
 
       # 2. Node.js 환경 셋업
@@ -93,48 +93,7 @@ jobs:
             echo "ℹ️ android/app/build.gradle 아직 없음 (cap add 이후 적용)"
           fi
 
-      # 5. 루트 ↔ www/ 양방향 동기화 (git 타임스탬프 기반 최신 파일 판별)
-      - name: 루트 ↔ www/ 양방향 동기화
-        run: |
-          bash sync-www.sh
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # workflow_run(main 빌드)일 때는 auto-version PR이 이미 동기화를 처리하므로
-          # 브랜치 보호 규칙에 의해 직접 push 불가 → 커밋/push 스킵
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          if [ "$CURRENT_BRANCH" = "main" ]; then
-            echo "ℹ️ main 브랜치 — 동기화 커밋 스킵 (auto-version PR에서 처리)"
-            exit 0
-          fi
-
-          # www/ → 루트로 갱신된 파일 커밋
-          ROOT_FILES="app.html app.js data.js logger.js index.html style.css intro-style.css firebase-messaging-sw.js manifest.json push-test.html sw.js"
-          CHANGED_ROOT=false
-          for f in $ROOT_FILES; do
-            if ! git diff --quiet "$f" 2>/dev/null; then
-              git add "$f"
-              CHANGED_ROOT=true
-            fi
-          done
-          if [ "$CHANGED_ROOT" = true ]; then
-            git commit -m "sync: www/ 최신 수정사항을 루트에 반영 [auto-version]"
-            git push || (git pull --rebase && git push)
-            echo "✅ 루트 파일 갱신 커밋 완료"
-          fi
-
-          # 루트 → www/로 갱신된 파일 커밋
-          if ! git diff --quiet www/ 2>/dev/null; then
-            git add www/
-            git commit -m "sync: 루트 최신 수정사항을 www/에 반영 [auto-version]"
-            git push || (git pull --rebase && git push)
-            echo "✅ www/ 파일 갱신 커밋 완료"
-          else
-            echo "ℹ️ 모든 파일이 이미 동기화 상태입니다"
-          fi
-
-      # 6. npm 패키지 설치 (lock 파일 기준 정확한 버전 설치)
+      # 5. npm 패키지 설치 (lock 파일 기준 정확한 버전 설치)
       - name: npm 패키지 설치
         run: npm ci
 
@@ -149,19 +108,13 @@ jobs:
             exit 1
           fi
           FIREBASE_WEB_API_KEY="$FIREBASE_WEB_API_KEY" npm run generate-config
-          echo "✅ firebase-config.js 생성 완료 (root + www/)"
+          echo "✅ www/firebase-config.js 생성 완료"
 
-      # 7. 웹 빌드 디렉토리 준비 (Capacitor 엔트리포인트 + 보조 파일)
-      #    주요 파일(app.js, style.css 등)은 step 5에서 양방향 동기화 완료됨
+      # 7. 웹 빌드 디렉토리 준비 (Capacitor 엔트리포인트 오버라이드)
       - name: 웹 빌드 디렉토리 준비
         run: |
-          mkdir -p www
           # Capacitor는 www/index.html을 엔트리포인트로 사용 — app.html 내용으로 오버라이드
-          cp app.html www/index.html
-          # 추가 웹 파일 복사 (존재하는 경우만)
-          for f in ads.txt privacy.html terms.html usage-policy.html push-test.html; do
-            [ -f "$f" ] && cp "$f" www/ && echo "  ✅ $f 복사됨"
-          done
+          cp www/app.html www/index.html
 
       # 6-1. Google OAuth Web Client ID를 capacitor.config.json에 주입
       - name: Google Web Client ID 주입

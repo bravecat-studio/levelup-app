@@ -104,7 +104,6 @@ jobs:
               -x '.firebase/*' \
               -x 'functions/node_modules/*' \
               -x 'functions/.env' \
-              -x 'firebase-config.js' \
               -x 'www/firebase-config.js' \
               -x 'google-services.json' \
               -x '*.log'
@@ -118,7 +117,6 @@ jobs:
               --exclude='.firebase' \
               --exclude='functions/node_modules' \
               --exclude='functions/.env' \
-              --exclude='firebase-config.js' \
               --exclude='www/firebase-config.js' \
               --exclude='google-services.json' \
               --exclude='*.log' \
@@ -182,13 +180,20 @@ jobs:
           EVIDENCE_DIR="${CROS_DIR}/03_창작증빙자료"
           mkdir -p "$SOURCE_DIR" "$DOC_DIR" "$EVIDENCE_DIR"
 
-          # ── 1. 자체 저작 소스코드 복사 ──
+          # ── 1. 자체 저작 소스코드 복사 (www/ 단일 루트 구조) ──
           echo "📦 소스코드 수집 중..."
-          for f in app.js app.html data.js style.css intro-style.css logger.js sw.js \
-                   firebase-messaging-sw.js index.html manifest.json \
-                   privacy.html terms.html usage-policy.html account-deletion.html \
-                   firestore.rules storage.rules firebase.json \
-                   capacitor.config.json package.json sync-www.sh; do
+
+          # www/ 웹 소스 파일 복사
+          mkdir -p "$SOURCE_DIR/www"
+          for f in www/app.js www/app.html www/data.js www/style.css www/intro-style.css \
+                   www/logger.js www/sw.js www/firebase-messaging-sw.js www/index.html \
+                   www/manifest.json www/privacy.html www/terms.html www/usage-policy.html \
+                   www/account-deletion.html; do
+            [ -f "$f" ] && cp "$f" "$SOURCE_DIR/www/"
+          done
+
+          # 루트 설정 파일 복사
+          for f in firestore.rules storage.rules firebase.json capacitor.config.json package.json; do
             [ -f "$f" ] && cp "$f" "$SOURCE_DIR/"
           done
 

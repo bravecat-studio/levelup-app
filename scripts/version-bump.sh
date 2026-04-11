@@ -53,31 +53,17 @@ if [ -f "$FUNCTIONS_PACKAGE" ]; then
   echo "  ✅ functions/package.json → $VERSION"
 fi
 
-# 3. Service Worker 캐시 버전 (sw.js)
-SW_JS="$PROJECT_ROOT/sw.js"
+# 3. Service Worker 캐시 버전 (www/sw.js)
+SW_JS="$PROJECT_ROOT/www/sw.js"
 if [ -f "$SW_JS" ]; then
   sed -i "s/const CACHE_VERSION = 'levelup-v[^']*'/const CACHE_VERSION = 'levelup-v$VERSION'/" "$SW_JS"
-  echo "  ✅ sw.js CACHE_VERSION → levelup-v$VERSION"
-fi
-
-# 4. www/sw.js (동기화 대상)
-WWW_SW_JS="$PROJECT_ROOT/www/sw.js"
-if [ -f "$WWW_SW_JS" ]; then
-  sed -i "s/const CACHE_VERSION = 'levelup-v[^']*'/const CACHE_VERSION = 'levelup-v$VERSION'/" "$WWW_SW_JS"
   echo "  ✅ www/sw.js CACHE_VERSION → levelup-v$VERSION"
 fi
 
-# 5. app.js APP_VERSION
-APP_JS="$PROJECT_ROOT/app.js"
+# 4. www/app.js APP_VERSION
+APP_JS="$PROJECT_ROOT/www/app.js"
 if [ -f "$APP_JS" ]; then
   sed -i "s/const APP_VERSION = '[^']*'/const APP_VERSION = '$VERSION'/" "$APP_JS"
-  echo "  ✅ app.js APP_VERSION → $VERSION"
-fi
-
-# 6. www/app.js APP_VERSION (동기화 대상)
-WWW_APP_JS="$PROJECT_ROOT/www/app.js"
-if [ -f "$WWW_APP_JS" ]; then
-  sed -i "s/const APP_VERSION = '[^']*'/const APP_VERSION = '$VERSION'/" "$WWW_APP_JS"
   echo "  ✅ www/app.js APP_VERSION → $VERSION"
 fi
 

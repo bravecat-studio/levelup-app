@@ -88,22 +88,22 @@ log_info "[1/4] 소스코드 사본 생성 중..."
 
 # 자체 저작 소스코드 파일 목록
 SOURCE_FILES=(
-    # 프론트엔드 핵심
-    "app.js"
-    "app.html"
-    "data.js"
-    "style.css"
-    "intro-style.css"
-    "logger.js"
-    "sw.js"
-    "firebase-messaging-sw.js"
-    "index.html"
-    "manifest.json"
+    # 프론트엔드 핵심 (www/ 단일 루트)
+    "www/app.js"
+    "www/app.html"
+    "www/data.js"
+    "www/style.css"
+    "www/intro-style.css"
+    "www/logger.js"
+    "www/sw.js"
+    "www/firebase-messaging-sw.js"
+    "www/index.html"
+    "www/manifest.json"
     # 법적 문서
-    "privacy.html"
-    "terms.html"
-    "usage-policy.html"
-    "account-deletion.html"
+    "www/privacy.html"
+    "www/terms.html"
+    "www/usage-policy.html"
+    "www/account-deletion.html"
     # Firebase
     "firestore.rules"
     "storage.rules"
@@ -111,13 +111,13 @@ SOURCE_FILES=(
     # 빌드 설정
     "capacitor.config.json"
     "package.json"
-    "sync-www.sh"
 )
 
-# 소스코드 복사
+# 소스코드 복사 (디렉토리 구조 유지)
 for f in "${SOURCE_FILES[@]}"; do
     if [ -f "$f" ]; then
-        cp "$f" "$SOURCE_DIR/"
+        mkdir -p "$SOURCE_DIR/$(dirname "$f")"
+        cp "$f" "$SOURCE_DIR/$f"
     fi
 done
 
@@ -150,7 +150,7 @@ if [ "$SUBMIT_MODE" = "partial" ]; then
  * ================================================================ */"
 
     # app.js - 게이미피케이션 핵심 로직 마스킹 (수치 치환 방식)
-    if [ -f "$SOURCE_DIR/app.js" ]; then
+    if [ -f "$SOURCE_DIR/www/app.js" ]; then
         sed -i \
             -e 's/Math\.pow(1\.5,/Math.pow([MASKED_SCALE],/g' \
             -e 's/Math\.floor(100 \*/Math.floor([MASKED_BASE] */g' \
@@ -165,16 +165,16 @@ if [ "$SUBMIT_MODE" = "partial" ]; then
             -e 's/statReward = 0\.5/statReward = [MASKED_REWARD]/g' \
             -e 's/pts = 200/pts = [MASKED_REWARD]/g' \
             -e 's/statInc = 2\.0/statInc = [MASKED_REWARD]/g' \
-            "$SOURCE_DIR/app.js" 2>/dev/null || true
+            "$SOURCE_DIR/www/app.js" 2>/dev/null || true
         log_ok "app.js 게이미피케이션 수치 마스킹 완료"
     fi
 
     # data.js - 보상 테이블/루트 테이블 마스킹
-    if [ -f "$SOURCE_DIR/data.js" ]; then
+    if [ -f "$SOURCE_DIR/www/data.js" ]; then
         sed -i \
             -e 's/weight: [0-9]\+/weight: [MASKED_WEIGHT]/g' \
             -e "s/value: [0-9]\+\(\.[0-9]\+\)\?/value: [MASKED_VALUE]/g" \
-            "$SOURCE_DIR/data.js" 2>/dev/null || true
+            "$SOURCE_DIR/www/data.js" 2>/dev/null || true
         log_ok "data.js 보상 테이블 마스킹 완료"
     fi
 
@@ -481,18 +481,19 @@ ${APP_NAME}은 일상의 자기계발 활동을 게임화(Gamification)하여
 
 프로젝트 구조:
   /
-  ├── app.js          - 핵심 애플리케이션 로직
-  ├── app.html        - 앱 메인 HTML
-  ├── data.js         - 다국어 리소스
-  ├── style.css       - 스타일시트
-  ├── logger.js       - 자동 로깅 시스템
-  ├── sw.js           - 서비스 워커
-  ├── native-plugins/ - Android 네이티브 플러그인 (Java)
-  ├── functions/      - Firebase Cloud Functions
-  ├── www/admin/      - 관리자 대시보드
-  ├── www/modules/    - 기능 모듈
-  ├── scripts/        - 빌드/배포 스크립트
-  └── res/            - 앱 리소스 (아이콘, 스플래시)
+  ├── www/              - 웹 소스 루트 (Firebase Hosting + Capacitor)
+  │   ├── app.js        - 핵심 애플리케이션 로직
+  │   ├── app.html      - 앱 메인 HTML
+  │   ├── data.js       - 다국어 리소스
+  │   ├── style.css     - 스타일시트
+  │   ├── logger.js     - 자동 로깅 시스템
+  │   ├── sw.js         - 서비스 워커
+  │   ├── modules/      - 기능 모듈
+  │   └── admin/        - 관리자 대시보드
+  ├── native-plugins/   - Android 네이티브 플러그인 (Java)
+  ├── functions/        - Firebase Cloud Functions
+  ├── scripts/          - 빌드/배포 스크립트
+  └── res/              - 앱 리소스 (아이콘, 스플래시)
 
 ================================================================
 6. 저작권 표시

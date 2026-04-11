@@ -13,7 +13,7 @@ if [ -z "$FIREBASE_WEB_API_KEY" ]; then
     exit 1
 fi
 
-cat > firebase-config.js <<EOF
+cat > www/firebase-config.js <<EOF
 var __FIREBASE_CONFIG = {
     apiKey: "${FIREBASE_WEB_API_KEY}",
     authDomain: "levelup-app-53d02.firebaseapp.com",
@@ -25,5 +25,4 @@ var __FIREBASE_CONFIG = {
 };
 EOF
 
-cp firebase-config.js www/firebase-config.js
-echo "✅ firebase-config.js 생성 완료 (root + www/)"
+echo "✅ www/firebase-config.js 생성 완료"

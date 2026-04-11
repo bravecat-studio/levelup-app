@@ -21,7 +21,7 @@ jobs:
         run: |
           echo "📋 JSON 파일 검증 시작..."
           ERRORS=0
-          for f in package.json firebase.json capacitor.config.json firestore.indexes.json manifest.json google-services.json; do
+          for f in package.json firebase.json capacitor.config.json firestore.indexes.json www/manifest.json; do
             if [ -f "$f" ]; then
               if python3 -m json.tool "$f" > /dev/null 2>&1; then
                 echo "  ✅ $f"
@@ -49,7 +49,7 @@ jobs:
       - name: 필수 파일 존재 확인
         run: |
           MISSING=0
-          for f in app.html app.js style.css data.js package.json VERSION firebase.json; do
+          for f in www/app.html www/app.js www/style.css www/data.js package.json VERSION firebase.json; do
             if [ ! -f "$f" ]; then
               echo "::error::필수 파일이 누락되었습니다: $f"
               MISSING=$((MISSING + 1))
@@ -150,7 +150,7 @@ jobs:
         run: |
           echo "📋 JavaScript 구문 검증..."
           ERRORS=0
-          for f in app.js data.js logger.js sw.js firebase-messaging-sw.js; do
+          for f in www/app.js www/data.js www/logger.js www/sw.js www/firebase-messaging-sw.js; do
             if [ -f "$f" ]; then
               if node --check "$f" 2>/dev/null; then
                 echo "  ✅ $f"
@@ -166,7 +166,17 @@ jobs:
           fi
           echo "✅ JavaScript 구문 검증 통과"
 
-      - name: www 동기화 검증
+      - name: www 디렉토리 검증
         run: |
-          bash sync-www.sh
-          echo "✅ www 동기화 스크립트 정상 실행"
+          # www/ 디렉토리에 필수 웹 파일이 존재하는지 확인
+          MISSING=0
+          for f in www/app.html www/app.js www/style.css www/data.js www/sw.js www/manifest.json; do
+            if [ ! -f "$f" ]; then
+              echo "::error::www/ 디렉토리에 필수 파일이 누락되었습니다: $f"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+          if [ $MISSING -gt 0 ]; then
+            exit 1
+          fi
+          echo "✅ www/ 디렉토리 필수 파일 검증 통과"

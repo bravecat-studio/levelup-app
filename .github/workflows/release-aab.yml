@@ -83,7 +83,7 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION CHANGELOG.md package.json sw.js www/sw.js functions/package.json 2>/dev/null || true
+          git add VERSION CHANGELOG.md package.json www/sw.js www/app.js functions/package.json 2>/dev/null || true
           if ! git diff --cached --quiet; then
             git commit -m "release: v${VERSION} 버전 업데이트 및 CHANGELOG 갱신"
             git push
@@ -147,18 +147,11 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
-      # 6-1. 루트 ↔ www/ 양방향 동기화 (git 타임스탬프 기반)
-      - name: 루트 ↔ www/ 양방향 동기화
-        run: bash sync-www.sh
-
-      # 7. 웹 빌드 디렉토리 준비 (Capacitor 엔트리포인트 + 보조 파일)
+      # 7. 웹 빌드 디렉토리 준비 (Capacitor 엔트리포인트 오버라이드)
       - name: 웹 빌드 디렉토리 준비
         run: |
-          mkdir -p www
-          cp app.html www/index.html
-          for f in ads.txt privacy.html terms.html usage-policy.html push-test.html; do
-            [ -f "$f" ] && cp "$f" www/ && echo "  ✅ $f 복사됨"
-          done
+          # Capacitor는 www/index.html을 엔트리포인트로 사용 — app.html 내용으로 오버라이드
+          cp www/app.html www/index.html
 
       # 8. Google Web Client ID 주입
       - name: Google Web Client ID 주입
