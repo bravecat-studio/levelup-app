@@ -100,9 +100,13 @@
     </div>
     <script>
         // 관리자 설정에 따라 초기화면 하단 로그 패널 즉시 표시 (localStorage 캐시 기반)
-        if (localStorage.getItem('loginLogVisible') === '1') {
-            document.getElementById('login-log-panel').style.display = 'flex';
-        }
+        (function() {
+            var val = localStorage.getItem('loginLogVisible');
+            if (val === '1') {
+                document.getElementById('login-log-panel').style.display = 'flex';
+            }
+            console.log('[LoginLogPanel] 초기 로드: localStorage=' + val + ', display=' + document.getElementById('login-log-panel').style.display);
+        })();
     </script>
 
     <!-- 온보딩 가이드 (최초 1회 노출) -->

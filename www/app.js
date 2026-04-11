@@ -1462,6 +1462,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const loggerVisible = configData.loggerVisible === true;
                 const loginLogVisible = configData.loginLogVisible === true;
 
+                AppLogger.info('[Config] 로그 설정 로드 완료: loggerVisible=' + loggerVisible + ', loginLogVisible=' + loginLogVisible);
+
                 // 초기화면 하단 로그 설정을 localStorage에 캐시 (로그아웃 시 사용)
                 localStorage.setItem('loginLogVisible', loginLogVisible ? '1' : '0');
 
@@ -1484,7 +1486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (settingsLogCard) settingsLogCard.style.display = loggerVisible ? 'block' : 'none';
                 }
             } catch(e) {
-                console.warn('[Config] 로그 설정 로드 실패:', e);
+                AppLogger.warn('[Config] 로그 설정 로드 실패: ' + (e.message || e));
                 if (settingsLogCard) settingsLogCard.style.display = isDev ? 'block' : 'none';
                 if (isDev) {
                     // Firestore 실패 시에도 localStorage 캐시 기반으로 초기화면 로그 토글 상태 복원
@@ -1542,7 +1544,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // 로그아웃 시 초기화면 하단 로그 패널 표시 여부 (관리자 설정 기반)
             const loginPanel = document.getElementById('login-log-panel');
             if (loginPanel) {
-                const showLoginLog = localStorage.getItem('loginLogVisible') === '1';
+                const cachedVal = localStorage.getItem('loginLogVisible');
+                const showLoginLog = cachedVal === '1';
+                AppLogger.info('[Config] 로그아웃 시 초기화면 로그 패널: localStorage=' + cachedVal + ', display=' + (showLoginLog ? 'flex' : 'none'));
                 loginPanel.style.display = showLoginLog ? 'flex' : 'none';
             }
         }
@@ -1793,10 +1797,12 @@ function bindEvents() {
         // 즉시 UI 반영 (optimistic update)
         localStorage.setItem('loginLogVisible', visible ? '1' : '0');
         document.getElementById('admin-login-log-toggle-status').textContent = visible ? '초기화면에 표시 중' : '초기화면에 숨김';
+        AppLogger.info('[Config] 초기화면 로그 토글 변경: ' + (visible ? 'ON' : 'OFF'));
         try {
             await setDoc(doc(db, "app_config", "settings"), { loginLogVisible: visible }, { merge: true });
+            AppLogger.info('[Config] 초기화면 로그 설정 Firestore 저장 성공');
         } catch(e) {
-            console.error('[Config] 초기화면 로그 설정 저장 실패:', e);
+            AppLogger.error('[Config] 초기화면 로그 설정 저장 실패: ' + (e.message || e));
             // Firestore 실패 시 롤백
             this.checked = !visible;
             localStorage.setItem('loginLogVisible', !visible ? '1' : '0');
