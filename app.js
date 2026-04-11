@@ -6443,7 +6443,8 @@ window.openLegalPage = function(type) {
         'terms': 'terms.html',
         'usage-policy': 'usage-policy.html',
         'privacy': 'privacy.html',
-        'oss': 'oss.html'
+        'oss': 'oss.html',
+        'life-status-consent': 'life-status-consent.html'
     };
     const url = pages[type];
     if (url) window.open(url, '_blank');
