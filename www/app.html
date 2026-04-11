@@ -92,12 +92,18 @@
     </div>
 
     <!-- 로그인 전 화면 하단 오류 로그 패널 (body 직속 자식 → position:fixed 정상 동작 보장) -->
-    <div id="login-log-panel" style="position:fixed;bottom:0;left:0;right:0;padding:8px 12px;display:flex;gap:8px;align-items:center;justify-content:center;background:rgba(5,5,8,0.92);border-top:1px solid #1a1a2a;z-index:9999;">
+    <div id="login-log-panel" style="position:fixed;bottom:0;left:0;right:0;padding:8px 12px;display:none;gap:8px;align-items:center;justify-content:center;background:rgba(5,5,8,0.92);border-top:1px solid #1a1a2a;z-index:9999;">
         <span style="font-size:0.7rem;color:#555;" data-i18n="log_label">오류 로그</span>
         <span id="login-log-badge" style="font-size:0.72rem;color:#00d9ff;font-weight:bold;">0<span data-i18n="log_count_unit">개</span></span>
         <button onclick="AppLogger.openViewer()" style="background:rgba(0,217,255,0.08);border:1px solid #00d9ff;color:#00d9ff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.72rem;" data-i18n="log_view">로그 보기</button>
         <button onclick="AppLogger.export()" style="background:rgba(255,204,0,0.08);border:1px solid #ffcc00;color:#ffcc00;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:0.72rem;" data-i18n="log_save">파일 저장</button>
     </div>
+    <script>
+        // 관리자 설정에 따라 초기화면 하단 로그 패널 즉시 표시 (localStorage 캐시 기반)
+        if (localStorage.getItem('loginLogVisible') === '1') {
+            document.getElementById('login-log-panel').style.display = 'flex';
+        }
+    </script>
 
     <!-- 온보딩 가이드 (최초 1회 노출) -->
     <div id="onboarding-guide" class="onboarding-guide d-none">
@@ -1013,6 +1019,12 @@
                         <label class="switch"><input type="checkbox" id="admin-logger-toggle"><span class="slider"></span></label>
                     </div>
                     <div id="admin-logger-toggle-status" style="font-size:0.7rem; color:var(--neon-blue); text-align:right; padding-top:2px;"></div>
+                    <hr style="border:none; border-top:1px solid rgba(255,255,255,0.06); margin:10px 0;">
+                    <div class="setting-row">
+                        <span style="font-size:0.85rem;" data-i18n="log_login_display">초기화면 하단 로그 표시</span>
+                        <label class="switch"><input type="checkbox" id="admin-login-log-toggle"><span class="slider"></span></label>
+                    </div>
+                    <div id="admin-login-log-toggle-status" style="font-size:0.7rem; color:var(--neon-blue); text-align:right; padding-top:2px;"></div>
                 </div>
 
                 <div class="system-card" style="margin-top: 12px; display:none;" id="settings-log-card">

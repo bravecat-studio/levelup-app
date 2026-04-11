@@ -1458,7 +1458,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Firestore에서 로그 공개 설정 읽기
             try {
                 const configSnap = await getDoc(doc(db, "app_config", "settings"));
-                const loggerVisible = configSnap.exists() ? (configSnap.data().loggerVisible === true) : false;
+                const configData = configSnap.exists() ? configSnap.data() : {};
+                const loggerVisible = configData.loggerVisible === true;
+                const loginLogVisible = configData.loginLogVisible === true;
+
+                // 초기화면 하단 로그 설정을 localStorage에 캐시 (로그아웃 시 사용)
+                localStorage.setItem('loginLogVisible', loginLogVisible ? '1' : '0');
 
                 if (isDev) {
                     // 관리자: 항상 로그 카드 표시, 토글 상태 반영
@@ -1467,6 +1472,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (adminToggle) {
                         adminToggle.checked = loggerVisible;
                         document.getElementById('admin-logger-toggle-status').textContent = loggerVisible ? '모든 사용자에게 표시 중' : '관리자만 표시 중';
+                    }
+                    // 초기화면 하단 로그 토글 상태 반영
+                    const loginLogToggle = document.getElementById('admin-login-log-toggle');
+                    if (loginLogToggle) {
+                        loginLogToggle.checked = loginLogVisible;
+                        document.getElementById('admin-login-log-toggle-status').textContent = loginLogVisible ? '초기화면에 표시 중' : '초기화면에 숨김';
                     }
                 } else {
                     // 일반 사용자: 토글 ON일 때만 로그 카드 표시
@@ -1519,9 +1530,12 @@ document.addEventListener('DOMContentLoaded', () => {
             _initializedUid = null;
             document.getElementById('login-screen').classList.remove('d-none');
             document.getElementById('app-container').classList.add('d-none');
-            // 로그아웃 시 로그 패널 숨김 (개발자 외 접근 차단)
+            // 로그아웃 시 초기화면 하단 로그 패널 표시 여부 (관리자 설정 기반)
             const loginPanel = document.getElementById('login-log-panel');
-            if (loginPanel) loginPanel.style.display = 'none';
+            if (loginPanel) {
+                const showLoginLog = localStorage.getItem('loginLogVisible') === '1';
+                loginPanel.style.display = showLoginLog ? 'flex' : 'none';
+            }
         }
     });
 
@@ -1760,6 +1774,19 @@ function bindEvents() {
             document.getElementById('admin-logger-toggle-status').textContent = visible ? '모든 사용자에게 표시 중' : '관리자만 표시 중';
         } catch(e) {
             console.error('[Config] 로그 설정 저장 실패:', e);
+            this.checked = !visible; // 롤백
+        }
+    });
+
+    // 관리자 초기화면 하단 로그 토글
+    document.getElementById('admin-login-log-toggle').addEventListener('change', async function() {
+        const visible = this.checked;
+        try {
+            await setDoc(doc(db, "app_config", "settings"), { loginLogVisible: visible }, { merge: true });
+            localStorage.setItem('loginLogVisible', visible ? '1' : '0');
+            document.getElementById('admin-login-log-toggle-status').textContent = visible ? '초기화면에 표시 중' : '초기화면에 숨김';
+        } catch(e) {
+            console.error('[Config] 초기화면 로그 설정 저장 실패:', e);
             this.checked = !visible; // 롤백
         }
     });
