@@ -148,10 +148,10 @@
         </div>
         <div style="font-size:0.65rem; color:var(--text-sub); margin-bottom:10px;">${_t.ls_security_notice || '🔒 생년월일은 계정 동기화를 위해 서버에 암호화 저장됩니다.'}</div>
         <div style="margin-bottom:14px;">
-            <label id="ls-consent-checkbox-label" style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.75rem; color:var(--text-main);">
-                <input type="checkbox" id="ls-consent-checkbox" ${localStorage.getItem('life_status_privacy_consent') ? 'checked' : ''} style="accent-color:var(--neon-blue); width:16px; height:16px; cursor:pointer;" readonly>
-                ${_t.ls_consent_label || '📋 개인정보 수집 및 이용 동의서'}
-            </label>
+            <div style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-main);">
+                <input type="checkbox" id="ls-consent-checkbox" ${localStorage.getItem('life_status_privacy_consent') ? 'checked' : ''} style="accent-color:var(--neon-blue); width:16px; height:16px; cursor:pointer;">
+                <span id="ls-consent-link" style="cursor:pointer; text-decoration:underline; color:var(--neon-blue);">${_t.ls_consent_label || '📋 개인정보 수집 및 이용 동의서'}</span>
+            </div>
         </div>
         <div id="ls-loading-msg" style="display:none; text-align:center; padding:8px 0; font-size:0.8rem; color:var(--neon-blue);">${_t.ls_loading || '계산 중입니다...'}</div>
         <div style="display:flex; gap:8px;">
@@ -164,12 +164,31 @@
         document.body.appendChild(overlay);
         requestAnimationFrame(() => overlay.classList.add('active'));
 
-        // 체크박스 클릭 시 동의 모달 호출
+        // 체크박스 토글로 동의/철회 직접 처리
         const consentCheckbox = overlay.querySelector('#ls-consent-checkbox');
         if (consentCheckbox) {
-            consentCheckbox.addEventListener('click', (e) => {
-                e.preventDefault();
-                openLifeStatusPrivacyModal();
+            consentCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    localStorage.setItem('life_status_privacy_consent', new Date().toISOString());
+                } else {
+                    const confirmMsg = _t.ls_consent_withdraw_confirm || 'Life Status 개인정보 수집 동의를 철회하시겠습니까?\n저장된 Life Status 데이터가 삭제됩니다.';
+                    if (confirm(confirmMsg)) {
+                        localStorage.removeItem('life_status_privacy_consent');
+                        localStorage.removeItem(LIFE_STATUS_STORAGE_KEY);
+                        renderLifeStatus();
+                        window.saveUserData();
+                    } else {
+                        e.target.checked = true;
+                    }
+                }
+            });
+        }
+
+        // 동의서 텍스트 링크 클릭 시 HTML 페이지 열기
+        const consentLink = overlay.querySelector('#ls-consent-link');
+        if (consentLink) {
+            consentLink.addEventListener('click', () => {
+                window.openLegalPage('life-status-consent');
             });
         }
     }
@@ -213,90 +232,6 @@
         });
     }
 
-    function openLifeStatusPrivacyModal(onAgreeCallback) {
-        const overlay = document.createElement('div');
-        overlay.className = 'report-modal-overlay';
-        overlay.id = 'life-status-privacy-overlay';
-
-        const _t = i18n[AppState.currentLang] || {};
-        overlay.innerHTML = `
-    <div class="report-modal-content" style="max-width:380px; padding:20px; max-height:80vh; overflow-y:auto;">
-        <div style="font-size:1rem; font-weight:bold; color:var(--neon-blue); margin-bottom:14px;">${_t.ls_privacy_title || '개인정보 수집 및 이용 동의서'}</div>
-
-        <div style="font-size:0.78rem; color:var(--text-main); line-height:1.7; margin-bottom:14px;">
-            <p style="margin:0 0 10px 0; color:var(--text-sub);">
-                ${_t.ls_privacy_intro || 'LevelUp은 「개인정보 보호법」에 따라 아래와 같이 개인정보를 수집·이용하고자 합니다. 내용을 확인 후 동의 여부를 결정해 주세요.'}
-            </p>
-
-            <table style="width:100%; border-collapse:collapse; font-size:0.75rem; margin-bottom:12px;">
-                <thead>
-                    <tr style="background:rgba(0,180,255,0.1);">
-                        <th style="border:1px solid var(--border-color); padding:8px; text-align:left; color:var(--neon-blue);">${_t.ls_privacy_th_item || '항목'}</th>
-                        <th style="border:1px solid var(--border-color); padding:8px; text-align:left; color:var(--neon-blue);">${_t.ls_privacy_th_content || '내용'}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="border:1px solid var(--border-color); padding:8px; color:var(--text-sub); white-space:nowrap;">${_t.ls_privacy_collect_label || '수집 항목'}</td>
-                        <td style="border:1px solid var(--border-color); padding:8px;">${_t.ls_privacy_collect_value || '생년월일, 기대 수명 설정값'}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid var(--border-color); padding:8px; color:var(--text-sub); white-space:nowrap;">${_t.ls_privacy_purpose_label || '수집 목적'}</td>
-                        <td style="border:1px solid var(--border-color); padding:8px;">${_t.ls_privacy_purpose_value || 'Life Status(인생 현황) 기능 제공 및 기기 간 데이터 동기화'}</td>
-                    </tr>
-                    <tr>
-                        <td style="border:1px solid var(--border-color); padding:8px; color:var(--text-sub); white-space:nowrap;">${_t.ls_privacy_period_label || '보유 기간'}</td>
-                        <td style="border:1px solid var(--border-color); padding:8px;">${_t.ls_privacy_period_value || '회원 탈퇴 시 또는 이용자가 직접 초기화 시 즉시 파기'}</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div style="background:var(--panel-bg); border:1px solid var(--border-color); border-radius:6px; padding:10px; margin-bottom:12px; font-size:0.72rem; color:var(--text-sub); line-height:1.6;">
-                <div style="margin-bottom:4px; font-weight:bold; color:var(--text-main);">${_t.ls_privacy_notice_title || '안내 사항'}</div>
-                • ${_t.ls_privacy_notice_1 || '수집된 정보는 Firebase 서버에 암호화되어 저장됩니다.'}<br>
-                • ${_t.ls_privacy_notice_2 || '수집된 정보는 위 목적 외 다른 용도로 사용되지 않습니다.'}<br>
-                • ${_t.ls_privacy_notice_3 || '동의를 거부할 수 있으며, 거부 시 Life Status 기능 이용이 제한됩니다.'}<br>
-                • ${_t.ls_privacy_notice_4 || '설정 화면의 [초기화] 버튼으로 언제든지 정보를 삭제하고 동의를 철회할 수 있습니다.'}
-            </div>
-        </div>
-
-        <div style="display:flex; gap:8px;">
-            <button id="ls-privacy-disagree-btn" style="flex:1; padding:10px; border-radius:6px; border:1px solid var(--border-color); background:transparent; color:var(--text-sub); font-size:0.85rem; cursor:pointer;">${_t.ls_privacy_disagree || '동의하지 않음'}</button>
-            <button id="ls-privacy-agree-btn" style="flex:1; padding:10px; border-radius:6px; border:none; background:var(--neon-blue); color:#000; font-size:0.85rem; font-weight:bold; cursor:pointer;">${_t.ls_privacy_agree || '동의'}</button>
-        </div>
-    </div>`;
-
-        document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.classList.add('active'));
-
-        overlay.querySelector('#ls-privacy-agree-btn').addEventListener('click', () => {
-            localStorage.setItem('life_status_privacy_consent', new Date().toISOString());
-            closeLifeStatusPrivacyModal();
-            const cb = document.getElementById('ls-consent-checkbox');
-            if (cb) cb.checked = true;
-            if (typeof onAgreeCallback === 'function') onAgreeCallback();
-        });
-
-        overlay.querySelector('#ls-privacy-disagree-btn').addEventListener('click', () => {
-            // 동의하지 않음 선택 시 자동 초기화
-            localStorage.removeItem(LIFE_STATUS_STORAGE_KEY);
-            localStorage.removeItem('life_status_privacy_consent');
-            closeLifeStatusPrivacyModal();
-            const cb = document.getElementById('ls-consent-checkbox');
-            if (cb) cb.checked = false;
-            renderLifeStatus();
-            window.saveUserData();
-        });
-    }
-
-    function closeLifeStatusPrivacyModal() {
-        const overlay = document.getElementById('life-status-privacy-overlay');
-        if (overlay) {
-            overlay.classList.remove('active');
-            setTimeout(() => overlay.remove(), 300);
-        }
-    }
-
     function resetLifeStatus() {
         if (!confirm(i18n[AppState.currentLang]?.life_status_reset_confirm || 'Life Status 정보를 초기화하시겠습니까?\n개인정보 수집 동의도 함께 철회됩니다.')) return;
         localStorage.removeItem(LIFE_STATUS_STORAGE_KEY);
@@ -330,8 +265,6 @@
     // Public API
     window.renderLifeStatus = renderLifeStatus;
     window.openLifeStatusSettings = openLifeStatusSettings;
-    window.openLifeStatusPrivacyModal = openLifeStatusPrivacyModal;
-    window.closeLifeStatusPrivacyModal = closeLifeStatusPrivacyModal;
     window.saveLifeStatusFromModal = saveLifeStatusFromModal;
     window.resetLifeStatus = resetLifeStatus;
     window.closeLifeStatusModal = closeLifeStatusModal;
