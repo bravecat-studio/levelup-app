@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.300] - 2026-04-12
+
+### 변경
+- feat: Reels(Day1) 모듈 분리 — app.js에서 ~1,252줄 제거
+- fix: Deploy from a branch 방식으로 GitHub Pages 전환
+
 ## [1.0.299] - 2026-04-11
 
 ### 변경
