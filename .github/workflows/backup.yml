@@ -316,9 +316,11 @@ jobs:
           CHECKSUM_FILE="/tmp/backup/SHA256SUMS.txt"
 
           cd /tmp/backup
-          for f in *.tar.gz *.zip *.bundle 2>/dev/null; do
-            [ -f "$f" ] && sha256sum "$f" >> "$CHECKSUM_FILE"
+          shopt -s nullglob
+          for f in *.tar.gz *.zip *.bundle; do
+            sha256sum "$f" >> "$CHECKSUM_FILE"
           done
+          shopt -u nullglob
 
           if [ -f "$CHECKSUM_FILE" ]; then
             echo "📋 SHA256 체크섬:"
