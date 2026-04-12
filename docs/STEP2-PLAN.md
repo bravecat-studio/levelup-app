@@ -29,6 +29,23 @@
 
 ---
 
+## 청크 구성 요약
+
+| 청크 | 포함 STEP | 대상 파일 | 테스트 방법 |
+|------|----------|-----------|------------|
+| **A** | STEP 2–3 | `native-plugins/*.java`, `firebase-messaging-sw.js`, `notification.js`, `sw.js` | `ls` + `node --check www/sw.js` |
+| **B** | STEP 4–5 | `functions/index.js` | `node --check functions/index.js` |
+| **C** | STEP 6–7 | `www/app.js` (건강동기화) | `grep` 잔여 0건 확인 |
+| **D** | STEP 8–9 | `www/app.js` (푸시알림) | `grep` 잔여 0건 확인 |
+| **E** | STEP 10–11 | `www/app.js` (플래너) | `grep` 잔여 0건 확인 |
+| **F** | STEP 12 | `www/data.js` | `grep` 잔여 0건 확인 |
+| **G** | STEP 13–14 | 전체 | 라인 수 + 보존 항목 + 브라우저 로드 |
+
+> **app.js 줄 번호 주의:** 청크 C → D → E 순으로 진행하면 각 청크 완료 후 줄 번호가 이동한다.
+> 아래 계획의 줄 번호는 원본 기준이므로, 각 항목 수정 전 반드시 `grep -n '함수명'` 으로 실제 위치를 확인 후 작업한다.
+
+---
+
 ## 단계별 구현 계획
 
 ### STEP 1. 사전 확인
@@ -38,6 +55,11 @@
 3. 앱 로드 및 각 탭 정상 동작 확인 (브라우저 콘솔 오류 없음)
 
 ---
+
+## 청크 A — 독립 파일 정리
+
+> 대상: `native-plugins/`, `www/firebase-messaging-sw.js`, `www/modules/notification.js`, `www/sw.js`
+> 다른 청크와 독립적으로 실행 가능.
 
 ### STEP 2. 네이티브 플러그인 파일 삭제
 
@@ -67,7 +89,18 @@
    - 하단 `notificationclick` 핸들러 내 FCM 관련 부분 제거
    - (**~40줄 감소**)
 
+**검증 (청크 A 완료):**
+```bash
+node --check www/sw.js
+grep -c "firebase-messaging" www/sw.js   # → 0
+grep -c "NotificationModule" www/modules/notification.js   # → 0 (null 대입 줄 제외)
+```
+
 ---
+
+## 청크 B — Cloud Functions 정리
+
+> 대상: `functions/index.js` 단일 파일. 청크 A와 병렬 실행 가능.
 
 ### STEP 4. `functions/index.js` — 푸시 스케줄·알림 함수 제거
 
@@ -101,9 +134,18 @@
 27. `ALLOWED_PREFIXES` 배열에서 `"planner_photos/"` 항목 제거
 28. 캐시 헤더 맵에서 `"planner_photos/": "no-cache"` 항목 제거
 
-**검증:** `node --check functions/index.js` — 구문 오류 없음 확인
+**검증 (청크 B 완료):**
+```bash
+node --check functions/index.js
+grep -n "sendDailyReminder\|sendStreakWarnings\|sendComebackPush\|cleanupExpiredPlannerPhotos\|planner_photos" functions/index.js   # → 0건
+```
 
 ---
+
+## 청크 C — app.js 건강동기화 완전 제거
+
+> 대상: `www/app.js`. 청크 A·B 완료 후 진행 권장 (참조 관계 정리 선행).
+> 청크 C → D → E 순서 준수. 각 완료 후 줄 번호 재확인 필수.
 
 ### STEP 6. `www/app.js` — 건강동기화 함수 제거 (리프 → 루트 순)
 
@@ -127,9 +169,19 @@
 39. ~4452줄: `changeLanguage()` 내 `updateStepCountUI()` 1줄 제거
 40. ~7644–7668줄: `showPermissionPrompts()` 내 `// 3) 건강 데이터` 블록 제거 (~25줄)
 
-**체크포인트:** `grep -n "syncHealthData\|toggleHealthSync\|updateStepCountUI\|checkStepRareTitles\|tryHealthConnect\|tryGoogleFit\|requestFitnessScope" www/app.js` → 정의 0건
+**검증 (청크 C 완료):**
+```bash
+grep -n "syncHealthData\|toggleHealthSync\|updateStepCountUI\|checkStepRareTitles\|tryHealthConnect\|tryGoogleFit\|requestFitnessScope" www/app.js
+# → 정의 0건 (함수 본문 없음)
+grep -n "syncToggleWithOSPermissions\|showPermissionPrompts" www/app.js
+# → 함수 자체는 잔존 (GPS·카메라 섹션 보존 확인)
+```
 
 ---
+
+## 청크 D — app.js 푸시알림 완전 제거
+
+> 대상: `www/app.js`. 청크 C 완료 후 진행.
 
 ### STEP 8. `www/app.js` — 푸시 알림 함수 제거 (리프 → 루트 순)
 
@@ -160,9 +212,19 @@
 60. `syncToggleWithOSPermissions()` — `// 1) 푸시 알림` 블록만 제거 (~55줄), 함수·GPS 섹션 보존
 61. `showPermissionPrompts()` — `// 1) 푸시 알림` 블록만 제거 (~30줄)
 
-**체크포인트:** `grep -n "initPushNotifications\|requestNativePushPermission\|setupNativePushListeners\|togglePushNotifications\|updateTopicSubscriptionForLanguage" www/app.js` → 정의 0건
+**검증 (청크 D 완료):**
+```bash
+grep -n "initPushNotifications\|requestNativePushPermission\|setupNativePushListeners\|togglePushNotifications\|updateTopicSubscriptionForLanguage\|registerEarlyPushListeners" www/app.js
+# → 정의 0건
+grep -n "showInAppNotification" www/app.js
+# → 함수 정의 및 호출 잔존 확인 (보존 필수)
+```
 
 ---
+
+## 청크 E — app.js 플래너 완전 제거
+
+> 대상: `www/app.js`. 청크 D 완료 후 진행.
 
 ### STEP 10. `www/app.js` — 플래너 함수 제거 (리프 → 루트 순)
 
@@ -196,9 +258,19 @@
 83. ~4400–4415줄: `refreshSettingsStatusMessages()` 내 fitness 상태 렌더링 블록 제거 (~10줄)
 84. `openSettingsGuideModal()` 내 `push`, `fitness` 항목의 colors/icons 맵 제거 (~4줄)
 
-**체크포인트:** `grep -n "renderPlannerCalendar\|loadPlannerForDate\|savePlannerEntry\|renderPlannerTasks\|renderTimeboxGrid\|renderMonthlyCalendar\|addPlannerTask\|copyPrevDayTasks" www/app.js` → 정의 0건
+**검증 (청크 E 완료):**
+```bash
+grep -n "renderPlannerCalendar\|loadPlannerForDate\|savePlannerEntry\|renderPlannerTasks\|renderTimeboxGrid\|renderMonthlyCalendar\|addPlannerTask\|copyPrevDayTasks" www/app.js
+# → 정의 0건
+grep -n "plannerPhotoData\|diarySelectedDate\|getDiaryEntry" www/app.js
+# → 변수·함수 잔존 확인 (보존 필수)
+```
 
 ---
+
+## 청크 F — data.js i18n 번역 키 제거
+
+> 대상: `www/data.js`. 청크 A–E와 독립적으로 실행 가능.
 
 ### STEP 12. `www/data.js` — i18n 번역 키 제거
 
@@ -209,7 +281,17 @@
 86. 푸시·건강동기화 관련 키 제거 — ko/en/ja 3언어 모두 (~90줄):
     `step_title`, `step_unit`, `step_next_reward`, `step_req_title`, `step_req_1`, `step_req_2`, `step_req_3`, `step_req_reward`, `sync_req`, `sync_done`, `sync_off`, `sync_off_by_os`, `sync_revoke_confirm`, `push_on`, `push_off`, `push_off_by_os`, `push_denied`, `push_requesting`, `push_err`, `settings_guide_push_title`, `settings_guide_push_desc`, `settings_guide_fitness_title`, `settings_guide_fitness_desc`, `sync_complete_msg`, `sync_reward_msg`, `sync_no_steps`, `sync_next_reward`, `fitness_needs_google_signin`, `fitness_email_disabled`, `noti_announcements`, `noti_push_history`, `noti_no_announcements`, `noti_no_history`, `noti_pinned`, `noti_clear_history`, `noti_clear_confirm`, `noti_new_badge`
 
+**검증 (청크 F 완료):**
+```bash
+grep -n "planner_tab_priority\|step_title\|push_on\|sync_req\|noti_announcements" www/data.js
+# → 0건
+grep -n "nav_diary\|rareStepTitles" www/data.js
+# → 잔존 확인 (보존 필수)
+```
+
 ---
+
+## 청크 G — 최종 검증 + 커밋
 
 ### STEP 13. 최종 검증
 
@@ -290,6 +372,7 @@
 | 높음 | `syncToggleWithOSPermissions()` GPS 섹션(`// 2)`) 실수 삭제 | 수정 전후 `// 2)` 주석 존재 확인 |
 | 높음 | `showPermissionPrompts()` 카메라·GPS 섹션 실수 삭제 | 동일 |
 | 높음 | `getDiaryEntry`, `plannerPhotoData`, `diarySelectedDate` 실수 삭제 | reels.js grep 확인 후 진행 |
+| 높음 | app.js 청크 C→D→E 진행 중 줄 번호 이동 | 각 항목 작업 전 `grep -n '함수명'`으로 실제 위치 재확인 |
 | 중간 | `functions/index.js` switch-case 부분 제거 시 구문 오류 | `node --check` 매번 실행 |
 | 중간 | `handleGetTestUsers/PushLogs` 실제 줄 번호 (~274–401줄) 확인 필요 | 구현 전 Read로 정확한 위치 확인 |
 | 낮음 | Firebase Messaging import 제거 순서 | 함수 제거 후 import 제거 순서 준수 |
