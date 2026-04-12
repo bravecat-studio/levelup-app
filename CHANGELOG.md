@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.308] - 2026-04-12
+
+### 변경
+- fix: backup workflow의 체크섬 생성 단계 문법 오류 수정
+
 ## [1.0.307] - 2026-04-12
 
 ### 변경
