@@ -781,7 +781,7 @@ function initNavDragReorder() {
 }
 
 // --- 상태창 카드 순서 재배치 (길게 눌러 상하 이동) ---
-const DEFAULT_STATUS_CARD_ORDER = ['step-count', 'stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'meditation', 'pomodoro', 'dday', 'dday-caption', 'daily-quote'];
+const DEFAULT_STATUS_CARD_ORDER = ['stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'meditation', 'pomodoro', 'dday', 'dday-caption', 'daily-quote'];
 
 function saveStatusCardOrder() {
     const cards = Array.from(document.querySelectorAll('#status .status-reorderable'));
@@ -899,7 +899,6 @@ function initStatusCardReorder() {
 
 // --- 햄버거 메뉴 & 상태창 편집 ---
 const STATUS_CARD_LABELS = {
-    'step-count': { name_key: 'card_step_count', name: '걸음수', icon: '🚶' },
     'stat-radar': { name: 'STAT RADAR', icon: '📊' },
     'bonus-exp': { name_key: 'card_bonus_exp', name: '보너스 EXP', icon: '🎬' },
     'pomodoro': { name_key: 'card_pomodoro', name: 'POMODORO', icon: '🍅' },
@@ -913,7 +912,7 @@ const STATUS_CARD_LABELS = {
     'orm-calc': { name_key: 'card_orm_calc', name: '1RM 계산기', icon: '🏋️' },
     'meditation': { name_key: 'card_meditation', name: '명상', icon: '🧘' }
 };
-const ALL_CARD_IDS = ['step-count', 'stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'meditation', 'pomodoro', 'dday', 'dday-caption', 'daily-quote'];
+const ALL_CARD_IDS = ['stat-radar', 'bonus-exp', 'life-status', 'my-library', 'my-movies', 'running-calc', 'orm-calc', 'meditation', 'pomodoro', 'dday', 'dday-caption', 'daily-quote'];
 // 삭제 불가 카드 (이동만 가능)
 const NON_REMOVABLE_CARDS = ['stat-radar', 'bonus-exp'];
 
@@ -965,7 +964,7 @@ function applyCardVisibility() {
         if (hidden.includes(cardId)) {
             card.style.display = 'none';
         } else {
-            // 숨김 해제 시 표시 복원 (step-count 포함)
+            // 숨김 해제 시 표시 복원
             card.style.display = '';
         }
     });
@@ -4807,7 +4806,6 @@ function openProfileStatsModal(userId) {
                 <div style="display:flex; align-items:center; flex-wrap:wrap; gap:6px;">
                     <span style="font-size:1rem; font-weight:bold; color:var(--text-main);">${sanitizeText(u.name)}</span>
                     ${followBtnHTML}
-                    <button class="btn-profile-planner" onclick="event.stopPropagation();window.viewUserTodayPlanner('${sanitizeAttr(userId)}')" title="${i18n[lang]?.profile_view_planner || '당일 플래너'}">${i18n[lang]?.profile_planner_btn || '플래너'}</button>
                     ${saveBtnHTML}
                 </div>
                 <div style="font-size:0.75rem; color:var(--text-sub); margin-top:2px;">Lv. ${u.level || 1}</div>
@@ -4849,75 +4847,6 @@ async function toggleProfileModalFollow(userId) {
     openProfileStatsModal(userId);
 }
 window.toggleProfileModalFollow = toggleProfileModalFollow;
-
-// --- 프로필 모달에서 당일 플래너 열람 ---
-async function viewUserTodayPlanner(userId) {
-    const lang = AppState.currentLang;
-    const isMe = userId === auth.currentUser?.uid;
-    let blocks = null;
-    let tasks = null;
-
-    if (isMe) {
-        // 현재 유저: localStorage에서 오늘 플래너 가져오기
-        const todayStr = getTodayStr();
-        const entry = getDiaryEntry(todayStr);
-        if (entry && entry.blocks && Object.keys(entry.blocks).length > 0) {
-            blocks = entry.blocks;
-            tasks = entry.tasks || [];
-        }
-    } else {
-        // 다른 유저: 오늘 날짜의 릴스 포스트에서 가져오기
-        const todayKST = getTodayKST();
-        if (Array.isArray(window._reelsCachedPosts)) {
-            const post = window._reelsCachedPosts.find(p => p.uid === userId && p.dateKST === todayKST);
-            if (post && post.blocks && Object.keys(post.blocks).length > 0) {
-                blocks = post.blocks;
-                tasks = post.tasks || [];
-            }
-        }
-    }
-
-    if (!blocks) {
-        // 당일 플랜 없음 안내 팝업
-        const noPlanner = i18n[lang]?.profile_no_today_plan || '당일 플랜이 없습니다.';
-        const m = document.getElementById('infoModal');
-        document.getElementById('info-modal-title').textContent = i18n[lang]?.profile_view_planner || '당일 플래너';
-        document.getElementById('info-modal-body').innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-sub); font-size:0.9rem;">${noPlanner}</div>`;
-        m.classList.remove('d-none');
-        m.classList.add('d-flex');
-        return;
-    }
-
-    // ★ 보상형 광고: 최초 및 매 10회 열람 시
-    let viewCount = parseInt(localStorage.getItem('planner_view_count') || '0', 10);
-    viewCount++;
-    localStorage.setItem('planner_view_count', String(viewCount));
-    const shouldShowAd = (viewCount === 1) || (viewCount % 10 === 0);
-    if (shouldShowAd && typeof isNativePlatform !== 'undefined' && isNativePlatform && window.AdManager) {
-        try { await window.AdManager.showPlannerRewardedAd(lang); } catch (e) { console.warn('[PlannerAd] Ad failed:', e); }
-    }
-
-    // 시간표 렌더링
-    const mergedBlocks = window.mergeConsecutiveBlocks ? window.mergeConsecutiveBlocks(blocks) : [];
-    const scheduleLabel = i18n[lang]?.planner_tab_schedule || '시간표';
-    let scheduleHTML = mergedBlocks.map(({time, task}) =>
-        `<div style="display:flex; gap:8px; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-            <span style="color:var(--neon-blue); font-size:0.8rem; white-space:nowrap; min-width:100px;">${time}</span>
-            <span style="color:var(--text-main); font-size:0.8rem;">${sanitizeText(task)}</span>
-        </div>`
-    ).join('');
-
-    const m = document.getElementById('infoModal');
-    document.getElementById('info-modal-title').textContent = i18n[lang]?.profile_view_planner || '당일 플래너';
-    document.getElementById('info-modal-body').innerHTML = `
-        <div style="padding:8px 0;">
-            <div style="font-size:0.85rem; font-weight:bold; color:var(--neon-blue); margin-bottom:8px;">📋 ${scheduleLabel}</div>
-            ${scheduleHTML}
-        </div>`;
-    m.classList.remove('d-none');
-    m.classList.add('d-flex');
-}
-window.viewUserTodayPlanner = viewUserTodayPlanner;
 
 // --- 프로필카드 이미지 저장 (보상형 광고 연동) ---
 window.saveProfileCardAsImage = async function(userId) {
@@ -6413,14 +6342,6 @@ function registerBackButtonHandler() {
             }
         }
 
-        // 2-a) 알림 모달이 열려있으면 닫기
-        const notiModal = document.getElementById('notification-modal');
-        if (notiModal && !notiModal.classList.contains('d-none')) {
-            if (window.NotificationModule) window.NotificationModule.closeModal();
-            else notiModal.classList.add('d-none');
-            return;
-        }
-
         // 2) 카드 에디터가 열려있으면 닫기
         const cardEditor = document.getElementById('card-editor-fullscreen');
         if (cardEditor && !cardEditor.classList.contains('d-none')) {
@@ -6676,9 +6597,6 @@ import('./modules/library.js').catch(e => console.error('[Library] 모듈 로드
 
 // --- Movie 모듈 동적 로드 ---
 import('./modules/movie.js').catch(e => console.error('[Movie] 모듈 로드 실패:', e));
-
-// --- Notification 모듈 동적 로드 ---
-import('./modules/notification.js').catch(e => console.error('[Notification] 모듈 로드 실패:', e));
 
 // --- Quotes 모듈 동적 로드 ---
 import('./modules/quotes.js').catch(e => console.error('[Quotes] 모듈 로드 실패:', e));
