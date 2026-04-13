@@ -84,17 +84,19 @@
     }
 
     // ── SVG 바 차트 생성 ───────────────────────────────────────────
-    function buildBarChartSVG(scores, traitLabels, width) {
+    function buildBarChartSVG(scores, traitLabels, width, scaleFactor) {
+        scaleFactor = scaleFactor || 1;
         var traits  = ['O', 'C', 'E', 'A', 'N'];
-        var barH    = 18;
+        var barH    = Math.round(18 * scaleFactor);
         // 레이블 길이에 따른 동적 labelW (영문 겹침 방지)
         var maxLen = 0;
         traits.forEach(function(t) { var l = (traitLabels[t] || t).length; if (l > maxLen) maxLen = l; });
         var isLatin = /[a-zA-Z]/.test(traitLabels['O'] || '');
-        var labelW  = Math.max(52, Math.ceil(maxLen * (isLatin ? 6.5 : 10)) + 6);
-        var scoreW  = 26;
-        var padX    = 10;
-        var gapY    = 9;
+        var labelW  = Math.max(Math.round(52 * scaleFactor), Math.ceil(maxLen * (isLatin ? 6.5 : 10) * scaleFactor) + 6);
+        var scoreW  = Math.round(26 * scaleFactor);
+        var padX    = Math.round(10 * scaleFactor);
+        var gapY    = Math.round(9 * scaleFactor);
+        var fontSize = Math.round(11 * scaleFactor);
         var usableW = width - labelW - scoreW - padX * 2;
         var svgH    = traits.length * (barH + gapY) + 10;
 
@@ -106,10 +108,10 @@
             var color  = TRAIT_COLORS[t];
             var label  = traitLabels[t] || t;
             bars +=
-                '<text x="' + padX + '" y="' + (y + barH - 4) + '" font-size="11" fill="var(--text-sub)">' + label + '</text>' +
+                '<text x="' + padX + '" y="' + (y + barH - 4) + '" font-size="' + fontSize + '" fill="var(--text-sub)">' + label + '</text>' +
                 '<rect x="' + (padX + labelW) + '" y="' + y + '" width="' + usableW + '" height="' + barH + '" rx="4" fill="rgba(255,255,255,0.06)"/>' +
                 '<rect x="' + (padX + labelW) + '" y="' + y + '" width="' + fillW  + '" height="' + barH + '" rx="4" fill="' + color + '" opacity="0.85"/>' +
-                '<text x="' + (padX + labelW + usableW + 5) + '" y="' + (y + barH - 4) + '" font-size="11" fill="' + color + '" font-weight="bold">' + val + '</text>';
+                '<text x="' + (padX + labelW + usableW + 5) + '" y="' + (y + barH - 4) + '" font-size="' + fontSize + '" fill="' + color + '" font-weight="bold">' + val + '</text>';
         });
 
         return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + svgH + '" style="width:100%;max-width:' + width + 'px;display:block;margin:0 auto;">' + bars + '</svg>';
@@ -449,8 +451,8 @@
         var labels = getTraitLabels(_lang);
         var scores = { O: big5Data.o, C: big5Data.c, E: big5Data.e, A: big5Data.a, N: big5Data.n };
         container.innerHTML =
-            '<div style="font-size:0.72rem;color:var(--text-sub);margin-bottom:6px;font-weight:bold;letter-spacing:0.05em;">' + (_t.card_big5 || 'Big5 성격검사') + '</div>' +
-            buildBarChartSVG(scores, labels, 300);
+            '<div style="font-size:0.65rem;color:var(--text-sub);margin-bottom:4px;font-weight:bold;letter-spacing:0.05em;">' + (_t.card_big5 || 'Big5 성격검사') + '</div>' +
+            buildBarChartSVG(scores, labels, 240, 0.8);
     };
 
     // ── 검사 결과 초기화 ───────────────────────────────────────────
