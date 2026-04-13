@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.328] - 2026-04-13
+
+### 변경
+- feat: Day1 포스팅 카테고리 선택 및 피드 카테고리 필터 추가
+
 ## [1.0.327] - 2026-04-13
 
 ### 변경
