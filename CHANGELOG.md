@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.327] - 2026-04-13
+
+### 변경
+- feat: 명상 타이머를 원형에서 모래시계 애니메이션으로 변경
+
 ## [1.0.326] - 2026-04-13
 
 ### 변경
