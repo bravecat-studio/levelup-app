@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.316] - 2026-04-13
+
+### 변경
+- feat: replace quest stats screenshot with updated version
+
 ## [1.0.315] - 2026-04-13
 
 ### 변경
