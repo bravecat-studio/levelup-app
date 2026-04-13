@@ -5489,10 +5489,6 @@ function openProfileStatsModal(userId) {
     const followBtnHTML = !isMe ? `<button id="profile-modal-follow-btn" class="btn-reels-follow ${isFollowing ? 'following' : ''}" onclick="event.stopPropagation();window.toggleProfileModalFollow('${sanitizeAttr(userId)}')" style="margin-left:6px;">${isFollowing ? (i18n[lang]?.btn_added || '팔로잉') : (i18n[lang]?.btn_add || '팔로우')}</button>` : '';
     const saveBtnHTML = isMe ? `<button class="btn-profile-save" onclick="event.stopPropagation();window.saveProfileCardAsImage('${sanitizeAttr(userId)}')">${i18n[lang]?.profile_save_btn || '저장'}</button>` : '';
 
-    // 좌우명 (본인은 AppState, 타인은 Firestore 데이터)
-    const caption = isMe ? (AppState.ddayCaption || '') : (u.ddayCaption || '');
-    const captionHTML = caption ? `<div style="margin-top:8px; padding:6px 10px; background:rgba(255,204,0,0.06); border:1px solid var(--neon-gold); border-radius:4px; font-size:0.75rem; color:var(--text-sub); font-style:italic;">${sanitizeText(caption)}</div>` : '';
-
     const profileHTML = `
         <div style="display:flex; align-items:center; gap:12px;">
             ${u.photoURL
@@ -5511,7 +5507,6 @@ function openProfileStatsModal(userId) {
                     <span class="follow-stat-item"><strong>${(window.SocialModule?.formatFollowCount||String)(followingCount)}</strong> <span>${i18n[lang]?.prof_following || '팔로잉'}</span></span>
                     <span class="follow-stat-item"><strong>${(window.SocialModule?.formatFollowCount||String)(followerCount)}</strong> <span>${i18n[lang]?.prof_followers || '팔로워'}</span></span>
                 </div>
-                ${captionHTML}
             </div>
         </div>`;
 
@@ -5525,6 +5520,19 @@ function openProfileStatsModal(userId) {
             ? AppState.user.big5
             : (u.big5Str ? (() => { try { return JSON.parse(u.big5Str); } catch(e) { return null; } })() : null);
         window.renderBig5ForProfile(big5Raw, lang);
+    }
+
+    // 좌우명 (프로필·Big5 아래 별도 렌더링)
+    const caption = isMe ? (AppState.ddayCaption || '') : (u.ddayCaption || '');
+    const mottoEl = document.getElementById('profile-motto-section');
+    if (mottoEl) {
+        if (caption) {
+            mottoEl.style.display = 'block';
+            mottoEl.innerHTML = `<div style="padding:6px 10px; background:rgba(255,204,0,0.06); border:1px solid var(--neon-gold); border-radius:4px; font-size:0.75rem; color:var(--text-sub); font-style:italic;">${sanitizeText(caption)}</div>`;
+        } else {
+            mottoEl.style.display = 'none';
+            mottoEl.innerHTML = '';
+        }
     }
 
     const m = document.getElementById('profileStatsModal');
