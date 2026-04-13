@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.330] - 2026-04-13
+
+### 변경
+- Move follow button below nickname, to left of planner button
+
 ## [1.0.329] - 2026-04-13
 
 ### 변경
