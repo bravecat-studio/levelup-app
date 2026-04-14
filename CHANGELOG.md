@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.338] - 2026-04-14
+
+### 변경
+- fix: 로그아웃/계정삭제 시 테마 설정 유지되도록 수정
+
 ## [1.0.337] - 2026-04-14
 
 ### 변경
