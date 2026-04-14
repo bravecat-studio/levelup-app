@@ -7085,8 +7085,47 @@ window.sharePlannerAsImage = async function() {
     m.classList.remove('d-flex');
 };
 
+// 클립보드 쓰기 유틸 (Android 10+ WebView 포커스 제한 우회)
+// 우선순위: NativeClipboard 플러그인 → navigator.clipboard → execCommand 폴백
+async function _writeToClipboard(text) {
+    const cap = window.Capacitor;
+    // 1) 네이티브 플러그인 (ClipboardPlugin.java 등록 필요)
+    if (cap && cap.isNativePlatform && cap.isNativePlatform() &&
+            cap.Plugins && cap.Plugins.NativeClipboard) {
+        try {
+            await cap.Plugins.NativeClipboard.write({ text });
+            return true;
+        } catch (_) { /* fall through */ }
+    }
+    // 2) 모던 Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (_) { /* fall through */ }
+    }
+    // 3) 레거시 execCommand 폴백
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.top = '0';
+        ta.style.left = '0';
+        ta.style.opacity = '0';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+    } catch (_) {
+        return false;
+    }
+}
+
 // 플래너 요약 텍스트를 클립보드에 복사
-window.sharePlannerLink = function() {
+window.sharePlannerLink = async function() {
     const lang = AppState.currentLang;
     const dateStr = diarySelectedDate;
     const entry = getDiaryEntry(dateStr);
@@ -7094,6 +7133,11 @@ window.sharePlannerLink = function() {
     const tasks = (entry && entry.tasks) ? entry.tasks.filter(t => t.text) : plannerTasks.filter(t => t.text);
     const blocks = (entry && entry.blocks) ? Object.entries(entry.blocks).sort(([a],[b]) => a.localeCompare(b)) : [];
     const caption = (entry && entry.caption) ? entry.caption : (document.getElementById('planner-caption')?.value || '');
+
+    // 모달 먼저 닫기 (포커스 복귀 후 클립보드 접근)
+    const m = document.getElementById('shareModal');
+    m.classList.add('d-none');
+    m.classList.remove('d-flex');
 
     let text = `📋 LEVEL UP: REBOOT - ${dateStr}\n`;
     text += `👤 ${AppState.user.name} | Lv.${AppState.user.level}\n\n`;
@@ -7120,25 +7164,11 @@ window.sharePlannerLink = function() {
         text += `💬 ${caption}\n`;
     }
 
-    navigator.clipboard.writeText(text).then(() => {
-        const msgs = { ko: '클립보드에 복사되었습니다.', en: 'Copied to clipboard.', ja: 'クリップボードにコピーしました。' };
-        alert(msgs[lang] || msgs.ko);
-    }).catch(() => {
-        // 폴백: textarea 이용
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        const msgs = { ko: '클립보드에 복사되었습니다.', en: 'Copied to clipboard.', ja: 'クリップボードにコピーしました。' };
-        alert(msgs[lang] || msgs.ko);
-    });
-
-    // 모달 닫기
-    const m = document.getElementById('shareModal');
-    m.classList.add('d-none');
-    m.classList.remove('d-flex');
+    const ok = await _writeToClipboard(text);
+    const msgs = ok
+        ? { ko: '클립보드에 복사되었습니다.', en: 'Copied to clipboard.', ja: 'クリップボードにコピーしました。' }
+        : { ko: '복사에 실패했습니다.', en: 'Copy failed.', ja: 'コピーに失敗しました。' };
+    alert(msgs[lang] || msgs.ko);
 };
 
 // --- ★ 법적 페이지 (독립 HTML 호출) ★ ---
