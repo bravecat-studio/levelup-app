@@ -138,9 +138,29 @@ export function initLogPanel() {
         document.getElementById("log-entries").innerHTML = "";
         _updateBadge();
     };
-    window.copyLogs = () => {
+    window.copyLogs = async () => {
         const text = _buildExportText();
-        navigator.clipboard.writeText(text).then(() => tlog("Log", "클립보드에 복사됨"));
+        let ok = false;
+        if (typeof _writeToClipboard === 'function') {
+            ok = await _writeToClipboard(text);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            try { await navigator.clipboard.writeText(text); ok = true; } catch (_) {}
+        }
+        if (!ok) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                ta.setAttribute('readonly', '');
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+            } catch (_) {}
+        }
+        tlog("Log", ok ? "클립보드에 복사됨" : "복사 실패");
     };
     window.downloadLogs = () => {
         const text = _buildExportText();

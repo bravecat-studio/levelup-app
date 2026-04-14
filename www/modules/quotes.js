@@ -69,7 +69,7 @@
         }
     }
 
-    function copyQuoteText() {
+    async function copyQuoteText() {
         const quoteEl = document.getElementById('daily-quote');
         const authorEl = document.getElementById('daily-quote-author');
         if (!quoteEl || !authorEl) return;
@@ -80,19 +80,38 @@
 
         const text = `${quoteText}\n${authorText}`;
         const lang = AppState.currentLang;
-        const msgs = { ko: '명언이 클립보드에 복사되었습니다.', en: 'Quote copied to clipboard.', ja: '名言がクリップボードにコピーされました。' };
 
-        navigator.clipboard.writeText(text).then(() => {
-            alert(msgs[lang] || msgs.ko);
-        }).catch(() => {
+        // _writeToClipboard: app.js에 정의된 공통 클립보드 유틸 사용
+        const ok = (typeof _writeToClipboard === 'function')
+            ? await _writeToClipboard(text)
+            : await _clipboardFallback(text);
+
+        const msgs = ok
+            ? { ko: '명언이 클립보드에 복사되었습니다.', en: 'Quote copied to clipboard.', ja: '名言がクリップボードにコピーされました。' }
+            : { ko: '복사에 실패했습니다.', en: 'Copy failed.', ja: 'コピーに失敗しました。' };
+        alert(msgs[lang] || msgs.ko);
+    }
+
+    // app.js의 _writeToClipboard 가 로드되기 전 대비 로컬 폴백
+    async function _clipboardFallback(text) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try { await navigator.clipboard.writeText(text); return true; } catch (_) {}
+        }
+        try {
             const ta = document.createElement('textarea');
             ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '0';
+            ta.style.left = '0';
+            ta.style.opacity = '0';
+            ta.setAttribute('readonly', '');
             document.body.appendChild(ta);
+            ta.focus();
             ta.select();
-            document.execCommand('copy');
+            const ok = document.execCommand('copy');
             document.body.removeChild(ta);
-            alert(msgs[lang] || msgs.ko);
-        });
+            return ok;
+        } catch (_) { return false; }
     }
 
     // Public API
