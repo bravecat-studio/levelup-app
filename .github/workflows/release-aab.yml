@@ -355,6 +355,8 @@ jobs:
             sed -i '/<manifest/a\    <uses-permission android:name="android.permission.CAMERA" />' "$MANIFEST"
           ! grep -q "ACTION_SHOW_PERMISSIONS_RATIONALE" "$MANIFEST" && \
             sed -i '/<\/activity>/i\            <intent-filter>\n                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />\n            </intent-filter>' "$MANIFEST"
+          ! grep -q "com.google.android.gms.ads.APPLICATION_ID" "$MANIFEST" && \
+            sed -i '/<\/application>/i\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-6654057059754695~3529972498" />' "$MANIFEST"
           echo "✅ 권한 주입 완료"
           grep "uses-permission" "$MANIFEST"
 
