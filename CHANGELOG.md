@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.335] - 2026-04-14
+
+### 변경
+- feat: 라이트 모드 테마 색상 개선 및 연간 퀘스트 통계 연도 가시성 수정
+
 ## [1.0.334] - 2026-04-14
 
 ### 변경
