@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.352] - 2026-04-14
+
+### 변경
+- ci: 키 비밀번호 검증 실패 시 스토어=키 동일 여부 자동 힌트 추가
+
 ## [1.0.351] - 2026-04-14
 
 ### 변경
