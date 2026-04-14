@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.344] - 2026-04-14
+
+### 변경
+- feat: 랜딩페이지 APP PREVIEW 마퀴 섹션 제거
+
 ## [1.0.343] - 2026-04-14
 
 ### 변경
