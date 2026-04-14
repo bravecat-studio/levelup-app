@@ -312,6 +312,35 @@ jobs:
         env:
           CI: true
 
+      # 13-1. ProGuard 규칙 주입 (R8 활성화 시 클래스 제거 방지)
+      - name: ProGuard 규칙 주입
+        run: |
+          cp proguard-rules.pro android/app/proguard-rules.pro
+          BUILD_GRADLE="android/app/build.gradle"
+          # Capacitor 기본 build.gradle은 proguard-rules.pro를 이미 참조하지만,
+          # 누락된 경우 release 블록에 proguardFiles 줄을 추가
+          if ! grep -q "proguard-rules.pro" "$BUILD_GRADLE"; then
+            python3 - << 'PYEOF'
+          import re
+          path = 'android/app/build.gradle'
+          with open(path) as f:
+              content = f.read()
+          # release 블록 안에 proguardFiles 삽입 (minifyEnabled 줄 바로 다음)
+          patched = re.sub(
+              r'(release\s*\{[^}]*?minifyEnabled\s+\w+)',
+              r'\1\n                proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"',
+              content, count=1, flags=re.DOTALL
+          )
+          with open(path, 'w') as f:
+              f.write(patched)
+          print('proguardFiles 설정 추가됨')
+          PYEOF
+          else
+            echo "ℹ️ proguardFiles 설정이 이미 존재합니다"
+          fi
+          echo "✅ ProGuard 규칙 주입 완료: android/app/proguard-rules.pro"
+          grep -n "proguard" android/app/build.gradle || true
+
       # 14. Android 권한 자동 주입
       - name: Android 권한 자동 주입
         run: |
