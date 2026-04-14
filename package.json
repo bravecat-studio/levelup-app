@@ -7,7 +7,9 @@
   "scripts": {
     "sync": "cap sync android",
     "add-android": "cap add android",
+    "setup:android": "bash scripts/setup-android.sh",
     "build-apk": "cd android && chmod +x ./gradlew && ./gradlew assembleDebug",
+    "build-bundle": "cd android && chmod +x ./gradlew && ./gradlew bundleRelease",
     "generate-config": "bash scripts/generate-firebase-config.sh",
     "version-bump": "bash scripts/version-bump.sh",
     "version-sync": "bash scripts/version-bump.sh",

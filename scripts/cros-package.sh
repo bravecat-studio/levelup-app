@@ -467,7 +467,7 @@ ${APP_NAME}은 일상의 자기계발 활동을 게임화(Gamification)하여
   - Node.js 20.x
   - npm 10.x
   - Java 17 (Android 빌드)
-  - Android SDK (API 34)
+  - Android SDK (API 35)
   - Firebase CLI
 
 4-3. 빌드 방법
