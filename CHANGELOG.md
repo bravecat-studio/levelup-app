@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.345] - 2026-04-14
+
+### 변경
+- feat: 로그인 화면 라이트 테마 완전 구현
+
 ## [1.0.344] - 2026-04-14
 
 ### 변경
