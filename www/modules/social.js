@@ -163,8 +163,8 @@
                             ${titleBadgeHTML}
                             <div class="name-container">
                                 <div style="font-size: 0.9rem; font-weight: bold;">${sanitizeText(u.name)}</div>
-                                ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : `<button onclick="document.getElementById('btn-edit-insta').click()" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${instaSvg}</button>`}
-                                ${u.linkedinId ? `<button onclick="window.openLinkedInProfile('${sanitizeLinkedInId(u.linkedinId)}')" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${linkedinSvg}</button>` : `<button onclick="document.getElementById('btn-edit-linkedin').click()" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${linkedinSvg}</button>`}
+                                ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''}
+                                ${u.linkedinId ? `<button onclick="window.openLinkedInProfile('${sanitizeLinkedInId(u.linkedinId)}')" style="background:none; border:none; padding:0; margin-left:5px; cursor:pointer; display:inline-flex;">${linkedinSvg}</button>` : ''}
                             </div>
                             <div class="profile-follow-stats">
                                 <span class="follow-stat-item" onclick="window.goToSocialTab('friends')">
