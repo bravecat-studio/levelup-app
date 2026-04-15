@@ -333,6 +333,7 @@ const i18n = {
         dday_date_required: "날짜를 선택하세요.",
         dday_delete_confirm: "이 D-Day를 삭제하시겠습니까?",
         birthday_required: "생년월일을 입력하세요.",
+        birthday_future_error: "생년월일은 오늘 날짜보다 이전이어야 합니다.",
         privacy_consent_required: "개인정보 수집 및 이용에 동의해야 저장할 수 있습니다.",
         life_status_reset_confirm: "Life Status 정보를 초기화하시겠습니까?\n개인정보 수집 동의도 함께 철회됩니다.",
         ls_consent_withdraw_confirm: "Life Status 개인정보 수집 동의를 철회하시겠습니까?\n저장된 Life Status 데이터가 삭제됩니다.",
@@ -521,6 +522,12 @@ const i18n = {
         ls_btn_reset: "초기화",
         ls_btn_cancel: "취소",
         ls_btn_save: "저장",
+        ls_year_suffix: "년",
+        ls_month_suffix: "월",
+        ls_day_suffix: "일",
+        ls_birthday_year_placeholder: "연도",
+        ls_birthday_month_placeholder: "월",
+        ls_birthday_day_placeholder: "일",
 
         // D-Day modal
         dday_modal_title_label: "제목",
@@ -977,6 +984,7 @@ const i18n = {
         dday_date_required: "Please select a date.",
         dday_delete_confirm: "Delete this D-Day?",
         birthday_required: "Please enter your date of birth.",
+        birthday_future_error: "Date of birth must be before today.",
         privacy_consent_required: "You must agree to the collection and use of personal information to save.",
         life_status_reset_confirm: "Reset Life Status information?\nYour consent for personal data collection will also be withdrawn.",
         ls_consent_withdraw_confirm: "Withdraw consent for Life Status personal data collection?\nYour saved Life Status data will be deleted.",
@@ -1165,6 +1173,12 @@ const i18n = {
         ls_btn_reset: "Reset",
         ls_btn_cancel: "Cancel",
         ls_btn_save: "Save",
+        ls_year_suffix: "",
+        ls_month_suffix: "",
+        ls_day_suffix: "",
+        ls_birthday_year_placeholder: "Year",
+        ls_birthday_month_placeholder: "Month",
+        ls_birthday_day_placeholder: "Day",
 
         // D-Day modal
         dday_modal_title_label: "Title",
@@ -1621,6 +1635,7 @@ const i18n = {
         dday_date_required: "日付を選択してください。",
         dday_delete_confirm: "このD-Dayを削除しますか？",
         birthday_required: "生年月日を入力してください。",
+        birthday_future_error: "生年月日は今日より前の日付にしてください。",
         privacy_consent_required: "個人情報の収集および利用に同意しないと保存できません。",
         life_status_reset_confirm: "Life Statusの情報をリセットしますか？\n個人情報の収集同意も一緒に撤回されます。",
         ls_consent_withdraw_confirm: "Life Statusの個人情報収集の同意を撤回しますか？\n保存されたLife Statusデータが削除されます。",
@@ -1809,6 +1824,12 @@ const i18n = {
         ls_btn_reset: "リセット",
         ls_btn_cancel: "キャンセル",
         ls_btn_save: "保存",
+        ls_year_suffix: "年",
+        ls_month_suffix: "月",
+        ls_day_suffix: "日",
+        ls_birthday_year_placeholder: "年",
+        ls_birthday_month_placeholder: "月",
+        ls_birthday_day_placeholder: "日",
 
         // D-Dayモーダル
         dday_modal_title_label: "タイトル",
