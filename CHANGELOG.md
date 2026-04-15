@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.370] - 2026-04-15
+
+### 변경
+- feat: 성격 테스트 없을 때 스탯 레이더 프레임 꽉 채우도록 반응형 크기 조정
+
 ## [1.0.369] - 2026-04-15
 
 ### 변경
