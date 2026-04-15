@@ -5597,12 +5597,16 @@ function openProfileStatsModal(userId) {
             : (u.big5Str ? (() => { try { return JSON.parse(u.big5Str); } catch(e) { return null; } })() : null);
         window.renderBig5ForProfile(big5Raw, lang);
     }
-    // Big5 없으면 레이더 가운데 정렬, 있으면 좌측 정렬
+    // Big5 없으면 레이더 가운데 정렬 + 프레임 꽉 채우기, 있으면 좌측 정렬 + 고정 크기
     const tier2El = document.getElementById('profile-tier2');
     const big5El = document.getElementById('profile-big5-section');
+    const radarContainer = tier2El?.querySelector('.radar-chart-container');
     if (tier2El && big5El) {
         const big5Visible = big5El.style.display !== 'none';
         tier2El.style.justifyContent = big5Visible ? 'flex-start' : 'center';
+        if (radarContainer) {
+            radarContainer.style.width = big5Visible ? '150px' : '100%';
+        }
     }
 
     // 좌우명 (프로필·Big5 아래 별도 렌더링)
