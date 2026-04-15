@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.376] - 2026-04-15
+
+### 변경
+- Day1 포스팅 시 CHA 보상 메시지 표시
+
 ## [1.0.375] - 2026-04-15
 
 ### 변경
