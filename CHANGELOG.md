@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.377] - 2026-04-15
+
+### 변경
+- 이메일 사용자 홈 화면 편집에서 걸음수 카드 비활성화
+
 ## [1.0.376] - 2026-04-15
 
 ### 변경
