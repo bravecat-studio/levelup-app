@@ -107,13 +107,52 @@
         overlay.className = 'report-modal-overlay';
         overlay.id = 'life-status-modal-overlay';
 
-        const todayStr = new Date().toISOString().split('T')[0];
         const savedBirthday = config.birthday || '';
         const savedAge = config.expectAge || 80;
         const savedUnit = config.remainUnit || 'hours';
 
         const _t = i18n[AppState.currentLang] || {};
         const ageSuffix = _t.ls_unit_years_suffix ?? '세';
+
+        // 저장된 생년월일을 연/월/일로 분리
+        let savedYear = '', savedMonth = '', savedDay = '';
+        if (savedBirthday) {
+            const parts = savedBirthday.split('-');
+            if (parts.length === 3) {
+                savedYear = parts[0];
+                savedMonth = String(parseInt(parts[1]));
+                savedDay = String(parseInt(parts[2]));
+            }
+        }
+
+        const currentYear = new Date().getFullYear();
+        const yearSuffix = _t.ls_year_suffix ?? '년';
+        const monthSuffix = _t.ls_month_suffix ?? '월';
+        const daySuffix = _t.ls_day_suffix ?? '일';
+
+        function getDaysInMonth(year, month) {
+            if (!year || !month) return 31;
+            return new Date(parseInt(year), parseInt(month), 0).getDate();
+        }
+
+        // 연도 선택 옵션 (현재 연도 → 1920)
+        const yearOptArr = [`<option value="">${_t.ls_birthday_year_placeholder || '연도'}</option>`];
+        for (let y = currentYear; y >= 1920; y--) {
+            yearOptArr.push(`<option value="${y}" ${y.toString() === savedYear ? 'selected' : ''}>${y}${yearSuffix}</option>`);
+        }
+
+        // 월 선택 옵션 (1 ~ 12)
+        const monthOptArr = [`<option value="">${_t.ls_birthday_month_placeholder || '월'}</option>`];
+        for (let m = 1; m <= 12; m++) {
+            monthOptArr.push(`<option value="${m}" ${m.toString() === savedMonth ? 'selected' : ''}>${m}${monthSuffix}</option>`);
+        }
+
+        // 일 선택 옵션 (저장된 연/월 기준으로 초기화)
+        const initMaxDays = getDaysInMonth(savedYear, savedMonth);
+        const dayOptArr = [`<option value="">${_t.ls_birthday_day_placeholder || '일'}</option>`];
+        for (let d = 1; d <= initMaxDays; d++) {
+            dayOptArr.push(`<option value="${d}" ${d.toString() === savedDay ? 'selected' : ''}>${d}${daySuffix}</option>`);
+        }
         const ageOptions = [60,65,70,75,80,85,90,95,100].map(a =>
             `<option value="${a}" ${a === savedAge ? 'selected' : ''}>${a}${ageSuffix}</option>`
         ).join('');
@@ -129,8 +168,17 @@
         <div style="font-size:1rem; font-weight:bold; color:var(--neon-blue); margin-bottom:14px;">${_t.ls_settings_title || 'Life Status 설정'}</div>
         <div style="margin-bottom:12px;">
             <label style="font-size:0.75rem; color:var(--text-sub); display:block; margin-bottom:4px;">${_t.ls_birthday_label || '생년월일'}</label>
-            <input id="ls-input-birthday" type="date" value="${savedBirthday}" max="${todayStr}"
-                style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid var(--border-color); background:var(--panel-bg); color:var(--text-main); font-size:0.85rem; box-sizing:border-box;">
+            <div style="display:flex; gap:6px;">
+                <select id="ls-input-birth-year" style="flex:5; padding:8px 6px; border-radius:6px; border:1px solid var(--border-color); background:var(--panel-bg); color:var(--text-main); font-size:0.85rem; box-sizing:border-box; cursor:pointer;">
+                    ${yearOptArr.join('')}
+                </select>
+                <select id="ls-input-birth-month" style="flex:3; padding:8px 6px; border-radius:6px; border:1px solid var(--border-color); background:var(--panel-bg); color:var(--text-main); font-size:0.85rem; box-sizing:border-box; cursor:pointer;">
+                    ${monthOptArr.join('')}
+                </select>
+                <select id="ls-input-birth-day" style="flex:3; padding:8px 6px; border-radius:6px; border:1px solid var(--border-color); background:var(--panel-bg); color:var(--text-main); font-size:0.85rem; box-sizing:border-box; cursor:pointer;">
+                    ${dayOptArr.join('')}
+                </select>
+            </div>
         </div>
         <div style="margin-bottom:12px;">
             <label style="font-size:0.75rem; color:var(--text-sub); display:block; margin-bottom:4px;">${_t.ls_expect_age_label || '기대 나이'}</label>
@@ -164,6 +212,31 @@
         document.body.appendChild(overlay);
         requestAnimationFrame(() => overlay.classList.add('active'));
 
+        // 연도/월 변경 시 일(day) 옵션 동적 업데이트
+        const yearSelect = overlay.querySelector('#ls-input-birth-year');
+        const monthSelect = overlay.querySelector('#ls-input-birth-month');
+        const daySelect = overlay.querySelector('#ls-input-birth-day');
+
+        function updateDayOptions() {
+            const year = yearSelect ? yearSelect.value : '';
+            const month = monthSelect ? monthSelect.value : '';
+            const prevDay = daySelect ? daySelect.value : '';
+            const maxDays = getDaysInMonth(year, month);
+            if (daySelect) {
+                daySelect.innerHTML = `<option value="">${_t.ls_birthday_day_placeholder || '일'}</option>`;
+                for (let d = 1; d <= maxDays; d++) {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = `${d}${daySuffix}`;
+                    if (d.toString() === prevDay) opt.selected = true;
+                    daySelect.appendChild(opt);
+                }
+            }
+        }
+
+        if (yearSelect) yearSelect.addEventListener('change', updateDayOptions);
+        if (monthSelect) monthSelect.addEventListener('change', updateDayOptions);
+
         // 체크박스 토글로 동의/철회 직접 처리
         const consentCheckbox = overlay.querySelector('#ls-consent-checkbox');
         if (consentCheckbox) {
@@ -194,11 +267,25 @@
     }
 
     function saveLifeStatusFromModal() {
-        const birthday = document.getElementById('ls-input-birthday')?.value || '';
+        const year = document.getElementById('ls-input-birth-year')?.value || '';
+        const month = document.getElementById('ls-input-birth-month')?.value || '';
+        const day = document.getElementById('ls-input-birth-day')?.value || '';
         const expectAge = parseInt(document.getElementById('ls-input-expect-age')?.value) || 80;
         const remainUnit = document.getElementById('ls-input-remain-unit')?.value || 'hours';
 
-        if (!birthday) { alert(i18n[AppState.currentLang]?.birthday_required || '생년월일을 입력하세요.'); return; }
+        if (!year || !month || !day) {
+            alert(i18n[AppState.currentLang]?.birthday_required || '생년월일을 입력하세요.');
+            return;
+        }
+
+        const birthday = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        // 미래 날짜 검증
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (birthday > todayStr) {
+            alert(i18n[AppState.currentLang]?.birthday_future_error || '생년월일은 오늘 날짜보다 이전이어야 합니다.');
+            return;
+        }
 
         // 개인정보 동의 여부 확인
         const hasConsent = localStorage.getItem('life_status_privacy_consent');
