@@ -544,6 +544,7 @@ async function postToReels() {
         // 포스팅 보상: +20P & CHA +0.5 (24시간 내 중복 지급 방지)
         const lastRewardTs = parseInt(localStorage.getItem('reels_reward_ts') || '0', 10);
         const alreadyRewarded = lastRewardTs && (Date.now() - lastRewardTs) < 24 * 60 * 60 * 1000;
+        let rewardGiven = false;
         if (!alreadyRewarded) {
             AppState.user.points += 20;
             AppState.user.pendingStats.cha = (AppState.user.pendingStats.cha || 0) + 0.5;
@@ -551,11 +552,12 @@ async function postToReels() {
             window.updatePointUI();
             window.drawRadarChart();
             window.AppLogger && window.AppLogger.info('[Reels] 포스팅 보상 지급: +20P, CHA +0.5');
+            rewardGiven = true;
         }
 
         await window.saveUserData();
         resetLocationUI();
-        alert(i18n[lang].reels_posted);
+        alert(rewardGiven ? (i18n[lang].reels_posted_reward || i18n[lang].reels_posted) : i18n[lang].reels_posted);
         renderReelsFeed();
     } catch(e) {
         window.AppLogger && window.AppLogger.error('[Reels] 포스팅 오류: ' + (e.message || e));
