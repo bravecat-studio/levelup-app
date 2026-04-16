@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.382] - 2026-04-16
+
+### 변경
+- feat: 던전 참여 헌터 목록에 근접 보너스 배지 표시 및 정렬 우선순위 적용
+
 ## [1.0.381] - 2026-04-16
 
 ### 변경
