@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.391] - 2026-04-16
+
+### 변경
+- fix: 미래 순자산 저장/보상/번역 버그 수정
+
 ## [1.0.390] - 2026-04-16
 
 ### 변경
