@@ -414,6 +414,7 @@ h2 { font-size: 1rem; color: var(--neon-blue); margin-top: 0; margin-bottom: 12p
 .raid-contribution-badge { font-size: 0.65rem; font-weight: bold; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
 .raid-contribution-badge.contributed { color: var(--neon-blue); border: 1px solid var(--neon-blue); background: rgba(0, 217, 255, 0.1); }
 .raid-contribution-badge.pending { color: var(--text-sub); border: 1px solid var(--border-color); }
+.melee-bonus-badge { font-size: 0.6rem; font-weight: bold; padding: 1px 5px; border-radius: 4px; margin-left: 4px; white-space: nowrap; color: var(--neon-gold); border: 1px solid var(--neon-gold); background: rgba(255, 204, 0, 0.12); vertical-align: middle; }
 
 .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
 .setting-row:last-child { border-bottom: none; }

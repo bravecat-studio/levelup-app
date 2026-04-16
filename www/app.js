@@ -4496,6 +4496,7 @@ window.syncGlobalDungeon = async () => {
                                 instaId: data.instaId || '',
                                 linkedinId: data.linkedinId || '',
                                 hasContributed: !!dng.hasContributed,
+                                hasProximityBonus: !!dng.hasProximityBonus,
                                 statValue: Number(stats[AppState.dungeon.targetStat]) || 0,
                                 isMe
                             });
@@ -4523,7 +4524,7 @@ window.syncGlobalDungeon = async () => {
         AppState.dungeon.bossDamageDealt = totalDamage;
         AppState.dungeon.globalParticipants = realParticipants;
         AppState.dungeon.globalProgress = Math.min(100, (totalDamage / scaledHP) * 100);
-        AppState.dungeon.raidParticipants = participants.sort((a, b) => (b.hasContributed - a.hasContributed) || (b.statValue - a.statValue));
+        AppState.dungeon.raidParticipants = participants.sort((a, b) => (b.hasProximityBonus - a.hasProximityBonus) || (b.hasContributed - a.hasContributed) || (b.statValue - a.statValue));
 
         // HP 감소 시 애니메이션 트리거
         if (totalDamage > prevDmg && document.getElementById('dungeon').classList.contains('active')) {
@@ -4585,6 +4586,7 @@ function updateDungeonStatus() {
         AppState.dungeon.isJoined = false;
         AppState.dungeon.hasContributed = false;
         AppState.dungeon.isCleared = false;
+        AppState.dungeon.hasProximityBonus = false;
 
         AppState.dungeon.globalParticipants = 0;
         AppState.dungeon.globalProgress = 0;
@@ -4611,8 +4613,8 @@ function renderRaidParticipants(participants) {
                 ${u.photoURL ? `<img src="${sanitizeURL(u.photoURL)}" referrerpolicy="no-referrer" onerror="this.onerror=null;window._retryFirebaseImg(this,'${sanitizeAttr(u.photoURL)}',null,true)" style="width:28px; height:28px; border-radius:50%; object-fit:cover; margin-right:8px; border:1px solid var(--neon-blue);"><div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue); display:none;"></div>` : `<div style="width:28px; height:28px; border-radius:50%; background:#444; margin-right:8px; border:1px solid var(--neon-blue);"></div>`}
                 <div>
                     ${titleBadgeHTML}
-                    <div style="font-size:0.8rem; display:flex; align-items:center;">
-                        ${sanitizeText(u.name)} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''} ${u.linkedinId ? `<button onclick="window.openLinkedInProfile('${sanitizeLinkedInId(u.linkedinId)}')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${linkedinSvg}</button>` : ''}
+                    <div style="font-size:0.8rem; display:flex; align-items:center; flex-wrap:wrap; gap:2px;">
+                        ${sanitizeText(u.name)} ${u.hasProximityBonus ? `<span class="melee-bonus-badge">⚔️ 근접 보너스</span>` : ''} ${u.instaId ? `<button onclick="window.open('https://instagram.com/${sanitizeInstaId(u.instaId)}', '_blank')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${instaSvg}</button>` : ''} ${u.linkedinId ? `<button onclick="window.openLinkedInProfile('${sanitizeLinkedInId(u.linkedinId)}')" style="background:none; border:none; padding:0; margin-left:4px; cursor:pointer; display:inline-flex;">${linkedinSvg}</button>` : ''}
                     </div>
                 </div>
             </div>
@@ -4791,6 +4793,7 @@ window.joinDungeon = async () => {
                 const dist = getDistanceKm(position.coords.latitude, position.coords.longitude, station.lat, station.lng);
                 if (dist <= DUNGEON_RADIUS_KM) {
                     proximityBonus = true;
+                    AppState.dungeon.hasProximityBonus = true;
                     AppState.user.points += 50;
                     if (window.AppLogger) AppLogger.info(`[Dungeon] 근접 보너스 지급 - 거리: ${dist.toFixed(2)}km`);
                 }
