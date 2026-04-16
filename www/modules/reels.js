@@ -42,7 +42,7 @@ let _pendingCopyPost = null;
 let _reelsCachedPosts = []; // 렌더링된 포스트 캐시 (복사 기능용)
 let _reelsSearchQuery = ''; // Day1 검색어
 let _reelsSortMode = 'latest'; // 'latest' | 'friends' | 'likes'
-let _reelsCategoryFilter = 'all'; // 'all' | '러닝' | '헬스' | '독서' | '영화' | '기타'
+let _reelsCategoryFilter = 'all'; // 'all' | '러닝' | '헬스' | '독서' | '영화' | '기타' | '감사인사'
 
 // Day1 검색 필터 (@닉네임 → 닉네임 검색, 그 외 → 캡션 검색)
 function filterReelsFeed(query) {
