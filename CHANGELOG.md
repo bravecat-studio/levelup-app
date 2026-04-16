@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.392] - 2026-04-16
+
+### 변경
+- feat: 가이드 모달 환율 미적용 경고 문구 추가 (i18n)
+
 ## [1.0.391] - 2026-04-16
 
 ### 변경
