@@ -338,7 +338,10 @@
 
                 <div class="system-card status-reorderable" data-card-id="stat-radar" style="margin-bottom: 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
-                        <h2 data-i18n="radar_title" style="margin:0;">STAT RADAR</h2>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">📊</span>
+                            <h2 data-i18n="radar_title" style="margin:0;">STAT RADAR</h2>
+                        </div>
                         <button class="btn-info-sm" id="btn-status-info">ℹ️ <span data-i18n="btn_status_info">가이드</span></button>
                     </div>
 
@@ -388,7 +391,10 @@
                 <!-- 명상 타이머 -->
                 <div class="system-card status-reorderable" data-card-id="meditation" style="margin-top:10px; margin-bottom:0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <h2 style="margin:0; color:#00e5a0;" data-i18n="med_title">명상</h2>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">🧘</span>
+                            <h2 style="margin:0; color:#00e5a0;" data-i18n="med_title">명상</h2>
+                        </div>
                         <div style="display:flex; align-items:center; gap:6px;">
                             <span id="med-session-count" style="font-size:0.7rem; color:var(--text-sub);">0</span>
                             <button class="btn-info-sm" id="btn-med-sound" onclick="window.toggleMedSound()" style="font-size:0.7rem;">🔔</button>
@@ -512,7 +518,10 @@
                 <!-- 뽀모도로 타이머 -->
                 <div class="system-card status-reorderable" data-card-id="pomodoro" style="margin-top:10px; margin-bottom:0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <h2 style="margin:0; color:var(--neon-red);" data-i18n="pomo_title">POMODORO</h2>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">🍅</span>
+                            <h2 style="margin:0; color:var(--neon-red);" data-i18n="pomo_title">POMODORO</h2>
+                        </div>
                         <div style="display:flex; align-items:center; gap:6px;">
                             <span id="pomo-session-count" style="font-size:0.7rem; color:var(--text-sub);">0/4</span>
                             <button class="btn-info-sm" id="btn-pomo-settings" style="font-size:0.7rem;">⚙️</button>
@@ -549,7 +558,10 @@
                 <!-- Life Status Card -->
                 <div class="system-card status-reorderable life-status-card" data-card-id="life-status" style="margin-top: 10px; margin-bottom: 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                        <h2 style="margin:0; color:var(--neon-blue);">LIFE STATUS</h2>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">📅</span>
+                            <h2 style="margin:0; color:var(--neon-blue);">LIFE STATUS</h2>
+                        </div>
                         <div style="display:flex; gap:6px;">
                             <button class="btn-info-sm" id="btn-life-status-settings" style="font-size:0.75rem;" data-i18n="settings_btn">⚙️ 설정</button>
                         </div>
@@ -560,7 +572,10 @@
                 <!-- Future Net Worth Card -->
                 <div class="system-card status-reorderable future-networth-card" data-card-id="future-networth" style="margin-top: 10px; margin-bottom: 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                        <h2 style="margin:0; color:var(--neon-blue);" data-i18n="fnw_card_title">미래 순자산</h2>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">💰</span>
+                            <h2 style="margin:0; color:var(--neon-blue);" data-i18n="fnw_card_title">미래 순자산</h2>
+                        </div>
                         <div style="display:flex; gap:6px;">
                             <button class="btn-info-sm" id="btn-future-networth-guide" style="font-size:0.75rem;" data-i18n="fnw_btn_guide">? 가이드</button>
                             <button class="btn-info-sm" id="btn-future-networth-settings" style="font-size:0.75rem;" data-i18n="fnw_btn_settings">⚙️ 설정</button>
@@ -572,7 +587,10 @@
                 <!-- BIG FIVE Card -->
                 <div class="system-card status-reorderable big5-card" data-card-id="big5" style="margin-top: 10px; margin-bottom: 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                        <h2 style="margin:0; color:var(--neon-blue);" data-i18n="card_big5">Big5 성격검사</h2>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">🧠</span>
+                            <h2 style="margin:0; color:var(--neon-blue);" data-i18n="card_big5">Big5 성격검사</h2>
+                        </div>
                         <div style="display:flex; gap:6px;">
                             <button class="btn-info-sm" id="btn-big5-guide" style="font-size:0.75rem;" data-i18n="big5_btn_guide">?</button>
                             <button class="btn-info-sm" id="btn-big5-reset" style="font-size:0.75rem;" data-i18n="big5_btn_reset">초기화</button>
@@ -586,6 +604,7 @@
                 <div class="system-card status-reorderable dday-card" data-card-id="dday" style="margin-top: 10px; margin-bottom: 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
                         <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-size:1.2rem;">⏰</span>
                             <h2 style="margin:0;">D-DAY</h2>
                         </div>
                         <button class="btn-info-sm" id="btn-add-dday" style="font-size:0.75rem;" data-i18n="dday_add">+ 추가</button>
