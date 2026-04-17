@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.404] - 2026-04-17
+
+### 변경
+- feat: 저축왕 랭킹에 KRW/USD/JPY 화폐 서브탭 추가
+
 ## [1.0.403] - 2026-04-17
 
 ### 변경
