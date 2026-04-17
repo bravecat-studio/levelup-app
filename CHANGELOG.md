@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.397] - 2026-04-17
+
+### 변경
+- Fix FNW logout data visibility, consent force-clear, storage period text, and add Savings King title display
+
 ## [1.0.396] - 2026-04-17
 
 ### 변경
