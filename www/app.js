@@ -4,10 +4,11 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit, updateDoc, arrayUnion, arrayRemove, enableNetwork, disableNetwork } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 import { getStorage, ref, uploadBytesResumable, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
-import { getRemoteConfig, fetchAndActivate, getValue, getString } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-remote-config.js";
+import { getRemoteConfig } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-remote-config.js";
 import { getAnalytics, logEvent as fbLogEvent } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
 import { NetworkMonitor } from './modules/network-monitor.js';
+import { ConversionTracker, initRemoteConfig, getExperimentVariant, init as initConversionTracker } from './modules/conversion-tracker.js';
 
 if (!self.__FIREBASE_CONFIG) {
     console.error('[App] firebase-config.js가 로드되지 않았습니다. npm run generate-config를 실행하세요.');
@@ -49,92 +50,7 @@ try {
     console.warn('[RemoteConfig] 초기화 스킵:', e.message);
 }
 
-// --- 전환율 계측 (Conversion Funnel Tracking) ---
-const ConversionTracker = (() => {
-    const STORAGE_KEY = 'levelup_funnel';
-
-    function _getSession() {
-        try {
-            const raw = sessionStorage.getItem(STORAGE_KEY);
-            return raw ? JSON.parse(raw) : {};
-        } catch { return {}; }
-    }
-    function _setSession(data) {
-        try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-    }
-
-    // 퍼널 이벤트 기록
-    function track(eventName, params = {}) {
-        const session = _getSession();
-        if (session[eventName]) return; // 중복 방지
-        session[eventName] = Date.now();
-        _setSession(session);
-
-        const payload = {
-            ...params,
-            onboarding_variant: _getVariant('onboarding_variant'),
-            login_layout: _getVariant('login_layout'),
-            timestamp: new Date().toISOString(),
-        };
-
-        // Firebase Analytics 로깅
-        if (analytics) {
-            try { fbLogEvent(analytics, eventName, payload); } catch {}
-        }
-
-        // Firestore 퍼널 로그 (선택적)
-        if (window._funnelLogEnabled && auth.currentUser) {
-            const logRef = doc(db, 'funnel_events', `${auth.currentUser.uid}_${eventName}_${Date.now()}`);
-            setDoc(logRef, { uid: auth.currentUser.uid, event: eventName, ...payload }).catch(() => {});
-        }
-
-        if (window.AppLogger) AppLogger.info(`[Funnel] ${eventName} ` + JSON.stringify(payload));
-    }
-
-    function _getVariant(key) {
-        try {
-            return remoteConfig ? getString(remoteConfig, key) : (remoteConfig?.defaultConfig?.[key] || 'unknown');
-        } catch { return 'unknown'; }
-    }
-
-    // 퍼널 단계 정의
-    return {
-        track,
-        // Phase 2 핵심 퍼널 이벤트
-        screenView:       ()    => track('funnel_screen_view'),
-        loginStart:       (method) => track('funnel_login_start', { method }),
-        loginComplete:    (method) => track('funnel_login_complete', { method }),
-        signupStart:      (method) => track('funnel_signup_start', { method }),
-        signupComplete:   (method) => track('funnel_signup_complete', { method }),
-        emailVerified:    ()    => track('funnel_email_verified'),
-        onboardingStart:  ()    => track('funnel_onboarding_start'),
-        onboardingStep:   (step) => track(`funnel_onboarding_step_${step}`, { step }),
-        onboardingDone:   ()    => track('funnel_onboarding_done'),
-        firstSession:     ()    => track('funnel_first_session'),
-        d1Return:         ()    => track('funnel_d1_return'),
-    };
-})();
-
-// Remote Config 가져오기 (비동기)
-async function initRemoteConfig() {
-    if (!remoteConfig) return;
-    try {
-        await fetchAndActivate(remoteConfig);
-        if (window.AppLogger) AppLogger.info('[RemoteConfig] fetch & activate 완료');
-    } catch (e) {
-        console.warn('[RemoteConfig] fetch 실패 (기본값 사용):', e.message);
-    }
-}
-
-// A/B 테스트 변형 값 가져오기
-function getExperimentVariant(key) {
-    if (!remoteConfig) {
-        // Remote Config 사용 불가 시 기본값 반환
-        const defaults = { onboarding_variant: 'compact', login_layout: 'social_first' };
-        return defaults[key] || '';
-    }
-    try { return getString(remoteConfig, key); } catch { return ''; }
-}
+initConversionTracker({ analytics, remoteConfig, auth, db });
 
 // --- Firestore 네트워크 복원력 ---
 // 오프라인→온라인 전환 시 Firestore 네트워크 재연결 (WebChannel 오류 복구)
