@@ -882,6 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // 최초 로그인 시 온보딩 가이드 표시
             showOnboardingGuide();
+            window.RatingManager?.initCheck();
 
             // 관리자/로그 표시 설정 (Custom Claims 기반)
             const tokenResult = await getIdTokenResult(user);
@@ -2545,6 +2546,7 @@ function checkDailyAllClear() {
     saveUserData();
     updatePointUI();
     showLootModal(loot);
+    window.RatingManager?.triggerAfterMilestone();
 }
 
 function loadPlayerName() {
@@ -4440,6 +4442,7 @@ function processLevelUp() {
     AppLogger.info('[LevelUp] 레벨 ' + AppState.user.level + ' 달성');
     saveUserData(); updatePointUI(); drawRadarChart();
     alert("Level Up!");
+    window.RatingManager?.triggerAfterMilestone();
     // 호칭 가이드 모달창 자동 표시(openTitleModal()) 삭제 완료
 }
 
@@ -9372,3 +9375,6 @@ import('./modules/challenge-roulette.js').catch(e => console.error('[ChallengeRo
 // --- Reels (Day1) 모듈 동적 로드 ---
 import('./modules/reels.js').catch(e => console.error('[Reels] 모듈 로드 실패:', e));
 import('./modules/personality.js').catch(e => console.error('[Personality] 모듈 로드 실패:', e));
+
+// --- Rating Manager 모듈 동적 로드 ---
+import('./modules/rating-manager.js').catch(e => console.error('[RatingManager] 모듈 로드 실패:', e));
