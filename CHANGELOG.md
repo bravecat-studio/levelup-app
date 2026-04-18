@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.411] - 2026-04-18
+
+### 변경
+- feat: 플레이스토어 평점 요청 팝업 추가 (rating-manager 모듈)
+
 ## [1.0.410] - 2026-04-18
 
 ### 변경
