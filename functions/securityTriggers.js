@@ -1,7 +1,11 @@
 const { onDocumentUpdated, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
-const db = getFirestore();
+let _db;
+function db() {
+    if (!_db) _db = getFirestore();
+    return _db;
+}
 
 const triggerOpts = { region: "asia-northeast3" };
 
@@ -14,7 +18,7 @@ exports.onUserPointsUpdate = onDocumentUpdated(
         const delta = (after.points || 0) - (before.points || 0);
 
         if (delta > 50000) {
-            await db.collection("security_alerts").add({
+            await db().collection("security_alerts").add({
                 type: "points_spike",
                 userId: event.params.userId,
                 delta,
@@ -39,7 +43,7 @@ exports.onUserStatsReset = onDocumentUpdated(
 
         // 퀘스트 완료 수가 감소한 경우 — 데이터 조작 의심
         if (questBefore > 0 && questAfter < questBefore) {
-            await db.collection("security_alerts").add({
+            await db().collection("security_alerts").add({
                 type: "stats_decrease",
                 userId: event.params.userId,
                 field: "totalQuestsCompleted",
@@ -57,7 +61,7 @@ exports.onAdminClaimSet = onDocumentCreated(
     { ...triggerOpts, document: "admin_audit_log/{logId}" },
     async (event) => {
         const data = event.data.data();
-        await db.collection("security_alerts").add({
+        await db().collection("security_alerts").add({
             type: "admin_claim_set",
             targetUid: data.targetUid || null,
             targetEmail: data.targetEmail || null,
