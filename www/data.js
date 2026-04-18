@@ -696,7 +696,11 @@ const i18n = {
         big5_guide_N_desc: "정서적 불안정성. 높을수록 스트레스에 민감하고, 낮을수록 안정적입니다.",
         big5_guide_reward_title: "보상 안내",
         big5_guide_reward_desc: "최초 검사 완료 시 CHA (매력) 스탯 +3을 획득합니다. 보상은 다음 레벨업 시 실제 스탯에 반영됩니다.",
-        big5_guide_close: "닫기"
+        big5_guide_close: "닫기",
+        rating_title: "LevelUp이 마음에 드시나요?",
+        rating_body: "앱 평가를 남겨주시면 큰 도움이 됩니다!",
+        rating_btn_yes: "평가하기",
+        rating_btn_no: "나중에"
     },
     en: {
         login_desc: "Level up together,<br>become the best you", btn_login_submit: "System Access", btn_signup_submit: "Register Player",
@@ -1391,7 +1395,11 @@ const i18n = {
         big5_guide_N_desc: "Emotional instability. Higher = more stress-sensitive; lower = more emotionally stable.",
         big5_guide_reward_title: "Rewards",
         big5_guide_reward_desc: "Earn CHA (Charisma) +3 on first completion. Reward is applied to your stats at the next level up.",
-        big5_guide_close: "Close"
+        big5_guide_close: "Close",
+        rating_title: "Enjoying LevelUp?",
+        rating_body: "Your rating helps us grow!",
+        rating_btn_yes: "Rate Now",
+        rating_btn_no: "Later"
     },
     ja: {
         login_desc: "レベルアップと一緒に<br>最高の自分を作りましょう", btn_login_submit: "システムアクセス", btn_signup_submit: "プレイヤー登録",
@@ -2086,7 +2094,11 @@ const i18n = {
         big5_guide_N_desc: "感情的不安定性。高いほどストレスに敏感で、低いほど安定しています。",
         big5_guide_reward_title: "報酬について",
         big5_guide_reward_desc: "初回完了時にCHA（魅力）スタット+3を獲得します。報酬は次のレベルアップ時にスタットに反映されます。",
-        big5_guide_close: "閉じる"
+        big5_guide_close: "閉じる",
+        rating_title: "LevelUpはいかがですか?",
+        rating_body: "評価をいただけると大変助かります！",
+        rating_btn_yes: "評価する",
+        rating_btn_no: "あとで"
     }
 };
 
