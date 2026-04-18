@@ -7,6 +7,7 @@ import { getStorage, ref, uploadBytesResumable, uploadBytes, getDownloadURL, del
 import { getRemoteConfig } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-remote-config.js";
 import { getAnalytics, logEvent as fbLogEvent } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js";
+import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app-check.js";
 import { NetworkMonitor } from './modules/network-monitor.js';
 import { ConversionTracker, initRemoteConfig, getExperimentVariant, init as initConversionTracker } from './modules/conversion-tracker.js';
 import { PerformanceMonitor } from './modules/performance-monitor.js';
@@ -18,6 +19,21 @@ const firebaseConfig = self.__FIREBASE_CONFIG;
 const APP_VERSION = '1.0.421';
 
 const app = initializeApp(firebaseConfig);
+
+// --- Firebase App Check (Phase 2) ---
+// 개발 환경용 디버그 토큰은 firebase-config.js(gitignored)의 appCheckDebugToken 필드에서 주입
+if (firebaseConfig.appCheckDebugToken) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = firebaseConfig.appCheckDebugToken;
+}
+try {
+    initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(firebaseConfig.appCheckSiteKey || ''),
+        isTokenAutoRefreshEnabled: true,
+    });
+} catch (e) {
+    console.warn('[AppCheck] 초기화 스킵:', e.message);
+}
+
 NetworkMonitor.init(firebaseConfig.apiKey);
 const auth = getAuth(app);
 const isNativePlatform = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
