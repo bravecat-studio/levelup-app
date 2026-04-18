@@ -25,13 +25,17 @@ const app = initializeApp(firebaseConfig);
 if (firebaseConfig.appCheckDebugToken) {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = firebaseConfig.appCheckDebugToken;
 }
-try {
-    initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(firebaseConfig.appCheckSiteKey || ''),
-        isTokenAutoRefreshEnabled: true,
-    });
-} catch (e) {
-    console.warn('[AppCheck] 초기화 스킵:', e.message);
+// 네이티브 앱은 Play Integrity로 App Check를 처리하므로 웹 SDK 초기화 생략
+const _isNativeForAppCheck = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+if (!_isNativeForAppCheck && firebaseConfig.appCheckSiteKey) {
+    try {
+        initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(firebaseConfig.appCheckSiteKey),
+            isTokenAutoRefreshEnabled: true,
+        });
+    } catch (e) {
+        console.warn('[AppCheck] 초기화 스킵:', e.message);
+    }
 }
 
 NetworkMonitor.init(firebaseConfig.apiKey);
