@@ -1,0 +1,45 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'  # 매주 월요일 03:00 UTC
+  push:
+    branches: [main]
+
+jobs:
+  audit:
+    name: Dependency Audit (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Install functions dependencies
+        run: npm ci
+        working-directory: ./functions
+
+      - name: Audit functions dependencies
+        run: npm audit --audit-level=high
+        working-directory: ./functions
+        continue-on-error: true
+
+  secrets-scan:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

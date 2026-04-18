@@ -6,6 +6,8 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getMessaging } = require("firebase-admin/messaging");
 const { getStorage } = require("firebase-admin/storage");
 const { getAuth } = require("firebase-admin/auth");
+const { checkRateLimit } = require("./rateLimiter");
+const securityTriggers = require("./securityTriggers");
 
 initializeApp();
 const db = getFirestore();
@@ -72,7 +74,8 @@ function getAzureInitError() {
 const callableOpts = {
     region: "asia-northeast3",
     cors: true,
-    invoker: "public"
+    invoker: "public",
+    enforceAppCheck: true,
 };
 
 // ping 함수 전용 옵션 (이미지 스크리닝 시 NSFWJS 모델 로딩에 메모리/타임아웃 필요)
@@ -80,6 +83,7 @@ const pingCallableOpts = {
     region: "asia-northeast3",
     cors: true,
     invoker: "public",
+    enforceAppCheck: true,
     memory: "1GiB",
     timeoutSeconds: 120
 };
@@ -3775,3 +3779,8 @@ exports.generateThumbnail = onObjectFinalized({
         console.error(`[Thumbnail] 썸네일 생성 실패 (${filePath}):`, e.message);
     }
 });
+
+// ─── 보안 트리거 (Phase 2) ───
+exports.onUserPointsUpdate = securityTriggers.onUserPointsUpdate;
+exports.onUserStatsReset = securityTriggers.onUserStatsReset;
+exports.onAdminClaimSet = securityTriggers.onAdminClaimSet;

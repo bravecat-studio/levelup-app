@@ -526,18 +526,26 @@ exports.onSecurityAlert = functions.firestore
        → Phase 2 완료 후 app.js App Check 초기화 1줄 추가 예정
 ```
 
-### Phase 2 — 단기 적용 (1~2주)
+### Phase 2 — 단기 적용 (1~2주) — **구현 완료 2026-04-18**
 
 ```
-🔧 4. functions/securityTriggers.js — 실시간 이상 탐지 Trigger 추가
-       (포인트 급증, 대량 삭제 감지)
+✅ 4. functions/securityTriggers.js — 실시간 이상 탐지 Trigger 추가 (구현 완료)
+       onUserPointsUpdate: 포인트 50,000 초과 급증 시 security_alerts 기록
+       onUserStatsReset: totalQuestsCompleted 감소 시 데이터 조작 의심 기록
+       onAdminClaimSet: admin_audit_log 생성 시 security_alerts 연동
 
-🔧 5. functions/rateLimiter.js — Firestore 기반 Rate Limiter 추가
+✅ 5. functions/rateLimiter.js — Firestore 기반 Rate Limiter 추가 (구현 완료)
+       checkRateLimit(uid, action, maxCalls, windowSeconds) — 트랜잭션 기반 슬라이딩 윈도우
+       rate_limits 컬렉션 사용 (Phase 1에서 Rules 준비 완료)
 
-🔧 6. .github/workflows/security-scan.yml — 자동 의존성 스캔 CI 추가
-       (npm audit + gitleaks)
+✅ 6. .github/workflows/security-scan.yml — 자동 의존성 스캔 CI 추가 (구현 완료)
+       npm audit (frontend + functions) — 매주 월요일 03:00 UTC / main push 시
+       gitleaks 시크릿 스캔 — 전체 git history 대상
 
-🔧 7. app.js — App Check 초기화 1줄 추가 (Phase 1 완료 후)
+✅ 7. app.js — App Check 초기화 추가 (구현 완료)
+       import: firebase-app-check.js CDN (v10.8.1)
+       디버그 토큰: firebaseConfig.appCheckDebugToken (gitignored firebase-config.js에서 주입)
+       enforceAppCheck: true — 모든 onCall 함수에 적용
 ```
 
 ### Phase 3 — 중기 적용 (1개월)
@@ -575,10 +583,10 @@ exports.onSecurityAlert = functions.firestore
 | `firebase.json` | 1 | 보안 헤더 추가 | **없음** |
 | `firestore.rules` | 1 | 범위/빈도 검증 추가 | **없음** |
 | `storage.rules` | 1 | MIME 검증 강화 ✅ (jpeg/png/webp/gif/heic/heif 허용리스트) | **없음** |
-| `functions/securityTriggers.js` | 2 | **신규 파일** | **없음** |
-| `functions/rateLimiter.js` | 2 | **신규 파일** | **없음** |
-| `.github/workflows/security-scan.yml` | 2 | **신규 파일** | **없음** |
-| `app.js` | 2 | App Check 초기화 1줄 | **최소 (1줄)** |
+| `functions/securityTriggers.js` | 2 | **신규 파일** ✅ (구현 완료) | **없음** |
+| `functions/rateLimiter.js` | 2 | **신규 파일** ✅ (구현 완료) | **없음** |
+| `.github/workflows/security-scan.yml` | 2 | **신규 파일** ✅ (구현 완료) | **없음** |
+| `app.js` | 2 | App Check 초기화 ✅ (구현 완료) | **최소 (~15줄)** |
 | `functions/securityScheduler.js` | 3 | **신규 파일** | **없음** |
 | `test/firestore-rules.test.js` | 3 | **신규 파일** | **없음** |
 | `app.html` | 3 | SRI 해시 추가 | **없음** |
