@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.418] - 2026-04-18
+
+### 변경
+- fix: 상태창 미래 순자산 화폐단위를 상세설정 저장 기준으로 표시
+
 ## [1.0.417] - 2026-04-18
 
 ### 변경
