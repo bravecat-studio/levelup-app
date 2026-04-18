@@ -34,5 +34,9 @@ printf "var __FIREBASE_CONFIG = {\n\
 ${APPCHECK_LINES}};\n" > www/firebase-config.js
 
 echo "✅ www/firebase-config.js 생성 완료"
-[ -n "$FIREBASE_APPCHECK_SITE_KEY" ]    && echo "   ✅ appCheckSiteKey 포함"
-[ -n "$FIREBASE_APPCHECK_DEBUG_TOKEN" ] && echo "   ✅ appCheckDebugToken 포함 (개발 환경)"
+if [ -n "$FIREBASE_APPCHECK_SITE_KEY" ]; then
+    echo "   ✅ appCheckSiteKey 포함"
+fi
+if [ -n "$FIREBASE_APPCHECK_DEBUG_TOKEN" ]; then
+    echo "   ✅ appCheckDebugToken 포함 (개발 환경)"
+fi
