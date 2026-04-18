@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.427] - 2026-04-18
+
+### 변경
+- docs: 회사 명칭 BRAVECAT → BRAVECAT STUDIOS 통일
+
 ## [1.0.426] - 2026-04-18
 
 ### 변경
