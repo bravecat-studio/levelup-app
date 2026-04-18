@@ -1,6 +1,10 @@
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 
-const db = getFirestore();
+let _db;
+function db() {
+    if (!_db) _db = getFirestore();
+    return _db;
+}
 
 /**
  * Firestore 트랜잭션 기반 Rate Limiter
@@ -11,10 +15,10 @@ const db = getFirestore();
  * @returns {Promise<boolean>} true=허용, false=Rate Limit 초과
  */
 async function checkRateLimit(uid, action, maxCalls, windowSeconds) {
-    const ref = db.collection("rate_limits").doc(`${uid}_${action}`);
+    const ref = db().collection("rate_limits").doc(`${uid}_${action}`);
     const windowMs = windowSeconds * 1000;
 
-    return db.runTransaction(async (tx) => {
+    return db().runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         const now = Date.now();
 
