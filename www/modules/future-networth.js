@@ -201,6 +201,7 @@
         // 저장 시점 언어로 화폐단위 표기 (없으면 현재 언어)
         const labelLang = cfg._lang || (_app().currentLang || 'ko');
         const _tL = key => window.i18n?.[labelLang]?.[key] ?? key;
+        const _currCode = labelLang === 'en' ? 'USD' : labelLang === 'ja' ? 'JPY' : 'KRW';
         const iStyle = 'width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--panel-bg);color:var(--text-main);font-size:0.85rem;box-sizing:border-box;';
         const lStyle = 'display:block;font-size:0.75rem;color:var(--text-sub);margin-bottom:4px;';
         const fWrap  = 'margin-bottom:10px;';
@@ -238,7 +239,7 @@
                 <div style="${fWrap}">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                         <label style="font-size:0.75rem;color:var(--text-sub);">${_t('fnw_label_n')}</label>
-                        <span style="font-size:0.68rem;color:var(--neon-blue);background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:1px 7px;">💰 ${_tL('fnw_unit_man')}</span>
+                        <span style="font-size:0.68rem;color:var(--neon-blue);background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:1px 7px;">💰 ${_currCode} ${_tL('fnw_unit_man')}</span>
                     </div>
                     <input id="fnw-i-n" type="text" inputmode="numeric"
                         value="${fmtComma(cfg.n)}" placeholder="10" style="${iStyle}">
