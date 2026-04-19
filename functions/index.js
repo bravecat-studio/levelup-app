@@ -8,6 +8,7 @@ const { getStorage } = require("firebase-admin/storage");
 const { getAuth } = require("firebase-admin/auth");
 const { checkRateLimit } = require("./rateLimiter");
 const securityTriggers = require("./securityTriggers");
+const securityScheduler = require("./securityScheduler");
 
 initializeApp();
 const db = getFirestore();
@@ -3784,3 +3785,41 @@ exports.generateThumbnail = onObjectFinalized({
 exports.onUserPointsUpdate = securityTriggers.onUserPointsUpdate;
 exports.onUserStatsReset = securityTriggers.onUserStatsReset;
 exports.onAdminClaimSet = securityTriggers.onAdminClaimSet;
+
+// ─── 보안 스케줄러 (Phase 3) ───
+exports.detectAnomalousPoints = securityScheduler.detectAnomalousPoints;
+exports.detectBruteForce = securityScheduler.detectBruteForce;
+exports.auditAdminAccounts = securityScheduler.auditAdminAccounts;
+
+// ─── 보안 알림 조회 (어드민 대시보드용) ───
+exports.getSecurityAlerts = onCall(callableOpts, async (request) => {
+    await assertAdmin(request);
+
+    const { days = 30, type = null, pageSize = 100 } = request.data || {};
+    const { Timestamp: FSTimestamp } = require("firebase-admin/firestore");
+    const since = new Date(Date.now() - Math.min(days, 90) * 24 * 60 * 60 * 1000);
+
+    // 복합 인덱스 없이 단일 필드 쿼리 → type 필터는 JS에서 처리
+    const snap = await db.collection("security_alerts")
+        .where("detectedAt", ">=", FSTimestamp.fromDate(since))
+        .orderBy("detectedAt", "desc")
+        .limit(200)
+        .get();
+
+    let alerts = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        detectedAt: d.data().detectedAt?.toDate?.()?.toISOString() || null,
+    }));
+
+    if (type) alerts = alerts.filter(a => a.type === type);
+    alerts = alerts.slice(0, Math.min(pageSize, 200));
+
+    // 타입별 집계
+    const byType = {};
+    alerts.forEach(a => {
+        byType[a.type] = (byType[a.type] || 0) + 1;
+    });
+
+    return { alerts, byType, total: alerts.length, days };
+});
