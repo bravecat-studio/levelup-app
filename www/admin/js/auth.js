@@ -101,10 +101,7 @@ export async function doLogout() {
 async function syncClaimsFromServer(user) {
     try {
         const syncClaims = httpsCallable(functions, "syncClaims");
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('syncClaims timeout')), 8000)
-        );
-        const result = await Promise.race([syncClaims(), timeoutPromise]);
+        const result = await syncClaims();
         console.log("[syncClaims] Result:", JSON.stringify(result.data));
         if (result.data.updated) {
             console.log("[syncClaims] Claims updated, refreshing token...");
