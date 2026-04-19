@@ -25,7 +25,7 @@ fi
 
 printf "var __FIREBASE_CONFIG = {\n\
     apiKey: \"${FIREBASE_WEB_API_KEY}\",\n\
-    authDomain: \"levelup-app-53d02.firebaseapp.com\",\n\
+    authDomain: \"levelup-app-53d02.web.app\",\n\
     projectId: \"levelup-app-53d02\",\n\
     storageBucket: \"levelup-app-53d02.firebasestorage.app\",\n\
     messagingSenderId: \"233040099152\",\n\
