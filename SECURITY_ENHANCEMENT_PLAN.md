@@ -551,7 +551,7 @@ exports.onSecurityAlert = functions.firestore
 ### Phase 3 — 중기 적용 (1개월)
 
 ```
-📋 8. functions/securityScheduler.js — 주간/일간 보안 진단 스케줄러
+✅ 8. functions/securityScheduler.js — 주간/일간 보안 진단 스케줄러
 
 📋 9. Google Perspective API 연동 — 텍스트 콘텐츠 필터링
 
