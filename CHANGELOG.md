@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.441] - 2026-04-19
+
+### 변경
+- feat: Google Perspective API 텍스트 독성 필터링 연동 (SECURITY Phase 3)
+
 ## [1.0.440] - 2026-04-19
 
 ### 변경
