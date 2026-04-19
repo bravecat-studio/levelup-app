@@ -5930,7 +5930,8 @@ function openDiyQuestInfoModal() {
                 { icon: '🔄', title: '매일 자동 초기화', desc: '매일 자정(KST)에 완료 상태가 초기화됩니다. 시스템 퀘스트와 동일하게 매일 반복됩니다.' },
                 { icon: '📊', title: '스탯 연동', desc: 'STR · INT · CHA · VIT · WLTH · AGI 중 하나를 선택하면, 완료 시 해당 스탯에 보상이 적용됩니다.' },
                 { icon: '🎯', title: '보상 구조', desc: '완료 시 기본 20포인트 + 0.5 스탯이 지급되며, 연속 달성(스트릭)에 따라 배율이 증가합니다. 크리티컬 히트도 발동됩니다.' },
-                { icon: '✏️', title: '수정 및 삭제', desc: '퀘스트 옆 ✎ 버튼으로 제목·설명·스탯을 수정하거나 삭제할 수 있습니다.' }
+                { icon: '✏️', title: '수정 및 삭제', desc: '퀘스트 옆 ✎ 버튼으로 제목·설명·스탯을 수정하거나 삭제할 수 있습니다.' },
+                { icon: '🗓️', title: '플래너 연동', desc: '생성한 DIY 퀘스트는 플래너의 우선순위 태스크 영역에도 자동으로 표시됩니다. 퀘스트 탭과 플래너 탭 어디서든 완료 처리할 수 있으며, 완료 상태는 양쪽에 실시간으로 반영됩니다.' }
             ]
         },
         en: {
@@ -5940,7 +5941,8 @@ function openDiyQuestInfoModal() {
                 { icon: '🔄', title: 'Daily Auto-Reset', desc: 'Completion status resets at midnight (KST) every day, just like system quests.' },
                 { icon: '📊', title: 'Stat Linked', desc: 'Choose from STR · INT · CHA · VIT · WLTH · AGI. Completing the quest rewards the selected stat.' },
                 { icon: '🎯', title: 'Rewards', desc: 'Earn 20 points + 0.5 stat per completion. Streak multipliers and critical hits apply.' },
-                { icon: '✏️', title: 'Edit & Delete', desc: 'Tap the ✎ button next to a quest to edit its title, description, stat, or delete it.' }
+                { icon: '✏️', title: 'Edit & Delete', desc: 'Tap the ✎ button next to a quest to edit its title, description, stat, or delete it.' },
+                { icon: '🗓️', title: 'Planner Integration', desc: 'Your DIY quests automatically appear in the Planner\'s priority tasks section. You can mark them complete from either the Quest tab or the Planner tab — completion status syncs in real time between both.' }
             ]
         },
         ja: {
@@ -5950,7 +5952,8 @@ function openDiyQuestInfoModal() {
                 { icon: '🔄', title: '毎日自動リセット', desc: '毎日深夜0時(KST)に完了状態がリセットされます。システムクエストと同様に毎日繰り返されます。' },
                 { icon: '📊', title: 'ステータス連動', desc: 'STR · INT · CHA · VIT · WLTH · AGIから1つ選択すると、完了時にそのステータスに報酬が適用されます。' },
                 { icon: '🎯', title: '報酬構造', desc: '完了時に基本20ポイント + 0.5ステータスが付与され、連続達成(ストリーク)で倍率が増加します。クリティカルヒットも発動します。' },
-                { icon: '✏️', title: '編集と削除', desc: 'クエスト横の✎ボタンでタイトル・説明・ステータスを変更、または削除できます。' }
+                { icon: '✏️', title: '編集と削除', desc: 'クエスト横の✎ボタンでタイトル・説明・ステータスを変更、または削除できます。' },
+                { icon: '🗓️', title: 'プランナー連動', desc: '作成したDIYクエストはプランナーの優先タスクエリアにも自動表示されます。クエストタブとプランナータブのどちらからでも完了処理でき、完了状態はリアルタイムで両方に反映されます。' }
             ]
         }
     };
