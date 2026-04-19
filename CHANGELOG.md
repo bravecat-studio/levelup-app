@@ -5,31 +5,6 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
-## [1.0.432] - 2026-04-19
-
-### 변경
-- fix: CSP frame-src 추가로 모바일 Firebase Auth redirect 오류 해결
-
-## [1.0.431] - 2026-04-19
-
-### 변경
-- fix: App Check 로그인 멈춤 3원인 동시 해결
-
-## [1.0.430] - 2026-04-19
-
-### 변경
-- fix: admin 페이지에 Firebase App Check 초기화 추가
-
-## [1.0.429] - 2026-04-19
-
-### 변경
-- revert: 1.0.428로 롤백
-
-## [1.0.428] - 2026-04-19
-
-### 변경
-- feat(security): Phase 3 - add securityScheduler.js (daily/hourly/weekly diagnostics)
-
 ## [1.0.427] - 2026-04-18
 
 ### 변경

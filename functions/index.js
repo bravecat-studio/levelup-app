@@ -8,7 +8,6 @@ const { getStorage } = require("firebase-admin/storage");
 const { getAuth } = require("firebase-admin/auth");
 const { checkRateLimit } = require("./rateLimiter");
 const securityTriggers = require("./securityTriggers");
-const securityScheduler = require("./securityScheduler");
 
 initializeApp();
 const db = getFirestore();
@@ -3785,9 +3784,3 @@ exports.generateThumbnail = onObjectFinalized({
 exports.onUserPointsUpdate = securityTriggers.onUserPointsUpdate;
 exports.onUserStatsReset = securityTriggers.onUserStatsReset;
 exports.onAdminClaimSet = securityTriggers.onAdminClaimSet;
-
-// ─── 보안 스케줄러 (Phase 3) ───
-exports.detectAnomalousPoints = securityScheduler.detectAnomalousPoints;
-exports.detectBruteForce = securityScheduler.detectBruteForce;
-exports.auditAdminAccounts = securityScheduler.auditAdminAccounts;
-exports.getSecurityReport = securityScheduler.getSecurityReport;
