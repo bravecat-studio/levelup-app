@@ -551,7 +551,10 @@ exports.onSecurityAlert = functions.firestore
 ### Phase 3 — 중기 적용 (1개월)
 
 ```
-📋 8. functions/securityScheduler.js — 주간/일간 보안 진단 스케줄러
+✅ 8. functions/securityScheduler.js — 주간/일간 보안 진단 스케줄러 (구현 완료 2026-04-19)
+       detectAnomalousPoints: 매일 02:00 KST — 24h 내 반복 포인트 급증(3회↑) 유저 탐지
+       detectBruteForce: 매시간 — app_error_logs에서 1h 내 auth/* 오류 10회↑ 집계
+       auditAdminAccounts: 매주 월요일 09:00 KST — 90일↑ 미접속 어드민 계정 감사 (중복 방지)
 
 📋 9. Google Perspective API 연동 — 텍스트 콘텐츠 필터링
 
@@ -565,8 +568,10 @@ exports.onSecurityAlert = functions.firestore
 ### Phase 4 — 장기 고도화 (분기별)
 
 ```
-🎯 13. 어드민 대시보드에 보안 리포트 탭 추가
-        (security_alerts 컬렉션 시각화)
+✅ 13. 어드민 대시보드에 보안 리포트 탭 추가 (구현 완료 2026-04-19)
+        www/admin/js/security-report.js — security_alerts 컬렉션 시각화
+        getSecurityAlerts callable — days/type/pageSize 파라미터 지원
+        유형별 통계 카드 + 바 차트 + 알림 목록 (필터링/정렬 포함)
 
 🎯 14. 게임 상태 계산 로직을 Cloud Functions으로 이전
         (클라이언트 신뢰 제거 — 가장 근본적 보안 개선)
