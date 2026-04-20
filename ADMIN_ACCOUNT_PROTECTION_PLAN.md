@@ -449,7 +449,7 @@ Play Store 표시 수집 항목 (현재):
 🔴 [ ] Play Store 개발자 이메일 → support@bravecat.studio 변경
 🔴 [ ] GitHub 계정 2FA 활성화
 🔴 [ ] GitHub Personal Access Token 전수 검토 및 미사용 삭제
-🔴 [ ] debug.keystore 파일 공개 저장소 포함 여부 확인 및 .gitignore 적용
+🟢 [x] debug.keystore 파일 공개 저장소 포함 여부 확인 및 .gitignore 적용 (GitHub Secret DEBUG_KEYSTORE_BASE64 으로 이전 완료)
 🔴 [ ] 비밀번호 매니저 도입 (Bitwarden 무료) + 전체 비밀번호 갱신
 ```
 

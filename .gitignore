@@ -5,3 +5,4 @@ tesseract-lang/*.bak
 www/firebase-config.js
 google-services.json
 backups/
+debug.keystore
