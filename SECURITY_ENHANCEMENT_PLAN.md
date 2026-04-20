@@ -1,7 +1,7 @@
 # 보안강화 방안 검토 보고서
 
 > **대상 앱:** LEVEL UP: REBOOT (Firebase + Capacitor 기반 모바일/웹 앱)  
-> **기준일:** 2026-04-19 (최종 업데이트)  
+> **기준일:** 2026-04-20 (최종 업데이트)  
 > **원칙:** app.js 코드 추가 최소화 / 무료 또는 비용 최소화
 
 ---
@@ -493,7 +493,7 @@ exports.onSecurityAlert = functions.firestore
 | Firestore 기반 Rate Limiter | **무료** | 🟠 단기 |
 | Azure Content Safety 텍스트 분석 | **무료** (F0 5,000건/월, 기존 키 재사용) | ✅ 완료 |
 | Firebase Firestore Rules 자동 테스트 | **무료** (로컬 에뮬레이터) | 🟡 중기 |
-| SRI (Subresource Integrity) | **무료** | 🟡 중기 |
+| SRI (Subresource Integrity) | **무료** | ✅ 완료 |
 | GCP Secret Manager | **저비용** (~$0.06/시크릿/월) | 🟡 중기 |
 | Azure Content Safety (이미지) | **현재 사용 중** (유료) | — 유지 |
 | Slack 알림 Webhook | **무료** | 🟡 중기 |
@@ -577,7 +577,10 @@ exports.onSecurityAlert = functions.firestore
 
 📋 11. GCP Secret Manager 이전 — ADMIN_EMAILS, AZURE_CS_KEY
 
-📋 12. SRI 해시 적용 — app.html Firebase SDK 태그
+✅ 12. SRI 해시 적용 — app.html Firebase SDK 태그 (구현 완료 2026-04-20)
+        firebase-app/auth/firestore/messaging/storage/remote-config/analytics/functions/app-check
+        → <link rel="modulepreload" integrity="sha384-..."> 9개 모듈 (npm 10.8.1 패키지 기준 sha384)
+        html5-qrcode@2.3.8 → <script integrity="sha384-..."> (CDN 변조 차단)
 ```
 
 ### Phase 4 — 장기 고도화 (분기별)
@@ -610,7 +613,7 @@ exports.onSecurityAlert = functions.firestore
 | `functions/securityScheduler.js` | 3 | **신규 파일** ✅ (구현 완료) | **없음** |
 | `functions/textScreening.js` | 3 | **신규 파일** ✅ (구현 완료) | **없음** |
 | `test/firestore-rules.test.js` | 3 | **신규 파일** | **없음** |
-| `app.html` | 3 | SRI 해시 추가 | **없음** |
+| `app.html` | 3 | SRI 해시 추가 ✅ (구현 완료) | **없음** |
 
 ---
 
