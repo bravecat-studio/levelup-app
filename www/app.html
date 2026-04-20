@@ -13,7 +13,39 @@
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="play_store_512.png">
     <link rel="stylesheet" href="style.css">
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <!-- Firebase SDK 10.8.1 — SRI (modulepreload) -->
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"
+          integrity="sha384-wlvAQTVgegt7jk8ohXoQ2QACSIwFTjSIMAjOkNbxbXkB0O7vxK6ggRJp3iVJwZU5"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js"
+          integrity="sha384-WvdrUouDtXDGAuicvgfcNn6xKGoq1N4bF8556xOHMWipGOFaVV2Ju5Cg04j4TpNV"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js"
+          integrity="sha384-xQmGK8jM+46bSrEkV2gi33jKaMT31Z2d0GqufJsiHyxlm3OOI2JDs8cRJgmcTwEY"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js"
+          integrity="sha384-jeRMw7poBPV6Hu69ELcilR5E0W/rhprL8h6h/3JX730x+i9lFy+whzxXD+SDT6YE"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js"
+          integrity="sha384-YOiF+zm8OD34eOo+hu0rz/KdsWxituipdkkZS5xwyPjMdRZUnfBTJYS1jEOkwotq"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-remote-config.js"
+          integrity="sha384-PhijsMiIYKRX4HZHU3sLNuFgd6vgOeHvL2H9q8IP1kOq5nmBBhk9z84iYFARPVgN"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js"
+          integrity="sha384-y7LOGwUMzbWxWlrb2zmVyeI8ZjwD6gCbYrhrZSKNtxM+8mlW+bGtzH7kXnt1aYRD"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-functions.js"
+          integrity="sha384-x0DFqaxV/ziXX5Iart4ssAu9tR1kRyHy2kBGF+8wos1bmVxgs3mhjl1DuTkgrFmu"
+          crossorigin="anonymous">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-check.js"
+          integrity="sha384-U3vCWc7Oy5biDpAKORoPDm5DSAtRX2CR7J6s9e543gQRkZnHx0GtVzwjOf6WPZ59"
+          crossorigin="anonymous">
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
+            integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+"
+            crossorigin="anonymous"></script>
     <!-- Tesseract.js loaded on-demand when scanner opens (saves initial load time) -->
 
 </head>
