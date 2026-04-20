@@ -234,8 +234,16 @@ exports.removeAdminClaim = onCall(callableOpts, async (request) => {
     delete existing.admin;
     delete existing.master;
     await getAuth().setCustomUserClaims(uid, existing);
+
+    const stillInAdminList = ADMIN_EMAILS.includes(user.email) || MASTER_EMAILS.includes(user.email);
     console.log(`[removeAdminClaim] admin+master claims removed for uid: ${uid} by master: ${request.auth.token.email}`);
-    return { success: true, uid };
+    return {
+        success: true,
+        uid,
+        warning: stillInAdminList
+            ? `이 계정(${user.email})이 ADMIN_EMAILS 또는 ADMIN_MASTER_EMAIL 환경변수에 남아있어 다음 호출 시 클레임이 자동 복구됩니다. GitHub Secret에서 해당 이메일을 제거하고 Functions를 재배포하세요.`
+            : null
+    };
 });
 
 // ─── setAdminOperator: 관리자 페이지 운영 권한 부여 (마스터 계정만 호출 가능) ───

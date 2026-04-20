@@ -185,8 +185,10 @@ window._revokeAdmin = async function() {
     tlog("Claims", "removeAdminClaim 호출: " + uid);
     try {
         const removeAdminClaim = httpsCallable(functions, "removeAdminClaim");
-        await removeAdminClaim({ uid });
-        el.innerHTML = `<span class="text-success">✓ Admin/Master 권한이 회수되었습니다: <code>${esc(uid)}</code></span>`;
+        const result = await removeAdminClaim({ uid });
+        const warn = result.data?.warning;
+        el.innerHTML = `<span class="text-success">✓ Admin/Master 권한이 회수되었습니다: <code>${esc(uid)}</code></span>`
+            + (warn ? `<br><span class="text-warning">⚠️ ${esc(warn)}</span>` : "");
         tok("Claims", "Admin+master claims removed from " + uid);
     } catch (e) {
         el.innerHTML = `<span class="text-error">오류: ${esc(e.message)}</span>`;
