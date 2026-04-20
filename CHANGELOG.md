@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.447] - 2026-04-20
+
+### 변경
+- feat: OWASP ZAP 분기별 자동 침투 테스트 추가 (항목 15)
+
 ## [1.0.446] - 2026-04-20
 
 ### 변경
