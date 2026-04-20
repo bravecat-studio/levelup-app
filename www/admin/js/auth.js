@@ -97,7 +97,7 @@ export async function doLogout() {
     await signOut(auth);
 }
 
-/** Sync claims from server (MASTER_EMAILS/ADMIN_EMAILS → custom claims) */
+/** Sync claims from server (ADMIN_MASTER_EMAIL/ADMIN_EMAILS → custom claims) */
 async function syncClaimsFromServer(user) {
     try {
         const syncClaims = httpsCallable(functions, "syncClaims");

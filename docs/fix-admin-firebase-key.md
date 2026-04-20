@@ -179,4 +179,4 @@ getRedirectResult(auth).then(result => {
 |-------------|------|----------|
 | `FIREBASE_WEB_API_KEY` | Firebase 클라이언트 API 키 | `deploy-firebase.yml`, `build.yml` |
 | `ADMIN_EMAILS` | 관리자 이메일 (쉼표 구분) | `functions/.env` |
-| `MASTER_EMAILS` | 마스터 이메일 (쉼표 구분) | `functions/.env` |
+| `ADMIN_MASTER_EMAIL` | 마스터 이메일 (쉼표 구분) | `functions/.env` |
