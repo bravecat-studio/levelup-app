@@ -136,6 +136,8 @@ document.getElementById("btn-login").addEventListener("click", async () => {
 
 // 리다이렉트 로그인 에러 표시
 window.addEventListener('admin-auth-error', (e) => { showLoginError(e.detail); });
+// 권한 없는 사용자 로그인 차단 메시지
+window.addEventListener('admin-auth-denied', (e) => { showLoginError(e.detail); });
 document.getElementById("btn-logout").addEventListener("click", async () => {
     await doLogout();
 });
