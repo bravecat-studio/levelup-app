@@ -227,7 +227,7 @@ GitHub → 저장소 → Settings → Branches → Add rule
    → 릴리즈 keystore: RELEASE_KEYSTORE_BASE64 등 GitHub Secrets로 관리 중
    → .gitignore: *.keystore, *.jks 패턴 추가 완료 (모든 키스토어 파일 차단)
    → PR 검증: pr-check.yml에 키스토어 git 추적 자동 감지 스텝 추가 완료
-   → 프로덕션 keystore는 Google Play App Signing 위임 권장 (수동 조치 필요)
+   → 프로덕션 keystore는 Google Play App Signing 위임 권장 (키 분실/탈취 대비) ✅ 확인 완료 (2026-04-21 — Play Console 앱 무결성 → 앱 서명: "Google Play에서 서명 중")
 ```
 
 **✅ 완료: debug.keystore 보안 조치 (2026-04-21)**
