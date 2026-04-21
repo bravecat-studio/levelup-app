@@ -31,6 +31,9 @@ env:
   FIREBASE_PROJECT: levelup-app-53d02
   FUNCTIONS_REGION: asia-northeast3
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -128,19 +131,24 @@ jobs:
 
       - name: Functions 환경변수 생성 (.env)
         if: steps.detect.outputs.deploy_functions == 'true'
+        env:
+          ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
+          ADMIN_MASTER_EMAIL: ${{ secrets.ADMIN_MASTER_EMAIL }}
+          AZURE_CS_ENDPOINT: ${{ secrets.AZURE_CS_ENDPOINT }}
+          AZURE_CS_KEY: ${{ secrets.AZURE_CS_KEY }}
+          ALADIN_TTB_KEY: ${{ secrets.ALADIN_TTB_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          KOBIS_API_KEY: ${{ secrets.KOBIS_API_KEY }}
+          KMDB_API_KEY: ${{ secrets.KMDB_API_KEY }}
         run: |
-          cat > functions/.env <<EOF
-          ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}
-          ADMIN_MASTER_EMAIL=${{ secrets.ADMIN_MASTER_EMAIL }}
-          AZURE_CS_ENDPOINT=${{ secrets.AZURE_CS_ENDPOINT }}
-          AZURE_CS_KEY=${{ secrets.AZURE_CS_KEY }}
-          ALADIN_TTB_KEY=${{ secrets.ALADIN_TTB_KEY }}
-          KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}
-          KOBIS_API_KEY=${{ secrets.KOBIS_API_KEY }}
-          KMDB_API_KEY=${{ secrets.KMDB_API_KEY }}
-          EOF
-          # 각 줄 앞의 공백 제거 (HEREDOC 들여쓰기)
-          sed -i 's/^[[:space:]]*//' functions/.env
+          printf 'ADMIN_EMAILS=%s\n' "$ADMIN_EMAILS" > functions/.env
+          printf 'ADMIN_MASTER_EMAIL=%s\n' "$ADMIN_MASTER_EMAIL" >> functions/.env
+          printf 'AZURE_CS_ENDPOINT=%s\n' "$AZURE_CS_ENDPOINT" >> functions/.env
+          printf 'AZURE_CS_KEY=%s\n' "$AZURE_CS_KEY" >> functions/.env
+          printf 'ALADIN_TTB_KEY=%s\n' "$ALADIN_TTB_KEY" >> functions/.env
+          printf 'KAKAO_REST_API_KEY=%s\n' "$KAKAO_REST_API_KEY" >> functions/.env
+          printf 'KOBIS_API_KEY=%s\n' "$KOBIS_API_KEY" >> functions/.env
+          printf 'KMDB_API_KEY=%s\n' "$KMDB_API_KEY" >> functions/.env
 
       - name: Functions 의존성 설치
         if: steps.detect.outputs.deploy_functions == 'true'
@@ -215,7 +223,6 @@ jobs:
         env:
           FIREBASE_WEB_API_KEY: ${{ secrets.FIREBASE_WEB_API_KEY }}
           FIREBASE_APPCHECK_SITE_KEY: ${{ secrets.FIREBASE_APPCHECK_SITE_KEY }}
-          FIREBASE_APPCHECK_DEBUG_TOKEN: ${{ secrets.FIREBASE_APPCHECK_DEBUG_TOKEN }}
         run: |
           npm run generate-config
           echo "✅ www/firebase-config.js 생성 완료"
