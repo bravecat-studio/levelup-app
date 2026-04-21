@@ -110,10 +110,16 @@ jobs:
             "sk_live_[a-zA-Z0-9]+"
             "ghp_[a-zA-Z0-9]{36}"
             "xoxb-[0-9]+-[0-9]+-[a-zA-Z0-9]+"
+            "AIza[0-9A-Za-z_-]{35}"
           )
 
           for pattern in "${PATTERNS[@]}"; do
-            if grep -rE "$pattern" --include="*.js" --include="*.html" --include="*.json" --include="*.yml" --include="*.yaml" --include="*.rules" . 2>/dev/null | grep -v node_modules | grep -v ".git/" | grep -v "tesseract-core/"; then
+            if grep -rE "$pattern" --include="*.js" --include="*.html" --include="*.json" --include="*.yml" --include="*.yaml" --include="*.rules" . 2>/dev/null \
+              | grep -v node_modules \
+              | grep -v ".git/" \
+              | grep -v "tesseract-core/" \
+              | grep -v "firebase-config.example.js" \
+              | grep -v "YOUR_API_KEY"; then
               echo "::error::민감 정보 패턴이 발견되었습니다: $pattern"
               FOUND=$((FOUND + 1))
             fi
