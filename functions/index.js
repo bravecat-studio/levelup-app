@@ -775,13 +775,13 @@ async function handleSendUserWarning(request) {
 
     const userData = userDoc.data();
     const lang = userData.lang || "ko";
-    const notification = getLocalizedMessage(type, lang);
+    const baseMsg = getLocalizedMessage(type, lang);
+    const notifTitle = baseMsg.title;
+    const notifBody = (type === "post_deleted" && reportCount != null)
+        ? buildPostDeletedBody(lang, reportCount)
+        : baseMsg.body;
 
-    if (type === "post_deleted" && reportCount != null) {
-        notification.body = buildPostDeletedBody(lang, reportCount);
-    }
-
-    await writeUserNotification(uid, { type, title: notification.title, body: notification.body });
+    await writeUserNotification(uid, { type, title: notifTitle, body: notifBody });
 
     let fcmResult = null;
     const fcmToken = userData.fcmToken;
@@ -789,7 +789,7 @@ async function handleSendUserWarning(request) {
         try {
             const message = {
                 token: fcmToken,
-                notification,
+                notification: { title: notifTitle, body: notifBody },
                 data: { tab: "status", target: "status", type, link: "levelup://tab/status" },
                 android: { priority: "high", notification: { channelId: "warnings", sound: "default" } }
             };
