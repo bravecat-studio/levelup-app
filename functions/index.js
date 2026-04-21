@@ -2118,11 +2118,11 @@ function getLocalizedMessage(type, lang) {
  * 게시물 삭제 알림 본문 동적 생성 (신고 누적 횟수 포함)
  */
 function buildPostDeletedBody(lang, reportCount) {
-    const warning = reportCount >= 3;
+    const over = reportCount >= 3;
     const bodies = {
-        ko: `신고 접수로 인해 게시물이 삭제되었습니다. (신고 누적 ${reportCount}회)${warning ? '\n신고가 3회 이상 누적되어 계정이 삭제될 수 있습니다.' : ''}`,
-        en: `Your post was removed due to community reports. (Total reports: ${reportCount})${warning ? '\nYour account may be deleted due to repeated violations.' : ''}`,
-        ja: `報告を受けたため、投稿が削除されました。（報告累計${reportCount}回）${warning ? '\n報告が3回以上累積するとアカウントが削除される場合があります。' : ''}`
+        ko: `신고 접수로 인해 게시물이 삭제되었습니다. (신고 누적 ${reportCount}회)\n신고가 3회 이상 누적${over ? '되어' : '될 경우'} 계정이 정지 또는 영구 삭제될 수 있습니다.`,
+        en: `Your post was removed due to community reports. (Total reports: ${reportCount})\n${over ? 'Having accumulated 3 or more reports,' : 'Accumulating 3 or more reports'} may result in account suspension or permanent deletion.`,
+        ja: `報告を受けたため、投稿が削除されました。（報告累計${reportCount}回）\n報告が3回以上累積${over ? 'したため' : 'した場合'}、アカウントが停止または永久削除される場合があります。`
     };
     return bodies[lang] || bodies.ko;
 }
