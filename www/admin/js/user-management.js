@@ -102,6 +102,9 @@ async function loadUsers() {
             <label class="text-sm" style="display:flex; align-items:center; gap:4px; cursor:pointer;">
                 <input type="checkbox" id="um-filter-reported"> <span style="color:#ff5252;">신고 유저만 보기</span>
             </label>
+            <label class="text-sm" style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                <input type="checkbox" id="um-filter-total-reported"> <span style="color:#ff5252;">신고 누적 3회 이상</span>
+            </label>
             <select id="um-sort" style="padding:4px 8px; font-size:0.8rem;">
                 <option value="name">이름순</option>
                 <option value="level-desc">레벨 내림차순</option>
@@ -117,6 +120,7 @@ async function loadUsers() {
         function applyUserFilters() {
             const q = (document.getElementById("um-search").value || "").toLowerCase();
             const reportedOnly = document.getElementById("um-filter-reported").checked;
+            const totalReportedOnly = document.getElementById("um-filter-total-reported").checked;
             const sortBy = document.getElementById("um-sort").value;
             let filtered = _users;
             if (q) {
@@ -127,7 +131,10 @@ async function loadUsers() {
                 );
             }
             if (reportedOnly) {
-                filtered = filtered.filter(u => (u.reportCount || 0) > 0 || (u.totalReportCount || 0) > 0);
+                filtered = filtered.filter(u => (u.reportCount || 0) > 0);
+            }
+            if (totalReportedOnly) {
+                filtered = filtered.filter(u => (u.totalReportCount || 0) >= 3);
             }
             // 정렬
             filtered = [...filtered];
@@ -146,6 +153,7 @@ async function loadUsers() {
 
         document.getElementById("um-search").addEventListener("input", applyUserFilters);
         document.getElementById("um-filter-reported").addEventListener("change", applyUserFilters);
+        document.getElementById("um-filter-total-reported").addEventListener("change", applyUserFilters);
         document.getElementById("um-sort").addEventListener("change", applyUserFilters);
 
         bindRowClicks();
