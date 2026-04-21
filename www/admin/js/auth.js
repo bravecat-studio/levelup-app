@@ -148,6 +148,16 @@ onAuthStateChanged(auth, async (user) => {
         _isAdmin = await checkAdminClaim(user);
         _isMaster = await checkMasterClaim(user);
         _isAdminOperator = await checkAdminOperatorClaim(user);
+
+        // Block access if no admin/master/operator permission
+        if (!_isAdmin && !_isMaster) {
+            console.warn("[Auth] 권한 없는 사용자 로그인 차단:", user.email);
+            await signOut(auth);
+            window.dispatchEvent(new CustomEvent('admin-auth-denied', {
+                detail: '관리자 권한이 없습니다. 접근이 차단되었습니다.'
+            }));
+            return; // signOut triggers onAuthStateChanged again with user=null
+        }
     }
     _onAuthCallbacks.forEach(cb => {
         try { cb(user, _isAdmin, _isMaster, _isAdminOperator); } catch (e) { console.error("[onAdminAuth]", e); }
