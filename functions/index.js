@@ -763,7 +763,7 @@ async function handleSendAnnouncement(request) {
 async function handleSendUserWarning(request) {
     await assertAdmin(request);
     const callerEmail = request.auth?.token?.email;
-    const { uid, type } = request.data || {};
+    const { uid, type, reportCount } = request.data || {};
 
     if (!uid) throw new HttpsError("invalid-argument", "uid는 필수입니다.");
     if (!["post_deleted", "account_warning"].includes(type)) {
@@ -775,9 +775,13 @@ async function handleSendUserWarning(request) {
 
     const userData = userDoc.data();
     const lang = userData.lang || "ko";
-    const notification = getLocalizedMessage(type, lang);
+    const baseMsg = getLocalizedMessage(type, lang);
+    const notifTitle = baseMsg.title;
+    const notifBody = (type === "post_deleted" && reportCount != null)
+        ? buildPostDeletedBody(lang, reportCount)
+        : baseMsg.body;
 
-    await writeUserNotification(uid, { type, title: notification.title, body: notification.body });
+    await writeUserNotification(uid, { type, title: notifTitle, body: notifBody });
 
     let fcmResult = null;
     const fcmToken = userData.fcmToken;
@@ -785,7 +789,7 @@ async function handleSendUserWarning(request) {
         try {
             const message = {
                 token: fcmToken,
-                notification,
+                notification: { title: notifTitle, body: notifBody },
                 data: { tab: "status", target: "status", type, link: "levelup://tab/status" },
                 android: { priority: "high", notification: { channelId: "warnings", sound: "default" } }
             };
@@ -2110,6 +2114,19 @@ function getLocalizedMessage(type, lang) {
     return msgs[lang] || msgs.en || msgs.ko;
 }
 
+/**
+ * 게시물 삭제 알림 본문 동적 생성 (신고 누적 횟수 포함)
+ */
+function buildPostDeletedBody(lang, reportCount) {
+    const over = reportCount >= 3;
+    const bodies = {
+        ko: `신고 접수로 인해 게시물이 삭제되었습니다. (신고 누적 ${reportCount}회)\n신고가 3회 이상 누적${over ? '되어' : '될 경우'} 계정이 정지 또는 영구 삭제될 수 있습니다.`,
+        en: `Your post was removed due to community reports. (Total reports: ${reportCount})\n${over ? 'Having accumulated 3 or more reports,' : 'Accumulating 3 or more reports'} may result in account suspension or permanent deletion.`,
+        ja: `報告を受けたため、投稿が削除されました。（報告累計${reportCount}回）\n報告が3回以上累積${over ? 'したため' : 'した場合'}、アカウントが停止または永久削除される場合があります。`
+    };
+    return bodies[lang] || bodies.ko;
+}
+
 // ─── 1. 레이드 알림 (매일 06:00, 11:30, 19:00 KST — 레이드 오픈 시간과 동기화) ───
 
 async function handleRaidAlert() {
@@ -2665,7 +2682,8 @@ async function handleScreeningDeletePost(request) {
     console.log(`[screeningDeletePost] Admin ${adminEmail} deleted post ${postId} from user ${ownerUid}`);
 
     if (sendNotification) {
-        await handleSendUserWarning({ ...request, data: { uid: ownerUid, type: "post_deleted" } });
+        const reportCount = data.totalReportCount || 0;
+        await handleSendUserWarning({ ...request, data: { uid: ownerUid, type: "post_deleted", reportCount } });
     }
 
     return { success: true, deletedPostId: postId, remainingPosts: posts.length };
