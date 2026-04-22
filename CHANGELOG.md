@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.472] - 2026-04-22
+
+### 변경
+- Update login screen language selector labels for EN and JP
+
 ## [1.0.471] - 2026-04-22
 
 ### 변경
