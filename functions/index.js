@@ -1174,11 +1174,13 @@ async function handleUpdateBackupSchedulerConfig(request) {
 async function handleBatchBackupAllUsers(request) {
     await assertAdmin(request);
     const { memo } = request.data || {};
+    const sessionId = backupScheduler.makeSessionId();
     const usersSnap = await db.collection("users").get();
     let batch = db.batch();
     let batchCount = 0;
     let count = 0;
     const memoStr = String(memo || "수동 일괄 백업");
+    const createdBy = request.auth.token.email || request.auth.uid;
     const now = new Date();
 
     for (const userDoc of usersSnap.docs) {
@@ -1187,8 +1189,9 @@ async function handleBatchBackupAllUsers(request) {
             uid: userDoc.id,
             data: userDoc.data(),
             memo: memoStr,
+            sessionId,
             createdAt: now,
-            createdBy: request.auth.token.email || request.auth.uid
+            createdBy
         });
         batchCount++;
         count++;
@@ -1199,8 +1202,129 @@ async function handleBatchBackupAllUsers(request) {
         }
     }
     if (batchCount > 0) await batch.commit();
-    console.log(`[batchBackupAllUsers] ${count}명 by ${request.auth.token.email}`);
-    return { success: true, count };
+
+    const { FieldValue: FV } = require("firebase-admin/firestore");
+    await db.collection("backup_sessions").doc(sessionId).set({
+        sessionId,
+        type: "manual",
+        period: null,
+        memo: memoStr,
+        userCount: count,
+        createdAt: FV.serverTimestamp(),
+        createdBy
+    });
+
+    console.log(`[batchBackupAllUsers] ${count}명 by ${createdBy} sessionId=${sessionId}`);
+    return { success: true, count, sessionId };
+}
+
+// 일괄 백업 세션 목록 조회
+async function handleListBatchSessions(request) {
+    await assertAdmin(request);
+    const { limit: lim = 20 } = request.data || {};
+    const snap = await db.collection("backup_sessions")
+        .orderBy("createdAt", "desc")
+        .limit(Math.min(lim, 50))
+        .get();
+
+    const sessions = snap.docs.map(d => {
+        const data = d.data();
+        let createdAt = null;
+        try {
+            createdAt = data.createdAt?.toDate?.()?.toISOString() || null;
+        } catch (_) { /* ignore */ }
+        return {
+            sessionId: data.sessionId,
+            type: data.type || "manual",
+            period: data.period || null,
+            memo: String(data.memo || ""),
+            userCount: data.userCount || 0,
+            createdAt,
+            createdBy: String(data.createdBy || "")
+        };
+    });
+
+    return { sessions };
+}
+
+// 특정 세션으로 전체 유저 일괄 롤백
+async function handleBatchRollbackAllUsers(request) {
+    await assertAdmin(request);
+    const { sessionId } = request.data || {};
+    if (!sessionId || typeof sessionId !== "string") throw new HttpsError("invalid-argument", "sessionId는 필수입니다.");
+
+    const sessionDoc = await db.collection("backup_sessions").doc(sessionId).get();
+    if (!sessionDoc.exists) throw new HttpsError("not-found", "해당 세션을 찾을 수 없습니다.");
+
+    const backupsSnap = await db.collection("user_backups")
+        .where("sessionId", "==", sessionId)
+        .get();
+    if (backupsSnap.empty) throw new HttpsError("not-found", "해당 세션의 백업 데이터가 없습니다.");
+
+    const { FieldValue: FV2 } = require("firebase-admin/firestore");
+    const createdBy = request.auth.token.email || request.auth.uid;
+    const autoSessionId = backupScheduler.makeSessionId();
+    const autoMemo = `일괄 롤백 전 자동 백업 (→ ${sessionId})`;
+    const now = new Date();
+
+    // 1단계: 현재 상태 자동 백업 (읽기 → 쓰기)
+    let autoBatch = db.batch();
+    let autoCount = 0;
+    let restoredCount = 0;
+
+    for (const backupDoc of backupsSnap.docs) {
+        const { uid } = backupDoc.data();
+        if (!uid) continue;
+        const currentDoc = await db.collection("users").doc(uid).get();
+        if (!currentDoc.exists) continue;
+        const ref = db.collection("user_backups").doc();
+        autoBatch.set(ref, {
+            uid: String(uid),
+            data: currentDoc.data(),
+            memo: autoMemo,
+            sessionId: autoSessionId,
+            createdAt: now,
+            createdBy
+        });
+        autoCount++;
+        if (autoCount === 400) {
+            await autoBatch.commit();
+            autoBatch = db.batch();
+            autoCount = 0;
+        }
+    }
+    if (autoCount > 0) await autoBatch.commit();
+
+    // 2단계: 백업 데이터로 복원
+    let restoreBatch = db.batch();
+    let restoreCount = 0;
+    for (const backupDoc of backupsSnap.docs) {
+        const { uid, data: backupData } = backupDoc.data();
+        if (!uid || !backupData) continue;
+        restoreBatch.set(db.collection("users").doc(uid), backupData);
+        restoreCount++;
+        restoredCount++;
+        if (restoreCount === 400) {
+            await restoreBatch.commit();
+            restoreBatch = db.batch();
+            restoreCount = 0;
+        }
+    }
+    if (restoreCount > 0) await restoreBatch.commit();
+
+    // 자동 백업 세션 기록
+    await db.collection("backup_sessions").doc(autoSessionId).set({
+        sessionId: autoSessionId,
+        type: "auto_before_rollback",
+        period: null,
+        memo: autoMemo,
+        userCount: restoredCount,
+        createdAt: FV2.serverTimestamp(),
+        createdBy
+    });
+
+    console.log(`[batchRollbackAllUsers] ${restoredCount}명 롤백 완료 sessionId=${sessionId} by ${createdBy}`);
+    return { success: true, restoredCount };
 }
 
 // 비밀번호 재설정 링크 생성
@@ -2001,6 +2125,10 @@ exports.ping = onCall(pingCallableOpts, async (request) => {
                     return await handleUpdateBackupSchedulerConfig(request);
                 case "batchBackupAllUsers":
                     return await handleBatchBackupAllUsers(request);
+                case "listBatchSessions":
+                    return await handleListBatchSessions(request);
+                case "batchRollbackAllUsers":
+                    return await handleBatchRollbackAllUsers(request);
                 case "resetPassword":
                     return await handleResetPassword(request);
                 case "disableAccount":
