@@ -72,7 +72,7 @@ function render() {
                 <div id="batch-backup-result" style="margin-top:8px;"></div>
             </div>
 
-            <div>
+            <div style="border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:16px;">
                 <h3 class="text-sm" style="margin-bottom:8px; font-weight:600;">자동 백업 스케쥴러</h3>
                 <div id="backup-scheduler-panel">
                     <p class="text-sub text-sm">스케쥴러 상태를 불러오려면 아래 버튼을 누르세요.</p>
@@ -80,6 +80,17 @@ function render() {
                 <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
                     <button class="btn btn-outline btn-sm" id="btn-load-scheduler">스케쥴러 상태 조회</button>
                     <button class="btn btn-outline btn-sm" id="btn-save-scheduler" style="display:none;">설정 저장</button>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm" style="margin-bottom:8px; font-weight:600;">백업 세션 목록 / 일괄 롤백</h3>
+                <p class="text-sub text-sm mb-8">일괄 백업 시점을 선택해 전체 유저를 해당 시점으로 되돌립니다.</p>
+                <div id="batch-sessions-panel">
+                    <p class="text-sub text-sm">세션 목록을 불러오려면 아래 버튼을 누르세요.</p>
+                </div>
+                <div style="margin-top:12px;">
+                    <button class="btn btn-outline btn-sm" id="btn-load-sessions">세션 목록 조회</button>
                 </div>
             </div>
         </div>
@@ -105,6 +116,7 @@ function render() {
     document.getElementById("btn-batch-backup").addEventListener("click", batchBackupAllUsers);
     document.getElementById("btn-load-scheduler").addEventListener("click", loadSchedulerConfig);
     document.getElementById("btn-save-scheduler").addEventListener("click", saveSchedulerConfig);
+    document.getElementById("btn-load-sessions").addEventListener("click", loadBatchSessions);
 }
 
 async function loadUsers() {
@@ -432,6 +444,74 @@ async function deleteAccount() {
     } catch (e) {
         terror("UserMgmt", "계정 삭제 실패: " + e.message);
         alert("계정 삭제 실패: " + e.message);
+    }
+}
+
+async function loadBatchSessions() {
+    const panel = document.getElementById("batch-sessions-panel");
+    panel.innerHTML = '<p class="text-sub text-sm">로딩 중...</p>';
+    tlog("UserMgmt", "백업 세션 목록 로딩...");
+    try {
+        const result = await callAdmin("listBatchSessions");
+        const sessions = result.sessions || [];
+        if (sessions.length === 0) {
+            panel.innerHTML = '<p class="text-sub text-sm">생성된 일괄 백업 세션이 없습니다.</p>';
+            tok("UserMgmt", "백업 세션 없음");
+            return;
+        }
+        const typeLabel = {
+            manual: "수동",
+            scheduled: "자동",
+            auto_before_rollback: "롤백 전 자동"
+        };
+        let html = `<table>
+            <thead><tr><th>일시</th><th>유형</th><th>메모</th><th>유저 수</th><th>생성자</th><th>작업</th></tr></thead>
+            <tbody>`;
+        for (const s of sessions) {
+            const dt = s.createdAt ? new Date(s.createdAt).toLocaleString("ko-KR") : "—";
+            const type = typeLabel[s.type] || s.type;
+            const isRollbackable = s.type === "manual" || s.type === "scheduled";
+            html += `<tr>
+                <td class="text-sm">${escHtml(dt)}</td>
+                <td class="text-sm">${escHtml(type)}${s.period ? ` (${escHtml(s.period)})` : ""}</td>
+                <td class="text-sm">${escHtml(s.memo)}</td>
+                <td class="text-sm">${s.userCount}명</td>
+                <td class="text-sub text-sm">${escHtml(s.createdBy)}</td>
+                <td>${isRollbackable
+                    ? `<button class="btn btn-danger btn-sm session-rollback-btn" data-session-id="${escHtml(s.sessionId)}" data-memo="${escHtml(s.memo)}" data-dt="${escHtml(dt)}">전체 롤백</button>`
+                    : '<span class="text-sub text-sm">—</span>'
+                }</td>
+            </tr>`;
+        }
+        html += '</tbody></table>';
+        panel.innerHTML = html;
+        panel.querySelectorAll(".session-rollback-btn").forEach(btn => {
+            btn.addEventListener("click", () => batchRollback(btn.dataset.sessionId, btn.dataset.memo, btn.dataset.dt));
+        });
+        tok("UserMgmt", `${sessions.length}개 세션 로드 완료`);
+    } catch (e) {
+        terror("UserMgmt", "세션 목록 로드 실패: " + e.message);
+        panel.innerHTML = `<p class="text-error text-sm">오류: ${e.message}</p>`;
+    }
+}
+
+async function batchRollback(sessionId, memo, dt) {
+    if (!confirm(`⚠️ 전체 유저를 아래 시점으로 롤백합니다.\n\n시점: ${dt}\n메모: ${memo}\n\n현재 데이터는 자동으로 백업됩니다.\n계속하시겠습니까?`)) return;
+    if (!confirm("정말로 전체 유저를 롤백하시겠습니까? (마지막 확인)")) return;
+
+    tlog("UserMgmt", `전체 유저 일괄 롤백 중... sessionId=${sessionId}`);
+    const panel = document.getElementById("batch-sessions-panel");
+    panel.insertAdjacentHTML("beforeend", '<p class="text-sub text-sm" id="rollback-progress">롤백 진행 중... (잠시 기다려주세요)</p>');
+    try {
+        const result = await callAdmin("batchRollbackAllUsers", { sessionId });
+        document.getElementById("rollback-progress")?.remove();
+        tok("UserMgmt", `일괄 롤백 완료: ${result.restoredCount}명`);
+        alert(`✓ ${result.restoredCount}명 롤백 완료`);
+        loadBatchSessions();
+    } catch (e) {
+        document.getElementById("rollback-progress")?.remove();
+        terror("UserMgmt", "일괄 롤백 실패: " + e.message);
+        alert("롤백 실패: " + e.message);
     }
 }
 
