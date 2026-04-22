@@ -4,6 +4,8 @@ import { tlog, tok, terror } from "./log-panel.js";
 
 let _container = null;
 let _reports = [];
+let _processedPostIds = new Set();
+let _applyFilters = null;
 
 const ping = httpsCallable(functions, "ping");
 
@@ -40,6 +42,13 @@ function render() {
                         <option value="불쾌한 표현이 있습니다.">불쾌한 표현</option>
                     </select>
                     <input type="text" id="rpt-text-screen" placeholder="텍스트 스크리닝 (캡션 내 특정 단어 필터)..." style="flex:1; min-width:200px;">
+                </div>
+                <div style="margin-top:8px;">
+                    <select id="rpt-processed-filter" style="padding:4px 8px; font-size:0.8rem; min-width:180px;">
+                        <option value="">전체 처리 상태</option>
+                        <option value="pending">미처리</option>
+                        <option value="done">처리 완료</option>
+                    </select>
                 </div>
             </div>
             <div id="rpt-list" style="margin-top:16px;"></div>
@@ -97,6 +106,7 @@ async function loadReports() {
             const q = (document.getElementById("rpt-search").value || "").toLowerCase();
             const reasonFilter = document.getElementById("rpt-reason-filter").value;
             const textScreen = (document.getElementById("rpt-text-screen").value || "").toLowerCase();
+            const processedFilter = document.getElementById("rpt-processed-filter").value;
             let filtered = _reports;
             if (q) {
                 filtered = filtered.filter(r =>
@@ -114,14 +124,22 @@ async function loadReports() {
                     keywords.some(kw => (r.caption || "").toLowerCase().includes(kw))
                 );
             }
+            if (processedFilter === "pending") {
+                filtered = filtered.filter(r => !_processedPostIds.has(r.postId));
+            } else if (processedFilter === "done") {
+                filtered = filtered.filter(r => _processedPostIds.has(r.postId));
+            }
             listEl.innerHTML = renderReportTable(filtered);
             countEl.textContent = `총 ${_reports.length}개 / 필터: ${filtered.length}개`;
             bindReportClicks();
         }
 
+        _applyFilters = applyFilters;
+
         document.getElementById("rpt-search").addEventListener("input", applyFilters);
         document.getElementById("rpt-reason-filter").addEventListener("change", applyFilters);
         document.getElementById("rpt-text-screen").addEventListener("input", applyFilters);
+        document.getElementById("rpt-processed-filter").addEventListener("change", applyFilters);
     } catch (e) {
         terror("Reports", "신고 목록 로드 실패: " + e.message);
         listEl.innerHTML = `<p class="text-error text-sm">오류: ${e.message}</p>`;
@@ -156,9 +174,13 @@ function renderReportTable(reports) {
               + ((r.reporters[r.reporters.length - 1].reason || "").length > 15 ? "..." : "")
             : '—';
 
-        html += `<tr class="rpt-row" data-post-id="${escHtml(r.postId)}" style="cursor:pointer;">
+        const isProcessed = _processedPostIds.has(r.postId);
+        const processedStyle = isProcessed ? ' opacity:0.5;' : '';
+        const processedBadge = isProcessed ? '<span class="badge badge-ok" style="margin-left:4px;font-size:0.7rem;">처리완료</span>' : '';
+
+        html += `<tr class="rpt-row" data-post-id="${escHtml(r.postId)}" style="cursor:pointer;${processedStyle}">
             <td>${thumbHtml}</td>
-            <td>${escHtml(r.ownerName || "—")}</td>
+            <td>${escHtml(r.ownerName || "—")}${processedBadge}</td>
             <td class="text-sm">${captionPreview || '<span class="text-sub">—</span>'}</td>
             <td class="text-sm">${latestReason}</td>
             <td>${countBadge}</td>
@@ -216,6 +238,14 @@ function selectReport(postId) {
         </div>
     `;
 
+    const isProcessed = _processedPostIds.has(_selectedReport.postId);
+    const deleteBtn = document.getElementById("btn-rpt-delete-post");
+    const dismissBtn = document.getElementById("btn-rpt-dismiss");
+    deleteBtn.disabled = isProcessed;
+    dismissBtn.disabled = isProcessed;
+    deleteBtn.style.opacity = isProcessed ? "0.45" : "";
+    dismissBtn.style.opacity = isProcessed ? "0.45" : "";
+
     panel.scrollIntoView({ behavior: "smooth" });
 }
 
@@ -245,10 +275,9 @@ async function deleteReportedPost(sendNotification = false) {
         tok("Reports", `포스트 삭제 완료: ${_selectedReport.postId}`);
         resultEl.innerHTML = `<p class="text-success text-sm">포스트 삭제 완료! (삭제 안내 발송 완료)</p>`;
 
-        _reports = _reports.filter(r => r.postId !== _selectedReport.postId);
-        document.getElementById("rpt-count").textContent = `총 ${_reports.length}개`;
-        document.getElementById("rpt-list").innerHTML = renderReportTable(_reports);
-        bindReportClicks();
+        _processedPostIds.add(_selectedReport.postId);
+        if (_applyFilters) _applyFilters();
+        else { document.getElementById("rpt-list").innerHTML = renderReportTable(_reports); bindReportClicks(); }
 
         setTimeout(closeDetail, 1500);
     } catch (e) {
@@ -271,10 +300,9 @@ async function dismissReport() {
         tok("Reports", `신고 기각 완료: ${_selectedReport.postId}`);
         resultEl.innerHTML = '<p class="text-success text-sm">신고 기각 완료!</p>';
 
-        _reports = _reports.filter(r => r.postId !== _selectedReport.postId);
-        document.getElementById("rpt-count").textContent = `총 ${_reports.length}개`;
-        document.getElementById("rpt-list").innerHTML = renderReportTable(_reports);
-        bindReportClicks();
+        _processedPostIds.add(_selectedReport.postId);
+        if (_applyFilters) _applyFilters();
+        else { document.getElementById("rpt-list").innerHTML = renderReportTable(_reports); bindReportClicks(); }
 
         setTimeout(closeDetail, 1500);
     } catch (e) {
