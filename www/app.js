@@ -6766,9 +6766,10 @@ async function requestFitnessScope() {
         if (HealthConnect) {
             const availability = await HealthConnect.isAvailable();
             if (availability.available) {
-                await HealthConnect.requestPermissions();
-                if (window.AppLogger) AppLogger.info('[HealthConnect] 권한 요청 완료');
-                return true;
+                const perm = await HealthConnect.requestPermissions();
+                const granted = !!(perm && (perm.granted || perm.settingsOpened));
+                if (window.AppLogger) AppLogger.info('[HealthConnect] 권한 요청 완료: ' + JSON.stringify(perm || {}));
+                return granted;
             }
         }
 
