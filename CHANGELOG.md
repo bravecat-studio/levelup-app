@@ -5,6 +5,12 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.479] - 2026-04-22
+
+### 변경
+- docs: PR 컨플릭트 해결 이력 및 기준 반영
+- docs: 오가닉 1인 운영 가정으로 손익 비용 재산정
+
 ## [1.0.478] - 2026-04-22
 
 ### 변경
