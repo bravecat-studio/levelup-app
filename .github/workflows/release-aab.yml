@@ -446,6 +446,7 @@ jobs:
           text = path.read_text()
 
           imports = [
+              'import android.os.Bundle;',
               'import com.levelup.reboot.plugins.AppSettingsPlugin;',
               'import com.levelup.reboot.plugins.ClipboardPlugin;',
               'import com.levelup.reboot.plugins.FCMPlugin;',
@@ -475,7 +476,22 @@ jobs:
                   if line not in text:
                       marker = '        super.onCreate(savedInstanceState);\n'
                       if marker in text:
-                          text = text.replace(marker, marker + line + '\n', 1)
+                          text = text.replace(marker, line + '\n' + marker, 1)
+          else:
+              missing = [line for line in registers if line not in text]
+              if missing:
+                  oncreate = (
+                      '\n'
+                      '    @Override\n'
+                      '    public void onCreate(Bundle savedInstanceState) {\n'
+                      + '\n'.join(missing) + '\n'
+                      '        super.onCreate(savedInstanceState);\n'
+                      '    }\n'
+                  )
+                  last_brace = text.rfind('}')
+                  if last_brace == -1:
+                      raise RuntimeError('MainActivity.java class closing brace not found')
+                  text = text[:last_brace] + oncreate + text[last_brace:]
 
           path.write_text(text)
           print('MainActivity plugin registration ensured')

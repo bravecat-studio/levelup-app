@@ -159,7 +159,7 @@ jobs:
           echo "✅ 권한 주입 완료"
 
           # === MainActivity.java 플러그인 등록 (전체 파일 교체) ===
-          if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY"; then
+          if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY" || ! grep -q "registerPlugin(NativeAdPlugin" "$MAIN_ACTIVITY"; then
             {
               echo 'package com.levelup.reboot;'
               echo 'import com.getcapacitor.BridgeActivity;'
@@ -460,7 +460,7 @@ jobs:
           fi
 
           # 플러그인 등록 (전체 파일 교체)
-          if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY"; then
+          if ! grep -q "registerPlugin(AppSettingsPlugin" "$MAIN_ACTIVITY" || ! grep -q "registerPlugin(NativeAdPlugin" "$MAIN_ACTIVITY"; then
             {
               echo 'package com.levelup.reboot;'
               echo 'import com.getcapacitor.BridgeActivity;'
