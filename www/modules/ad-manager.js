@@ -67,8 +67,8 @@
     function _i18n() { return window.i18n; }
     function _getNativeAdAdapter() {
         const plugins = window?.Capacitor?.Plugins || {};
-
-        const nativePlugin = plugins.NativeAd;
+        const nativePlugin = plugins.NativeAd
+            || (window?.Capacitor?.registerPlugin ? window.Capacitor.registerPlugin('NativeAd') : null);
         if (nativePlugin && typeof nativePlugin.loadAd === 'function') {
             return {
                 provider: 'NativeAd',
@@ -84,17 +84,17 @@
         // 일부 빌드에서는 Native Advanced API가 AdMob 플러그인 내부에 포함될 수 있음
         const adMob = plugins.AdMob;
         if (adMob) {
-            const loadFn = adMob.loadNativeAd || adMob.prepareNativeAd || adMob.prepareNativeAdvancedAd;
-            const showFn = adMob.showNativeAd || adMob.showNativeAdvancedAd;
+            const loadFn = adMob.loadNativeAd || adMob.prepareNativeAd || adMob.prepareNativeAdvancedAd || adMob.prepareNative;
+            const showFn = adMob.showNativeAd || adMob.showNativeAdvancedAd || adMob.showNative;
             if (typeof loadFn === 'function' && typeof showFn === 'function') {
                 return {
                     provider: 'AdMob(native)',
                     load: (options) => loadFn.call(adMob, options),
                     show: (options) => showFn.call(adMob, options),
-                    hide: () => (adMob.hideNativeAd || adMob.hideNativeAdvancedAd)?.call(adMob),
-                    resume: () => (adMob.resumeNativeAd || adMob.resumeNativeAdvancedAd)?.call(adMob),
-                    destroy: () => (adMob.destroyNativeAd || adMob.destroyNativeAdvancedAd)?.call(adMob),
-                    updatePosition: (options) => (adMob.updateNativeAdPosition || adMob.updateNativeAdvancedPosition)?.call(adMob, options),
+                    hide: () => (adMob.hideNativeAd || adMob.hideNativeAdvancedAd || adMob.hideNative)?.call(adMob),
+                    resume: () => (adMob.resumeNativeAd || adMob.resumeNativeAdvancedAd || adMob.resumeNative)?.call(adMob),
+                    destroy: () => (adMob.destroyNativeAd || adMob.destroyNativeAdvancedAd || adMob.removeNativeAd)?.call(adMob),
+                    updatePosition: (options) => (adMob.updateNativeAdPosition || adMob.updateNativeAdvancedPosition || adMob.updateNativePosition)?.call(adMob, options),
                 };
             }
         }
