@@ -74,17 +74,32 @@ export function createHealthService(deps = {}) {
         const HealthConnect = capabilities?.getCapacitor?.()?.Plugins?.HealthConnect;
 
         try {
-            if (!HealthConnect) return false;
+            if (!HealthConnect) {
+                AppLogger?.warn?.('[HealthConnect] requestPermissions skipped: plugin unavailable');
+                return false;
+            }
             const availability = await HealthConnect.isAvailable();
-            if (!availability.available) return false;
+            AppLogger?.info?.('[HealthConnect] isAvailable before requestPermissions: ' + JSON.stringify(availability || {}));
+            if (!availability.available) {
+                AppLogger?.warn?.('[HealthConnect] requestPermissions skipped: SDK unavailable');
+                return false;
+            }
             const perm = await HealthConnect.requestPermissions();
             const granted = !!(perm && (perm.granted || perm.settingsOpened));
-            AppLogger?.info?.('[HealthConnect] 권한 요청 완료: ' + JSON.stringify(perm || {}));
+            AppLogger?.info?.('[HealthConnect] requestPermissions result: ' + JSON.stringify({
+                granted,
+                permissionPayload: perm || {},
+            }));
             return granted;
         } catch (e) {
             const errCode = String(e?.code || e?.error?.code || '');
             if (errCode === '12501') return false;
-            AppLogger?.error?.('[permission.request.failed] health: ' + (e.message || JSON.stringify(e)));
+            AppLogger?.error?.('[permission.request.failed] health: ' + JSON.stringify({
+                message: e?.message || '',
+                code: e?.code || e?.error?.code || '',
+                stack: e?.stack || '',
+                raw: e,
+            }));
             return false;
         }
     }
@@ -94,14 +109,19 @@ export function createHealthService(deps = {}) {
 
         try {
             const HealthConnect = capabilities?.getCapacitor?.()?.Plugins?.HealthConnect;
-            if (!HealthConnect) return null;
+            if (!HealthConnect) {
+                AppLogger?.warn?.('[HealthConnect] getTodaySteps skipped: plugin unavailable');
+                return null;
+            }
 
             const availability = await HealthConnect.isAvailable();
+            AppLogger?.info?.('[HealthConnect] getTodaySteps availability: ' + JSON.stringify(availability || {}));
             if (!availability.available) {
                 AppLogger?.info?.('[HealthConnect] SDK not available on this device, using sensor fallback');
             }
 
             const result = await HealthConnect.getTodaySteps();
+            AppLogger?.info?.('[HealthConnect] getTodaySteps raw result: ' + JSON.stringify(result || {}));
             if (result.fallbackToRest) {
                 AppLogger?.info?.('[HealthConnect] Fallback: ' + (result.error || 'unknown'));
                 return null;
@@ -109,7 +129,12 @@ export function createHealthService(deps = {}) {
             AppLogger?.info?.(`[HealthConnect] Native steps: ${result.steps} (source: ${result.source})`);
             return result.steps;
         } catch (e) {
-            AppLogger?.warn?.('[health.sync.failed] step-read: ' + (e.message || JSON.stringify(e)));
+            AppLogger?.warn?.('[health.sync.failed] step-read: ' + JSON.stringify({
+                message: e?.message || '',
+                code: e?.code || e?.error?.code || '',
+                stack: e?.stack || '',
+                raw: e,
+            }));
             return null;
         }
     }
