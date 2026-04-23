@@ -808,7 +808,7 @@
                 return;
             }
 
-            await nativeAd.destroy?.().catch(() => {});
+            await nativeAd.destroy?.()?.catch(() => {});
 
             const result = await nativeAd.load({
                 adId: NATIVE_AD_UNIT_ID,
@@ -818,7 +818,7 @@
 
             if (result && result.loaded) {
                 if (!document.getElementById(tabId)?.classList.contains('active')) {
-                    nativeAd.destroy?.().catch(() => {});
+                    nativeAd.destroy?.()?.catch(() => {});
                     _nativeAdLoaded = false;
                     _nativeAdActiveTab = null;
                     return;
@@ -903,12 +903,12 @@
 
             if (entry.isIntersecting) {
                 if (!_nativeAdVisible && !_adsHiddenForModal) {
-                    nativeAd.resume?.().catch(() => {});
+                    nativeAd.resume?.()?.catch(() => {});
                     _nativeAdVisible = true;
                 }
             } else {
                 if (_nativeAdVisible) {
-                    nativeAd.hide?.().catch(() => {});
+                    nativeAd.hide?.()?.catch(() => {});
                     _nativeAdVisible = false;
                 }
             }
@@ -931,7 +931,7 @@
                 const clipBottom = navRef ? navRef.getBoundingClientRect().top : 0;
                 const nativeAd = _getNativeAdAdapter();
                 if (nativeAd) {
-                    nativeAd.updatePosition?.({ y: rect.top, clipTop, clipBottom }).catch(() => {});
+                    nativeAd.updatePosition?.({ y: rect.top, clipTop, clipBottom })?.catch(() => {});
                 }
             });
         }
@@ -985,7 +985,7 @@
         if (_nativeAdActiveTab) {
             try {
                 const nativeAd = _getNativeAdAdapter();
-                if (nativeAd) await nativeAd.hide?.().catch(() => {});
+                if (nativeAd) await nativeAd.hide?.()?.catch(() => {});
             } catch (e) { /* 무시 */ }
         }
 
@@ -1007,7 +1007,7 @@
             try {
                 const nativeAd = _getNativeAdAdapter();
                 if (nativeAd) {
-                    await nativeAd.resume?.().catch(() => {});
+                    await nativeAd.resume?.()?.catch(() => {});
                     _nativeAdVisible = true;
                     positionNativeAd(_nativeAdActiveTab);
                 }
