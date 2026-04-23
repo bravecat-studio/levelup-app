@@ -5,10 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
-## [1.0.524] - 2026-04-23
+## [1.0.525] - 2026-04-23
 
 ### 변경
-- fix(android): inject plugin onCreate into default MainActivity
+- fix: MainActivity plugin registerPlugin 호출 순서를 super.onCreate 이전으로 교정
+- fix(ci): build/release workflow MainActivity 패처에 onCreate 자동 생성 + Bundle import 보강
 
 ## [1.0.524] - 2026-04-23
 

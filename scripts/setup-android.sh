@@ -108,12 +108,13 @@ if oncreate_sig in text:
         if line not in text:
             marker = '        super.onCreate(savedInstanceState);\n'
             if marker in text:
-                text = text.replace(marker, marker + line + '\n', 1)
+                text = text.replace(marker, line + '\n' + marker, 1)
 else:
     class_close = text.rfind('}')
     if class_close != -1:
-        method_body = '\n\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n'
+        method_body = '\n\n    @Override\n    public void onCreate(Bundle savedInstanceState) {\n'
         method_body += '\n'.join(registers) + '\n'
+        method_body += '        super.onCreate(savedInstanceState);\n'
         method_body += '    }\n'
         text = text[:class_close] + method_body + text[class_close:]
     else:
