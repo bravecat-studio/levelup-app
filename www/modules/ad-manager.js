@@ -66,8 +66,8 @@
     function _i18n() { return window.i18n; }
     function _getNativeAdAdapter() {
         const plugins = window?.Capacitor?.Plugins || {};
-
-        const nativePlugin = plugins.NativeAd;
+        const nativePlugin = plugins.NativeAd
+            || (window?.Capacitor?.registerPlugin ? window.Capacitor.registerPlugin('NativeAd') : null);
         if (nativePlugin && typeof nativePlugin.loadAd === 'function') {
             return {
                 provider: 'NativeAd',
@@ -83,17 +83,17 @@
         // 일부 빌드에서는 Native Advanced API가 AdMob 플러그인 내부에 포함될 수 있음
         const adMob = plugins.AdMob;
         if (adMob) {
-            const loadFn = adMob.loadNativeAd || adMob.prepareNativeAd || adMob.prepareNativeAdvancedAd;
-            const showFn = adMob.showNativeAd || adMob.showNativeAdvancedAd;
+            const loadFn = adMob.loadNativeAd || adMob.prepareNativeAd || adMob.prepareNativeAdvancedAd || adMob.prepareNative;
+            const showFn = adMob.showNativeAd || adMob.showNativeAdvancedAd || adMob.showNative;
             if (typeof loadFn === 'function' && typeof showFn === 'function') {
                 return {
                     provider: 'AdMob(native)',
                     load: (options) => loadFn.call(adMob, options),
                     show: (options) => showFn.call(adMob, options),
-                    hide: () => (adMob.hideNativeAd || adMob.hideNativeAdvancedAd)?.call(adMob),
-                    resume: () => (adMob.resumeNativeAd || adMob.resumeNativeAdvancedAd)?.call(adMob),
-                    destroy: () => (adMob.destroyNativeAd || adMob.destroyNativeAdvancedAd)?.call(adMob),
-                    updatePosition: (options) => (adMob.updateNativeAdPosition || adMob.updateNativeAdvancedPosition)?.call(adMob, options),
+                    hide: () => (adMob.hideNativeAd || adMob.hideNativeAdvancedAd || adMob.hideNative)?.call(adMob),
+                    resume: () => (adMob.resumeNativeAd || adMob.resumeNativeAdvancedAd || adMob.resumeNative)?.call(adMob),
+                    destroy: () => (adMob.destroyNativeAd || adMob.destroyNativeAdvancedAd || adMob.removeNativeAd)?.call(adMob),
+                    updatePosition: (options) => (adMob.updateNativeAdPosition || adMob.updateNativeAdvancedPosition || adMob.updateNativePosition)?.call(adMob, options),
                 };
             }
         }
@@ -101,14 +101,14 @@
     }
     function _handleMissingNativeAdPlugin() {
         _nativeAdMissingCount += 1;
-        // Native Advanced API가 아예 없는 빌드는 재시도해도 성공하지 않으므로 즉시 비활성화
-        _nativeAdDisabled = true;
+        // 일부 런타임에서는 플러그인 등록 타이밍이 지연될 수 있으므로 몇 차례 재시도 후 비활성화
+        if (_nativeAdMissingCount >= 3) _nativeAdDisabled = true;
         if (_nativeAdUnavailableLogged) return;
         _nativeAdUnavailableLogged = true;
         const pluginKeys = Object.keys(window?.Capacitor?.Plugins || {}).join(', ');
         const adMobKeys = Object.keys(window?.Capacitor?.Plugins?.AdMob || {}).join(', ');
         if (window.AppLogger) {
-            AppLogger.warn('[NativeAd] Native Advanced API 사용 불가. plugins=' + (pluginKeys || '(none)') + ', AdMobMethods=' + (adMobKeys || '(none)'));
+            AppLogger.warn('[NativeAd] Native Advanced API 사용 불가. miss=' + _nativeAdMissingCount + ', plugins=' + (pluginKeys || '(none)') + ', AdMobMethods=' + (adMobKeys || '(none)'));
         }
     }
     function _registerNativeAdFailure(reason, error) {
@@ -784,6 +784,8 @@
         const placeholderId = 'native-ad-placeholder-' + tabId;
         const placeholder = document.getElementById(placeholderId);
         if (!placeholder) return;
+        // 이전 로드 실패 시 display:none 처리된 슬롯을 재시도 시 다시 활성화
+        placeholder.style.display = '';
 
         if (!document.getElementById(tabId)?.classList.contains('active')) return;
 
@@ -793,15 +795,16 @@
                 _handleMissingNativeAdPlugin();
                 _nativeAdLoaded = false;
                 _nativeAdActiveTab = null;
-                placeholder.style.display = 'none';
-                // NativeAd 플러그인이 없는 빌드에서는 배너로 폴백해 광고 공백을 최소화
-                _nativeAdUsingBannerFallback = true;
-                await showBanner().catch(() => {});
+                if (_nativeAdDisabled) {
+                    placeholder.style.display = 'none';
+                } else {
+                    setTimeout(() => {
+                        if (document.getElementById(tabId)?.classList.contains('active')) {
+                            loadNativeAd(tabId).catch(() => {});
+                        }
+                    }, 1200);
+                }
                 return;
-            }
-            if (_nativeAdUsingBannerFallback) {
-                _nativeAdUsingBannerFallback = false;
-                await hideBanner().catch(() => {});
             }
 
             await nativeAd.destroy?.().catch(() => {});
@@ -822,6 +825,8 @@
 
                 _nativeAdLoaded = true;
                 _nativeAdActiveTab = tabId;
+                _nativeAdMissingCount = 0;
+                _nativeAdDisabled = false;
                 if (window.AppLogger) AppLogger.info(`[NativeAd] ${tabId}탭 네이티브 광고 로드 완료 (${nativeAd.provider})`);
 
                 positionNativeAd(tabId);
@@ -957,11 +962,6 @@
         _nativeAdLoaded = false;
         _nativeAdVisible = false;
         _nativeAdActiveTab = null;
-
-        if (_nativeAdUsingBannerFallback) {
-            _nativeAdUsingBannerFallback = false;
-            await hideBanner().catch(() => {});
-        }
 
         if (!_isNative()) return;
 
