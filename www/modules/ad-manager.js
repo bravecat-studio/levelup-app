@@ -794,7 +794,14 @@
                 _nativeAdLoaded = false;
                 _nativeAdActiveTab = null;
                 placeholder.style.display = 'none';
+                // NativeAd 플러그인이 없는 빌드에서는 배너로 폴백해 광고 공백을 최소화
+                _nativeAdUsingBannerFallback = true;
+                await showBanner().catch(() => {});
                 return;
+            }
+            if (_nativeAdUsingBannerFallback) {
+                _nativeAdUsingBannerFallback = false;
+                await hideBanner().catch(() => {});
             }
 
             await nativeAd.destroy?.().catch(() => {});
@@ -950,6 +957,11 @@
         _nativeAdLoaded = false;
         _nativeAdVisible = false;
         _nativeAdActiveTab = null;
+
+        if (_nativeAdUsingBannerFallback) {
+            _nativeAdUsingBannerFallback = false;
+            await hideBanner().catch(() => {});
+        }
 
         if (!_isNative()) return;
 
