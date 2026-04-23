@@ -15,6 +15,7 @@ import { createStreakRareTitleModule } from './modules/domains/streak-rare-title
 import { createQuestStatsModule } from './modules/domains/quest-stats.js';
 import { createAuthProfileModule } from './modules/domains/auth-profile.js';
 import { createPlannerDomainModule } from './modules/domains/planner.js';
+import { createPermissionService, PERMISSION_TYPES } from './modules/device/permission-service.js';
 
 if (!self.__FIREBASE_CONFIG) {
     console.error('[App] firebase-config.js가 로드되지 않았습니다. npm run generate-config를 실행하세요.');
@@ -48,6 +49,46 @@ const googleProvider = new GoogleAuthProvider();
 
 // --- 상태 관리 객체 ---
 let AppState = getInitialAppState();
+let permissionService = null;
+
+function getPermissionService() {
+    if (!permissionService) {
+        permissionService = createPermissionService({
+            getAppState: () => AppState,
+            openAppSettings: () => openAppSettingsInternal(),
+            requestPermission: (type) => requestPermissionByType(type),
+            updateCameraToggleUI: () => updateCameraToggleUIInternal(),
+            togglePushNotifications: (...args) => togglePushNotificationsInternal(...args),
+        });
+    }
+    return permissionService;
+}
+
+async function requestPermissionByType(type) {
+    switch (type) {
+        case PERMISSION_TYPES.PUSH:
+            return togglePushNotificationsInternal();
+        case PERMISSION_TYPES.GPS:
+            return toggleGPS();
+        case PERMISSION_TYPES.HEALTH:
+            return toggleHealthSync();
+        default:
+            if (window.AppLogger) AppLogger.warn('[PermissionService] Unknown permission type: ' + type);
+            return null;
+    }
+}
+
+function bridgeOpenAppSettings() {
+    return getPermissionService().openAppSettings();
+}
+
+function bridgeUpdateCameraToggleUI() {
+    return getPermissionService().updateCameraToggleUI();
+}
+
+async function bridgeTogglePushNotifications(...args) {
+    return getPermissionService().togglePushNotifications(...args);
+}
 
 // --- 앱 초기 로드 ---
 
@@ -838,7 +879,7 @@ function bindEvents() {
     updateLoginLangButtons(AppState.currentLang);
     onboardingDomain.init();
     document.getElementById('theme-toggle').addEventListener('change', changeTheme);
-    document.getElementById('push-toggle').addEventListener('change', togglePushNotifications);
+    document.getElementById('push-toggle').addEventListener('change', bridgeTogglePushNotifications);
     document.getElementById('gps-toggle').addEventListener('change', toggleGPS);
     document.getElementById('sync-toggle').addEventListener('change', toggleHealthSync);
     document.getElementById('camera-toggle').addEventListener('change', toggleCamera);
@@ -1516,7 +1557,7 @@ async function loadUserDataFromDB(user) {
             document.getElementById('privacy-toggle').checked = AppState.user.privateAccount;
             const privacyWarningEl = document.getElementById('private-account-warning');
             if (privacyWarningEl) privacyWarningEl.style.display = AppState.user.privateAccount ? 'block' : 'none';
-            updateCameraToggleUI();
+            bridgeUpdateCameraToggleUI();
             const loadedName = data.name || user.displayName || "신규 헌터";
             // ── 기존 유저 닉네임 마이그레이션: usernames 컬렉션에 예약 ──
             if (window.AppLogger) AppLogger.info(`[NameMigration] 시작: "${loadedName}" (uid: ${user.uid.substring(0, 8)}...)`);
@@ -2957,7 +2998,7 @@ function refreshSettingsStatusMessages() {
     }
 
     // 카메라 상태
-    updateCameraToggleUI();
+    bridgeUpdateCameraToggleUI();
 
     // 피트니스 동기화 상태
     const syncStatus = document.getElementById('sync-status');
@@ -5835,7 +5876,7 @@ function changeTheme() {
 // --- GPS 및 건강 데이터 설정 ---
 
 /** 앱 설정 화면 열기 (Capacitor native → Android 앱 상세 설정) */
-function openAppSettings() {
+function openAppSettingsInternal() {
     const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
     if (!isNative) return;
 
@@ -5965,7 +6006,7 @@ async function toggleGPS() {
         if (isNativeOff) {
             const msg = lang.gps_revoke_confirm || '위치 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
             if (confirm(msg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
         }
         return;
@@ -5994,7 +6035,7 @@ async function toggleGPS() {
             gpsToggle.checked = false;
             const confirmMsg = lang.gps_denied_confirm || '위치 권한이 거부된 상태입니다.\n앱 설정에서 위치 권한을 허용하시겠습니까?';
             if (confirm(confirmMsg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
             return;
         }
@@ -6018,7 +6059,7 @@ async function toggleGPS() {
             gpsToggle.checked = false;
             const confirmMsg = lang.gps_denied_confirm || '위치 권한이 거부된 상태입니다.\n앱 설정에서 위치 권한을 허용하시겠습니까?';
             if (confirm(confirmMsg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
             return;
         }
@@ -6083,7 +6124,7 @@ async function toggleHealthSync() {
             const lang = i18n[AppState.currentLang];
             const msg = lang.sync_revoke_confirm || '건강 데이터 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
             if (confirm(msg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
         }
     }
@@ -6132,7 +6173,7 @@ async function toggleCamera() {
             if (window.AppLogger) AppLogger.warn('[Camera] Permission denied: ' + (e.message || e));
             const msg = lang.cam_denied_go_settings || '카메라 권한이 거부되었습니다.\n앱 설정에서 카메라 권한을 허용하시겠습니까?';
             if (confirm(msg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
         }
     } else {
@@ -6145,13 +6186,13 @@ async function toggleCamera() {
         if (isNative) {
             const msg = lang.cam_revoke_confirm || '카메라 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
             if (confirm(msg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
         }
     }
 }
 
-function updateCameraToggleUI() {
+function updateCameraToggleUIInternal() {
     const toggle = document.getElementById('camera-toggle');
     const statusDiv = document.getElementById('camera-status');
     if (!toggle || !statusDiv) return;
@@ -6577,7 +6618,7 @@ async function initPushNotifications() {
 }
 
 /** 푸시 알림 토글 핸들러 */
-async function togglePushNotifications() {
+async function togglePushNotificationsInternal() {
     const pushToggle = document.getElementById('push-toggle');
     const isChecked = pushToggle.checked;
     const statusDiv = document.getElementById('push-status');
@@ -6598,7 +6639,7 @@ async function togglePushNotifications() {
             await unsubscribeNativeTopics();
             const msg = lang.push_revoke_confirm || '알림 권한을 완전히 해제하려면 OS 설정에서 권한을 꺼야 합니다.\n앱 설정으로 이동하시겠습니까?';
             if (confirm(msg)) {
-                openAppSettings();
+                bridgeOpenAppSettings();
             }
         }
         return;
@@ -7313,8 +7354,15 @@ window._functions = functions;
 window.checkReadingRareTitles = checkReadingRareTitles;
 window.checkMovieRareTitles = checkMovieRareTitles;
 window.checkSavingsRareTitles = checkSavingsRareTitles;
-window.updateCameraToggleUI = updateCameraToggleUI;
-window.openAppSettings = openAppSettings;
+window.updateCameraToggleUI = bridgeUpdateCameraToggleUI;
+window.openAppSettings = bridgeOpenAppSettings;
+window.PermissionBridge = {
+    getPermissionState: (type) => getPermissionService().getPermissionState(type),
+    requestPermission: (type) => getPermissionService().requestPermission(type),
+    openAppSettings: (...args) => bridgeOpenAppSettings(...args),
+    updateCameraToggleUI: (...args) => bridgeUpdateCameraToggleUI(...args),
+    togglePushNotifications: (...args) => bridgeTogglePushNotifications(...args),
+};
 
 // 알림 모듈용 Firestore query 노출
 window._query = query;
