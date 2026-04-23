@@ -6488,18 +6488,12 @@ async function showPermissionPrompts() {
     if (!AppState.user.syncEnabled && !AppState.isEmailUser) {
         try {
             let fitnessGranted = false;
-            const { HealthConnect, GoogleFit } = cap.Plugins || {};
+            const HealthConnect = cap.Plugins?.HealthConnect;
 
             if (HealthConnect) {
                 const availability = await HealthConnect.isAvailable();
                 if (availability.available) {
-                    fitnessGranted = await requestFitnessScope(true);
-                }
-            }
-            if (!fitnessGranted && GoogleFit) {
-                const availability = await GoogleFit.isAvailable();
-                if (availability.available && !availability.hasPermissions) {
-                    fitnessGranted = await requestFitnessScope(true);
+                    fitnessGranted = await requestFitnessScope();
                 }
             }
 
@@ -6762,7 +6756,7 @@ async function requestFitnessScope() {
 
     try {
         // 1단계: Health Connect 권한 시도
-        const { HealthConnect } = window.Capacitor.Plugins;
+        const HealthConnect = window.Capacitor?.Plugins?.HealthConnect;
         if (HealthConnect) {
             const availability = await HealthConnect.isAvailable();
             if (availability.available) {
@@ -6792,17 +6786,18 @@ async function tryHealthConnectSteps() {
     if (!isNative) return null;
 
     try {
-        const { HealthConnect } = window.Capacitor.Plugins;
+        const HealthConnect = window.Capacitor?.Plugins?.HealthConnect;
         if (!HealthConnect) return null;
 
         // Health Connect SDK 사용 가능 여부 확인
+        // 중요: SDK unavailable이어도 여기서 return 하지 않는다.
+        // 플러그인 getTodaySteps() 내부의 센서 폴백(TYPE_STEP_COUNTER)을 계속 사용해야 함.
         const availability = await HealthConnect.isAvailable();
-        if (!availability.available) {
-            if (window.AppLogger) AppLogger.info('[HealthConnect] SDK not available on this device');
-            return null;
+        if (!availability.available && window.AppLogger) {
+            AppLogger.info('[HealthConnect] SDK not available on this device, using sensor fallback');
         }
 
-        // 걸음 수 조회
+        // 걸음 수 조회 (플러그인 내부에서 센서 폴백 처리)
         const result = await HealthConnect.getTodaySteps();
         if (result.fallbackToRest) {
             if (window.AppLogger) AppLogger.info('[HealthConnect] Fallback: ' + (result.error || 'unknown'));
@@ -7057,19 +7052,11 @@ async function syncToggleWithOSPermissions() {
     if (cap.Plugins) {
         try {
             let hasPermission = false;
-            const { HealthConnect, GoogleFit } = cap.Plugins;
+            const HealthConnect = cap.Plugins?.HealthConnect;
 
             if (HealthConnect) {
                 const availability = await HealthConnect.isAvailable();
-                if (availability.available && availability.hasPermissions) {
-                    hasPermission = true;
-                }
-            }
-            if (!hasPermission && GoogleFit) {
-                const availability = await GoogleFit.isAvailable();
-                if (availability.available && availability.hasPermissions) {
-                    hasPermission = true;
-                }
+                hasPermission = !!(availability.available && (availability.hasActivityRecognition || availability.hasPermissions));
             }
 
             if (AppState.user.syncEnabled && !hasPermission) {
