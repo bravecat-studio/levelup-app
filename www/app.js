@@ -19,6 +19,10 @@ if (!self.__FIREBASE_CONFIG) {
 }
 const firebaseConfig = self.__FIREBASE_CONFIG;
 const APP_VERSION = '1.0.493';
+window.__APP_VERSION__ = APP_VERSION;
+if (window.AppLogger) {
+    AppLogger.info('[AppStart] 빌드 버전: v' + APP_VERSION);
+}
 
 const {
     app,
