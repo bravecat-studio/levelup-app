@@ -8,6 +8,11 @@
 ## [1.0.525] - 2026-04-23
 
 ### 변경
+- fix(ci): register native plugins before BridgeActivity super.onCreate
+
+## [1.0.525] - 2026-04-23
+
+### 변경
 - fix: MainActivity plugin registerPlugin 호출 순서를 super.onCreate 이전으로 교정
 - fix(ci): build/release workflow MainActivity 패처에 onCreate 자동 생성 + Bundle import 보강
 
