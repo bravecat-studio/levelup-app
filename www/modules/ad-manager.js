@@ -50,6 +50,7 @@
     let _nativeAdDisabled = false;
     let _nativeAdUnavailableLogged = false;
     let _nativeAdMissingCount = 0;
+    let _nativeAdUsingBannerFallback = false;
 
     // 모달 오버레이 시 광고 일시 숨김 플래그
     let _adsHiddenForModal = false;
@@ -750,7 +751,14 @@
             if (!NativeAd) {
                 _handleMissingNativeAdPlugin();
                 placeholder.style.display = 'none';
+                // NativeAd 플러그인이 없는 빌드에서는 배너로 폴백해 광고 공백을 최소화
+                _nativeAdUsingBannerFallback = true;
+                await showBanner().catch(() => {});
                 return;
+            }
+            if (_nativeAdUsingBannerFallback) {
+                _nativeAdUsingBannerFallback = false;
+                await hideBanner().catch(() => {});
             }
 
             await NativeAd.destroyAd().catch(() => {});
@@ -900,6 +908,11 @@
         _nativeAdLoaded = false;
         _nativeAdVisible = false;
         _nativeAdActiveTab = null;
+
+        if (_nativeAdUsingBannerFallback) {
+            _nativeAdUsingBannerFallback = false;
+            await hideBanner().catch(() => {});
+        }
 
         if (!_isNative()) return;
 
