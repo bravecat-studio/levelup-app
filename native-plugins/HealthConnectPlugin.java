@@ -47,24 +47,45 @@ public class HealthConnectPlugin extends Plugin {
     private static final int ACTIVITY_RECOGNITION_REQUEST_CODE = 2201;
     private PluginCall savedPermissionCall = null;
 
+    private void logDebug(String message) {
+        Log.d(TAG, message);
+    }
+
+    private void logInfo(String message) {
+        Log.i(TAG, message);
+    }
+
+    private void logWarn(String message) {
+        Log.w(TAG, message);
+    }
+
+    private void logError(String message, Throwable throwable) {
+        Log.e(TAG, message, throwable);
+    }
+
     private boolean hasActivityRecognitionPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true;
-        return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACTIVITY_RECOGNITION)
+        boolean granted = ContextCompat.checkSelfPermission(getContext(), Manifest.permission.ACTIVITY_RECOGNITION)
                 == PackageManager.PERMISSION_GRANTED;
+        logDebug("ACTIVITY_RECOGNITION permission granted=" + granted + ", sdk=" + Build.VERSION.SDK_INT);
+        return granted;
     }
 
     private boolean isHCInstalled() {
         String[] packages = (Build.VERSION.SDK_INT >= 34)
                 ? new String[]{HC_PACKAGE_SYSTEM, HC_PACKAGE}
                 : new String[]{HC_PACKAGE};
+        logDebug("Checking Health Connect package candidates (sdk=" + Build.VERSION.SDK_INT + "): " + String.join(", ", packages));
         for (String pkg : packages) {
             try {
                 getContext().getPackageManager().getPackageInfo(pkg, 0);
-                Log.i(TAG, "Health Connect found: " + pkg);
+                logInfo("Health Connect package found: " + pkg);
                 return true;
-            } catch (PackageManager.NameNotFoundException ignored) {
+            } catch (PackageManager.NameNotFoundException e) {
+                logDebug("Health Connect package missing: " + pkg + ", reason=" + e.getMessage());
             }
         }
+        logWarn("Health Connect package not found on device");
         return false;
     }
 
@@ -79,11 +100,13 @@ public class HealthConnectPlugin extends Plugin {
                 Intent intent = new Intent(action);
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 getActivity().startActivity(intent);
-                Log.i(TAG, "Opened Health Connect settings via action=" + action);
+                logInfo("Opened Health Connect settings via action=" + action);
                 return true;
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                logDebug("Failed to open Health Connect settings action=" + action + ", reason=" + e.getMessage());
             }
         }
+        logWarn("Unable to open Health Connect settings with known actions");
         return false;
     }
 
@@ -94,20 +117,24 @@ public class HealthConnectPlugin extends Plugin {
         result.put("available", installed);
         result.put("sdkStatus", installed ? 3 : 1);
         result.put("hasActivityRecognition", hasActivityRecognitionPermission());
+        logInfo("isAvailable result=" + result.toString());
         call.resolve(result);
     }
 
     @PluginMethod()
     public void requestPermissions(PluginCall call) {
+        logInfo("requestPermissions called");
         if (!isHCInstalled()) {
             JSObject result = new JSObject();
             result.put("granted", false);
             result.put("reason", "Health Connect가 설치되어 있지 않습니다.");
+            logWarn("requestPermissions rejected: " + result.toString());
             call.resolve(result);
             return;
         }
 
         if (!hasActivityRecognitionPermission()) {
+            logInfo("ACTIVITY_RECOGNITION permission missing; requesting runtime permission");
             call.setKeepAlive(true);
             savedPermissionCall = call;
             pluginRequestPermissions(
@@ -130,10 +157,12 @@ public class HealthConnectPlugin extends Plugin {
 
             boolean granted = grantResults.length > 0
                     && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            logInfo("handleRequestPermissionsResult granted=" + granted + ", grantResultsLength=" + grantResults.length);
             if (!granted) {
                 JSObject result = new JSObject();
                 result.put("granted", false);
                 result.put("reason", "ACTIVITY_RECOGNITION 권한이 필요합니다.");
+                logWarn("Permission denied: " + result.toString());
                 call.resolve(result);
                 return;
             }
@@ -145,6 +174,7 @@ public class HealthConnectPlugin extends Plugin {
         try {
             boolean opened = openHealthConnectSettings();
             if (!opened) {
+                logInfo("Health Connect settings open failed; redirecting to Play Store");
                 Intent storeIntent = new Intent(Intent.ACTION_VIEW,
                         Uri.parse("market://details?id=" + HC_PACKAGE));
                 storeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -156,15 +186,17 @@ public class HealthConnectPlugin extends Plugin {
             result.put("message", opened
                     ? "Health Connect 설정 화면이 열렸습니다. 권한을 확인해주세요."
                     : "Health Connect를 찾을 수 없어 스토어를 열었습니다.");
+            logInfo("resolveAfterPermission result=" + result.toString());
             call.resolve(result);
         } catch (Exception e) {
-            Log.e(TAG, "권한 처리 실패: " + e.getMessage());
+            logError("권한 처리 실패", e);
             call.reject("권한 처리 실패: " + e.getMessage());
         }
     }
 
     @PluginMethod()
     public void getTodaySteps(PluginCall call) {
+        logInfo("getTodaySteps called");
         new Thread(() -> {
             try {
                 if (!hasActivityRecognitionPermission()) {
@@ -174,6 +206,7 @@ public class HealthConnectPlugin extends Plugin {
                     result.put("needsPermission", true);
                     result.put("missingPermission", "ACTIVITY_RECOGNITION");
                     result.put("fallbackToRest", true);
+                    logWarn("getTodaySteps missing permission: " + result.toString());
                     call.resolve(result);
                     return;
                 }
@@ -185,6 +218,7 @@ public class HealthConnectPlugin extends Plugin {
                     result.put("available", false);
                     result.put("fallbackToRest", true);
                     result.put("error", "SENSOR_SERVICE unavailable");
+                    logWarn("getTodaySteps sensor manager unavailable: " + result.toString());
                     call.resolve(result);
                     return;
                 }
@@ -196,6 +230,7 @@ public class HealthConnectPlugin extends Plugin {
                     result.put("available", false);
                     result.put("fallbackToRest", true);
                     result.put("error", "TYPE_STEP_COUNTER unavailable");
+                    logWarn("getTodaySteps step counter unavailable: " + result.toString());
                     call.resolve(result);
                     return;
                 }
@@ -224,6 +259,7 @@ public class HealthConnectPlugin extends Plugin {
                     result.put("available", false);
                     result.put("fallbackToRest", true);
                     result.put("error", "Sensor listener registration failed");
+                    logWarn("getTodaySteps sensor registration failed: " + result.toString());
                     call.resolve(result);
                     return;
                 }
@@ -237,6 +273,7 @@ public class HealthConnectPlugin extends Plugin {
                     result.put("available", false);
                     result.put("fallbackToRest", true);
                     result.put("error", "Step sensor timeout");
+                    logWarn("getTodaySteps sensor timeout: received=" + received + ", totalSinceBoot=" + totalSinceBoot.get());
                     call.resolve(result);
                     return;
                 }
@@ -249,6 +286,7 @@ public class HealthConnectPlugin extends Plugin {
                 float baselineValue = prefs.getFloat(KEY_BASELINE_VALUE, -1f);
 
                 if (!today.equals(baselineDate) || baselineValue < 0f || current < baselineValue) {
+                    logInfo("Resetting step baseline: today=" + today + ", baselineDate=" + baselineDate + ", baselineValue=" + baselineValue + ", current=" + current);
                     baselineValue = current;
                     prefs.edit()
                             .putString(KEY_BASELINE_DATE, today)
@@ -264,6 +302,10 @@ public class HealthConnectPlugin extends Plugin {
                 result.put("fallbackToRest", false);
                 result.put("source", "health_connect_sensor");
                 result.put("date", today);
+                result.put("rawTotalSinceBoot", current);
+                result.put("baselineDate", baselineDate);
+                result.put("baselineValue", baselineValue);
+                logInfo("getTodaySteps success: " + result.toString());
                 call.resolve(result);
 
             } catch (Exception e) {
@@ -272,6 +314,7 @@ public class HealthConnectPlugin extends Plugin {
                 result.put("available", false);
                 result.put("fallbackToRest", true);
                 result.put("error", e.getMessage());
+                logError("getTodaySteps failed", e);
                 call.resolve(result);
             }
         }).start();
@@ -281,15 +324,18 @@ public class HealthConnectPlugin extends Plugin {
     public void openHealthConnect(PluginCall call) {
         try {
             if (openHealthConnectSettings()) {
+                logInfo("openHealthConnect: opened settings");
                 call.resolve();
                 return;
             }
+            logInfo("openHealthConnect: opened Play Store fallback");
             Intent storeIntent = new Intent(Intent.ACTION_VIEW,
                     Uri.parse("market://details?id=" + HC_PACKAGE));
             storeIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             getActivity().startActivity(storeIntent);
             call.resolve();
         } catch (Exception e) {
+            logError("openHealthConnect failed", e);
             call.reject("Health Connect를 열 수 없습니다: " + e.getMessage());
         }
     }
