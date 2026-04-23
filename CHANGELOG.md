@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.489] - 2026-04-22
+
+### 변경
+- fix: restore health sync by adding step-sensor fallback and robust permission flow
+
 ## [1.0.488] - 2026-04-22
 
 ### 변경
