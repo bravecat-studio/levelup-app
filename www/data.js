@@ -222,8 +222,9 @@ const i18n = {
         planner_add_btn: "+ 추가", planner_task_placeholder: "할 일 입력...",
         timebox_empty: "-- 없음 --",
         // 피트니스 동기화
-        sync_complete_msg: "동기화 완료 ({source}): 총 {steps}보", sync_reward_msg: "추가 보상: +{points}P, STR +{str}",
+        sync_complete_msg: "동기화 완료 ({source})", sync_reward_msg: "추가 보상: +{points}P, STR +{str}",
         sync_no_steps: "걸음 수 기록이 없습니다. (0보)", sync_next_reward: "다음 보상까지 {n}보 남음",
+        step_reward_info: "보상: +10P, STR +0.5",
         fitness_needs_google_signin: "피트니스 동기화를 사용하려면 Google 계정 로그인이 필요합니다.\n계속하시겠습니까?",
         fitness_email_disabled: "이메일 로그인 사용자는 피트니스 동기화를 사용할 수 없습니다. Google 계정으로 로그인해주세요.",
         fitness_unsupported_web: "웹 환경에서는 피트니스 동기화를 사용할 수 없습니다. Android 앱에서 실행해주세요.",
