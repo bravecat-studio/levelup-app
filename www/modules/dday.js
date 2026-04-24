@@ -328,8 +328,8 @@
                 </div>
                 <div style="font-size:0.7rem; color:var(--text-sub); margin-top:6px; opacity:0.75;">📢 ${(i18n[AppState.currentLang] || {}).dday_caption_profile_notice || '소셜 프로필에 공개됩니다'}</div>
                 <div style="display:flex; gap:8px; margin-top:16px;">
-                    <button class="btn-info-sm" style="flex:1; padding:10px;" onclick="window.closeDDayCaptionModal()">${(i18n[AppState.currentLang] || {}).dday_btn_cancel || '취소'}</button>
-                    <button class="btn-info-sm" style="flex:1; padding:10px; background:var(--neon-blue); color:#000; font-weight:bold;" onclick="window.saveDDayCaption()">${(i18n[AppState.currentLang] || {}).dday_btn_save || '저장'}</button>
+                    <button class="btn-info-sm" style="flex:1; padding:10px; justify-content:center; text-align:center;" onclick="window.closeDDayCaptionModal()">${(i18n[AppState.currentLang] || {}).dday_btn_cancel || '취소'}</button>
+                    <button class="btn-info-sm" style="flex:1; padding:10px; justify-content:center; text-align:center; background:var(--neon-blue); color:#000; font-weight:bold;" onclick="window.saveDDayCaption()">${(i18n[AppState.currentLang] || {}).dday_btn_save || '저장'}</button>
                 </div>
             </div>
         `;
