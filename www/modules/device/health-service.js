@@ -282,14 +282,11 @@ export function createHealthService(deps = {}) {
             appState.user.stepData.rewardedSteps += (rewardChunks * 1000);
 
             if (showMsg) {
-                const sourceLabel = 'Health Connect / Google Fit';
-                const syncMsg = (lang.sync_complete_msg || '동기화 완료 ({source}): 총 {steps}보')
+                const sourceLabel = 'Health Connect';
+                const syncMsg = (lang.sync_complete_msg || '동기화 완료 ({source})')
                     .replace('{source}', sourceLabel)
                     .replace('{steps}', totalStepsToday.toLocaleString());
-                const rewardMsg = (lang.sync_reward_msg || '추가 보상: +{points}P, STR +{str}')
-                    .replace('{points}', earnedPoints)
-                    .replace('{str}', earnedStr);
-                setStatus(statusDiv, `<span style="color:var(--neon-blue);">${syncMsg}<br>${rewardMsg}</span>`);
+                setStatus(statusDiv, `<span style="color:var(--neon-blue);">${syncMsg}</span>`);
             }
             updatePointUI();
             drawRadarChart();
@@ -297,8 +294,8 @@ export function createHealthService(deps = {}) {
             if (totalStepsToday === 0) {
                 setStatus(statusDiv, `<span style="color:var(--neon-gold);">${lang.sync_no_steps || '걸음 수 기록이 없습니다. (0보)'}</span>`);
             } else {
-                const sourceLabel = 'Health Connect / Google Fit';
-                const syncMsg = (lang.sync_complete_msg || '동기화 완료 ({source}): 총 {steps}보')
+                const sourceLabel = 'Health Connect';
+                const syncMsg = (lang.sync_complete_msg || '동기화 완료 ({source})')
                     .replace('{source}', sourceLabel)
                     .replace('{steps}', totalStepsToday.toLocaleString());
                 const nextMsg = (lang.sync_next_reward || '다음 보상까지 {n}보 남음')

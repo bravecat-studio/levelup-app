@@ -6244,8 +6244,10 @@ function updateStepCountUI() {
     const totalSteps = AppState.user.stepData?.totalSteps || 0;
     valueEl.textContent = totalSteps.toLocaleString();
     const remaining = 1000 - (totalSteps % 1000);
-    infoEl.textContent = (lang.step_next_reward || '다음 보상까지 {n}보 남음').replace('{n}', remaining);
-    infoEl.style.color = 'var(--neon-gold)';
+    const rewardMsg = lang.step_reward_info || '보상: +10P, STR +0.5';
+    const nextMsg = (lang.step_next_reward || '다음 보상까지 {n}보 남음').replace('{n}', remaining);
+    infoEl.innerHTML = `<span style="color:var(--neon-blue);">${rewardMsg}</span> <span style="color:var(--neon-gold);">${nextMsg}</span>`;
+    infoEl.style.color = '';
 }
 
 // --- 푸시 알림 (FCM) ---
