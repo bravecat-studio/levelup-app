@@ -2397,6 +2397,60 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 
 // 던전 위치: 6개 서울 역 중 날짜 기반 랜덤 선택, 반경 2km (근접 보너스용)
 const DUNGEON_RADIUS_KM = 2;
+const DUNGEON_MAP_LOCATION_CACHE_MS = 5 * 60 * 1000;
+
+function getDungeonMapZoomByRadius(radiusKm) {
+    if (radiusKm <= 1) return 16;
+    if (radiusKm <= 2) return 15;
+    if (radiusKm <= 4) return 14;
+    return 13;
+}
+
+function getBalsanStationIndex() {
+    const idx = seoulStations.findIndex((st) => st?.name?.ko === '발산역');
+    return idx >= 0 ? idx : 0;
+}
+
+async function refreshDungeonMapUserLocation(force = false) {
+    const now = Date.now();
+    const cachedAt = AppState.dungeon?.mapUserLocation?.fetchedAt || 0;
+    if (!force && now - cachedAt < DUNGEON_MAP_LOCATION_CACHE_MS) return;
+
+    let lat = null;
+    let lng = null;
+    const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+
+    try {
+        if (isNative && window.Capacitor.Plugins?.Geolocation) {
+            const { Geolocation } = window.Capacitor.Plugins;
+            const permResult = await Geolocation.requestPermissions();
+            if (permResult.location === 'denied') return;
+            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+            lat = position.coords.latitude;
+            lng = position.coords.longitude;
+        } else if (navigator.geolocation) {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    resolve,
+                    reject,
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+                );
+            });
+            lat = position.coords.latitude;
+            lng = position.coords.longitude;
+        }
+    } catch (e) {
+        if (window.AppLogger) AppLogger.warn('[Dungeon] 지도용 위치 조회 실패: ' + (e.message || e));
+        return;
+    }
+
+    if (typeof lat === 'number' && typeof lng === 'number') {
+        AppState.dungeon.mapUserLocation = { lat, lng, fetchedAt: now };
+        if (document.getElementById('dungeon')?.classList.contains('active')) {
+            renderDungeon();
+        }
+    }
+}
 
 function isBossRush() {
     const day = new Date().getDay();
@@ -2606,7 +2660,7 @@ function updateDungeonStatus() {
         AppState.dungeon.slot = currentSlot;
 
         const fixedData = getFixedDungeonData(dateStr, currentSlot);
-        AppState.dungeon.stationIdx = fixedData.stationIdx;
+        AppState.dungeon.stationIdx = AppState.user?.isAdmin ? getBalsanStationIndex() : fixedData.stationIdx;
         AppState.dungeon.targetStat = fixedData.targetStat;
 
         AppState.dungeon.maxParticipants = 5;
@@ -2622,6 +2676,10 @@ function updateDungeonStatus() {
         AppState.dungeon.bossDamageDealt = 0;
         saveUserData();
     }
+    if (AppState.user?.isAdmin) {
+        AppState.dungeon.stationIdx = getBalsanStationIndex();
+    }
+    refreshDungeonMapUserLocation();
     renderDungeon();
     window.syncGlobalDungeon();
 }
@@ -2676,7 +2734,16 @@ function renderDungeon() {
             activeBoard.classList.add('d-none'); 
             banner.classList.remove('d-none');
             
-            const mapUrl = `https://maps.google.com/maps?q=${st.lat},${st.lng}&hl=${AppState.currentLang}&z=15&output=embed`;
+            const mapCenter = AppState.dungeon.mapUserLocation || { lat: st.lat, lng: st.lng };
+            const mapZoom = getDungeonMapZoomByRadius(DUNGEON_RADIUS_KM);
+            const mapUrl = `https://maps.google.com/maps?q=${mapCenter.lat},${mapCenter.lng}&hl=${AppState.currentLang}&z=${mapZoom}&output=embed`;
+            const mapCaption = AppState.dungeon.mapUserLocation
+                ? (AppState.currentLang === 'en'
+                    ? `📍 You (${DUNGEON_RADIUS_KM}km radius bonus range)`
+                    : AppState.currentLang === 'ja'
+                        ? `📍 現在地（ボーナス半径 ${DUNGEON_RADIUS_KM}km）`
+                        : `📍 내 위치 (보너스 반경 ${DUNGEON_RADIUS_KM}km 기준)`)
+                : `📍 ${st.name[AppState.currentLang]}`;
             
             const joinBtnHtml = `<button onclick="window.joinDungeon()" class="btn-primary" style="background:${m.color}; border-color:${m.color}; margin-top:10px; color:black; font-weight:bold;">${i18n[AppState.currentLang]?.raid_join_btn || '작전 합류 (입장)'}</button>`;
 
@@ -2692,6 +2759,7 @@ function renderDungeon() {
                 <div class="map-container" style="width:100%; height:180px; border-radius:6px; overflow:hidden; margin-bottom:12px; border:1px solid var(--border-color);">
                     <iframe src="${mapUrl}" style="width:100%; height:100%; border:none;" allowfullscreen="" loading="lazy"></iframe>
                 </div>
+                <div style="font-size:0.72rem; color:var(--text-sub); margin-top:-6px; margin-bottom:10px;">${mapCaption}</div>
                 <p style="font-size: 0.8rem; margin-bottom: 5px; color:var(--text-main); word-break:keep-all;">${m.desc1[AppState.currentLang]}</p>
                 <div class="raid-reward-box" style="margin: 10px 0; text-align:left;">
                     <div class="raid-reward-header">
