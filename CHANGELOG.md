@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.550] - 2026-04-24
+
+### 변경
+- 퀘스트 추이 차트 문구/범위 전환 UX 수정
+
 ## [1.0.549] - 2026-04-24
 
 ### 변경
