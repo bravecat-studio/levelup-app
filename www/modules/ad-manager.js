@@ -73,13 +73,20 @@
     function _getAdSessionCount() {
         return parseInt(localStorage.getItem(AD_SESSION_COUNT_KEY) || '0', 10);
     }
+    function _getAccountCreatedAtMs() {
+        const currentUser = _auth()?.currentUser;
+        const creationTime = currentUser?.metadata?.creationTime;
+        if (!creationTime) return 0;
+        const createdAtMs = new Date(creationTime).getTime();
+        return Number.isFinite(createdAtMs) ? createdAtMs : 0;
+    }
     function _isFirstDayUser() {
-        const installTs = parseInt(localStorage.getItem(INSTALL_TS_KEY) || '0', 10);
-        if (!installTs || Number.isNaN(installTs)) {
-            // 설치 시각 정보가 없으면 기존 유저로 간주하여 광고 지연을 적용하지 않음
+        const createdAtMs = _getAccountCreatedAtMs();
+        if (!createdAtMs) {
+            // 가입일 확인이 불가능하면 우회/오탐 방지를 위해 광고 지연을 적용하지 않음
             return false;
         }
-        return (Date.now() - installTs) < NEW_USER_AD_GATE_WINDOW_MS;
+        return (Date.now() - createdAtMs) < NEW_USER_AD_GATE_WINDOW_MS;
     }
     function isAdExposureAllowed() {
         if (!_isFirstDayUser()) return true;
