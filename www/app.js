@@ -6021,11 +6021,16 @@ async function showPermissionPrompts() {
     if (window.AppLogger) AppLogger.info('[PermPrompt] 네이티브 권한 상태 확인 시작');
 
     // 1) 푸시 알림 — 앱 토글 off + OS 미승인일 때만 요청
-    if (!AppState.user.pushEnabled && cap.Plugins && cap.Plugins.PushNotifications) {
+    if (!AppState.user.pushEnabled && cap.Plugins && (cap.Plugins.PushNotifications || cap.Plugins.FCMPlugin)) {
         try {
-            const { PushNotifications } = cap.Plugins;
-            const status = await PushNotifications.checkPermissions();
-            if (status.receive !== 'granted') {
+            let shouldRequest = true;
+            if (cap.Plugins.PushNotifications) {
+                const { PushNotifications } = cap.Plugins;
+                const status = await PushNotifications.checkPermissions();
+                shouldRequest = status.receive !== 'granted';
+            }
+
+            if (shouldRequest) {
                 const token = await requestNativePushPermission();
                 if (token) {
                     const pushToggle = document.getElementById('push-toggle');
