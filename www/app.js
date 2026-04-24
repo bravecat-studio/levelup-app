@@ -2734,15 +2734,17 @@ function renderDungeon() {
             activeBoard.classList.add('d-none'); 
             banner.classList.remove('d-none');
             
-            const mapCenter = AppState.dungeon.mapUserLocation || { lat: st.lat, lng: st.lng };
             const mapZoom = getDungeonMapZoomByRadius(DUNGEON_RADIUS_KM);
-            const mapUrl = `https://maps.google.com/maps?q=${mapCenter.lat},${mapCenter.lng}&hl=${AppState.currentLang}&z=${mapZoom}&output=embed`;
+            const userLoc = AppState.dungeon.mapUserLocation;
+            const mapUrl = userLoc
+                ? `https://maps.google.com/maps?saddr=${userLoc.lat},${userLoc.lng}&daddr=${st.lat},${st.lng}&hl=${AppState.currentLang}&z=${mapZoom}&output=embed`
+                : `https://maps.google.com/maps?q=${st.lat},${st.lng}&hl=${AppState.currentLang}&z=${mapZoom}&output=embed`;
             const mapCaption = AppState.dungeon.mapUserLocation
                 ? (AppState.currentLang === 'en'
-                    ? `📍 You (${DUNGEON_RADIUS_KM}km radius bonus range)`
+                    ? `📍 You + Dungeon (${DUNGEON_RADIUS_KM}km bonus radius)`
                     : AppState.currentLang === 'ja'
-                        ? `📍 現在地（ボーナス半径 ${DUNGEON_RADIUS_KM}km）`
-                        : `📍 내 위치 (보너스 반경 ${DUNGEON_RADIUS_KM}km 기준)`)
+                        ? `📍 現在地 + ダンジョン（ボーナス半径 ${DUNGEON_RADIUS_KM}km）`
+                        : `📍 내 위치 + 던전 위치 (보너스 반경 ${DUNGEON_RADIUS_KM}km 기준)`)
                 : `📍 ${st.name[AppState.currentLang]}`;
             
             const joinBtnHtml = `<button onclick="window.joinDungeon()" class="btn-primary" style="background:${m.color}; border-color:${m.color}; margin-top:10px; color:black; font-weight:bold;">${i18n[AppState.currentLang]?.raid_join_btn || '작전 합류 (입장)'}</button>`;
