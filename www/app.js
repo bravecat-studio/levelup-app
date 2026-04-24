@@ -10,6 +10,7 @@ import { ConversionTracker, initRemoteConfig, getExperimentVariant } from './mod
 import { bootstrapCoreServices, attachFirestoreNetworkResilience } from './modules/core/bootstrap.js';
 import { getInitialAppState, getWeekStartDate } from './modules/core/app-state.js';
 import { loadNavOrder, initNavDragReorder, wasNavDragJustEnded } from './modules/core/nav-ui.js';
+import { initAppEntryOrchestrator } from './modules/core/entry-orchestrator.js';
 import { createOnboardingModule } from './modules/domains/onboarding.js';
 import { createStreakRareTitleModule } from './modules/domains/streak-rare-title.js';
 import { createQuestStatsModule } from './modules/domains/quest-stats.js';
@@ -710,48 +711,59 @@ function initOfflineDetection() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 메뉴 및 UI 텍스트 복사 방지 (input/textarea 제외)
-    document.addEventListener('contextmenu', (e) => {
-        if (!e.target.closest('input, textarea')) e.preventDefault();
-    });
-    document.addEventListener('copy', (e) => {
-        if (!e.target.closest('input, textarea')) e.preventDefault();
-    });
+initAppEntryOrchestrator({
+    onDomReady: async () => {
+        // 메뉴 및 UI 텍스트 복사 방지 (input/textarea 제외)
+        document.addEventListener('contextmenu', (e) => {
+            if (!e.target.closest('input, textarea')) e.preventDefault();
+        });
+        document.addEventListener('copy', (e) => {
+            if (!e.target.closest('input, textarea')) e.preventDefault();
+        });
 
-    loadNavOrder();
-    migrateCardOrder();
-    loadStatusCardOrder();
-    applyCardVisibility();
-    initHamburgerMenu();
-    initCardSelectModal();
-    initTheme();
-    bindEvents();
-    // 로그인 화면 언어 적용 (저장된 언어 설정 기반)
-    changeLanguage(AppState.currentLang);
-    registerServiceWorker();
-    initOfflineDetection();
-    initRemoteConfig(); // Phase 2: A/B 테스트 Remote Config
-    ConversionTracker.screenView(); // Phase 2: 로그인 화면 조회 계측
+        loadNavOrder();
+        migrateCardOrder();
+        loadStatusCardOrder();
+        applyCardVisibility();
+        initHamburgerMenu();
+        initCardSelectModal();
+        initTheme();
+        bindEvents();
+        streakRareTitleDomain.bindWindowHandlers();
+        // 로그인 화면 언어 적용 (저장된 언어 설정 기반)
+        changeLanguage(AppState.currentLang);
+        registerServiceWorker();
+        initOfflineDetection();
+        initRemoteConfig(); // Phase 2: A/B 테스트 Remote Config
+        ConversionTracker.screenView(); // Phase 2: 로그인 화면 조회 계측
 
-    // 앱 시작 즉시 네이티브 푸시 알림 클릭 리스너 등록 (콜드 스타트 대응)
-    registerEarlyPushListeners();
+        // 앱 시작 즉시 네이티브 푸시 알림 클릭 리스너 등록 (콜드 스타트 대응)
+        registerEarlyPushListeners();
 
-    // 안드로이드 뒤로가기(하드웨어) 버튼 핸들러 등록
-    registerBackButtonHandler();
+        // 안드로이드 뒤로가기(하드웨어) 버튼 핸들러 등록
+        registerBackButtonHandler();
 
-    // 빌드 버전 표시
-    const versionEl = document.getElementById('build-version-number');
-    if (versionEl) versionEl.textContent = 'v' + APP_VERSION;
-
-    onAuthStateChanged(auth, async (user) => {
+        // 빌드 버전 표시
+        const versionEl = document.getElementById('build-version-number');
+        if (versionEl) versionEl.textContent = 'v' + APP_VERSION;
+    },
+    onAuthStateChanged,
+    auth,
+    handleAuthStateChanged: async (user) => {
         await authProfileDomain.handleAuthStateChanged(user);
-    });
-
-    setInterval(() => {
-        // updateDungeonStatus() 내부에서 syncGlobalDungeon()을 이미 호출하므로 별도 호출 불필요
-        updateDungeonStatus();
-    }, 30000);
+    },
+    startIntervals: () => {
+        setInterval(() => {
+            // updateDungeonStatus() 내부에서 syncGlobalDungeon()을 이미 호출하므로 별도 호출 불필요
+            updateDungeonStatus();
+        }, 30000);
+    },
+    onReadyError: (error) => {
+        console.error('[AppInit] 초기화 실패:', error);
+        if (window.AppLogger) {
+            AppLogger.error('[AppInit] DOMContentLoaded 초기화 실패', error?.stack || error?.message || String(error));
+        }
+    },
 });
 
 function initTheme() {
@@ -1703,10 +1715,6 @@ function checkSavingsRareTitles() { return streakRareTitleDomain.checkSavingsRar
 function checkRankRareTitles() { return streakRareTitleDomain.checkRankRareTitles(); }
 function getDisplayTitle() { return streakRareTitleDomain.getDisplayTitle(); }
 function getBestRareTitle() { return streakRareTitleDomain.getBestRareTitle(); }
-
-document.addEventListener('DOMContentLoaded', () => {
-    streakRareTitleDomain.bindWindowHandlers();
-});
 
 // --- 크리티컬 히트 & 루트 드롭 ---
 function rollCritical() {
