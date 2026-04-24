@@ -38,6 +38,7 @@ export function getInitialAppState() {
             cameraEnabled: false,
             privateAccount: false,
             big5: null,
+            isAdmin: false,
         },
         quest: {
             currentDayOfWeek: new Date().getDay(),
