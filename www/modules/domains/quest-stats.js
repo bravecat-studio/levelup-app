@@ -12,7 +12,11 @@ export function createQuestStatsModule(deps) {
         weekOffset: 0,
         monthlyUnlocked: false,
         selectedDate: null,
+<<<<<<< codex-cba7d2
         chartRange: 'weekly',
+=======
+        chartRange: 'monthly',
+>>>>>>> main
     };
 
     function syncSingleSelectionFromMulti() {
@@ -285,7 +289,11 @@ export function createQuestStatsModule(deps) {
             for (let d = 1; d <= days; d++) labels.push(`${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
         }
 
+<<<<<<< codex-cba7d2
         if (rangeLabel) rangeLabel.textContent = state.chartRange === 'weekly' ? '주간' : '월간';
+=======
+        if (rangeLabel) rangeLabel.textContent = state.chartRange === 'weekly' ? '최근 7일' : '이번 달';
+>>>>>>> main
         const series = getChartSeries(history, labels);
         const padding = { top: 16, right: 8, bottom: 24, left: 26 };
         const W = 320, H = 180;
@@ -363,6 +371,10 @@ export function createQuestStatsModule(deps) {
         window.toggleQstatsDiyDropdown = () => document.getElementById('qstats-diy-dropdown-menu')?.classList.toggle('d-none');
         window.toggleQstatsDiyQuest = (questId) => { toggleMultiSelection(state.selectedDiyIds, questId); state.selectedDate = null; state.selectedDailyKeys = []; render(); };
         window.clearQstatsDiySelection = () => { state.selectedDiyIds = []; state.selectedDate = null; render(); };
+<<<<<<< codex-cba7d2
+=======
+        window.setQstatsChartRange = (range) => { state.chartRange = range === 'weekly' ? 'weekly' : 'monthly'; render(); };
+>>>>>>> main
     }
 
     function showMonthly() { state.chartRange = 'monthly'; const w = document.getElementById('qstats-weekly-card'); const m = document.getElementById('qstats-monthly-card'); if (w) w.classList.add('d-none'); if (m) m.classList.remove('d-none'); render(); }
