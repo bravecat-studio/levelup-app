@@ -84,6 +84,7 @@ export function createAuthProfileModule(deps) {
 
             const tokenResult = await getIdTokenResult(user);
             const isDev = tokenResult.claims.admin === true;
+            AppState.user.isAdmin = isDev;
             const settingsLogCard = document.getElementById('settings-log-card');
             const adminLoggerToggleCard = document.getElementById('admin-logger-toggle-card');
             if (adminLoggerToggleCard) adminLoggerToggleCard.style.display = isDev ? 'block' : 'none';
@@ -161,6 +162,7 @@ export function createAuthProfileModule(deps) {
 
         AppLogger.info('[Auth] 로그아웃 상태');
         initializedUid = null;
+        AppState.user.isAdmin = false;
         document.getElementById('login-screen').classList.remove('d-none');
         document.getElementById('app-container').classList.add('d-none');
         const loginPanel = document.getElementById('login-log-panel');
