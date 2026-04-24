@@ -233,11 +233,13 @@ export function createQuestStatsModule(deps) {
             });
         }
 
-        selectedDaily.forEach((item, idxColor) => {
-            const palette = ['#00d9ff', '#5ae8ff', '#83f0ff', '#b4f6ff'];
+        const CHART_PALETTE = ['#00d9ff', '#ffcb2f', '#ff6b6b', '#69f0ae', '#ce93d8', '#ffab40', '#26c6da', '#f06292'];
+        let colorIdx = 0;
+
+        selectedDaily.forEach((item) => {
             series.push({
                 name: item.name,
-                color: palette[idxColor % palette.length],
+                color: CHART_PALETTE[colorIdx++ % CHART_PALETTE.length],
                 values: labels.map((k) => {
                     const isToday = k === todayStr;
                     const dow = new Date(k + 'T00:00:00').getDay();
@@ -248,11 +250,10 @@ export function createQuestStatsModule(deps) {
             });
         });
 
-        selectedDiy.forEach((item, idxColor) => {
-            const palette = ['#ffcb2f', '#ffd867', '#ffe499', '#fff0c2'];
+        selectedDiy.forEach((item) => {
             series.push({
                 name: item.name,
-                color: palette[idxColor % palette.length],
+                color: CHART_PALETTE[colorIdx++ % CHART_PALETTE.length],
                 values: labels.map((k) => {
                     const isToday = k === todayStr;
                     const { done, total } = getDiyQuestDoneTotal(item.id, history[k], isToday);
@@ -317,7 +318,7 @@ export function createQuestStatsModule(deps) {
 
         const tickIndexes = state.chartRange === 'weekly'
             ? labels.map((_, i) => i)
-            : [0, Math.floor((labels.length - 1) / 2), labels.length - 1];
+            : labels.reduce((acc, _, i) => { const day = i + 1; if (day === 1 || day % 5 === 0) acc.push(i); return acc; }, []);
 
         tickIndexes.forEach((idx) => {
             const d = new Date(labels[idx] + 'T00:00:00');
