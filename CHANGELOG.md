@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.586] - 2026-04-25
+
+### 변경
+- fix: 플래너 엑셀 가져오기/내보내기 로더 안정화
+
 ## [1.0.585] - 2026-04-25
 
 ### 변경
