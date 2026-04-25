@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.577] - 2026-04-25
+
+### 변경
+- UX: 플래너~소셜 섹션 헤더를 상태창 배너 규격으로 통일
+
 ## [1.0.576] - 2026-04-25
 
 ### 변경
