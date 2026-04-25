@@ -170,3 +170,106 @@
 - 본 문서를 기준으로 `SPECS.md`에 확정 요구사항 반영
 - 프런트 입력 컴포넌트/집계 훅 설계 문서 분리
 - Firestore 보안 규칙에 `calorieLogs` 접근 제어 추가 검토
+
+
+---
+
+## 12) 칼로리 기록 추가 구현 방식 (IIFE 모듈)
+
+앱의 기존 구조가 IIFE(Immediately Invoked Function Expression) 모듈 패턴을 사용하므로,
+칼로리 기록 기능도 동일한 방식으로 분리/추가한다.
+
+### 모듈 분해 제안
+1. `calorie-log-repository.iife.js`
+   - Firestore CRUD 담당
+   - `createLog`, `updateLog`, `deleteLog`, `listLogsByDateRange`
+2. `calorie-log-service.iife.js`
+   - 도메인 계산 로직 담당(일일 합계, 순칼로리, 목표 달성률)
+   - `calculateDailySummary`, `groupByLocalDate`
+3. `calorie-log-ui.iife.js`
+   - 화면 렌더링/이벤트 바인딩 담당
+   - 카드/리스트/입력 모달 갱신
+4. `calorie-ai-estimator.iife.js`
+   - AI 자동계산 요청/응답 정규화 담당
+   - `estimateMealCalories`, `estimateWorkoutCalories`
+
+### 공개 API 예시
+```js
+window.CalorieLogModule = (function () {
+  function init() {}
+  function openInputModal(type) {}
+  function saveLog(payload) {}
+  function refreshDaily(dateKey) {}
+
+  return { init, openInputModal, saveLog, refreshDaily };
+})();
+```
+
+### IIFE 도입 시 원칙
+- 전역 오염 최소화: `window`에는 최상위 진입점만 노출
+- 의존성 주입: Firebase/Auth/Toast 유틸은 생성 시점 주입
+- 점진 적용: 기존 화면에 토글 방식으로 기능 온보딩
+- 장애 격리: AI 추정 실패 시 수동 입력 플로우로 즉시 폴백
+
+---
+
+## 13) AI 기반 칼로리 자동계산 구현
+
+### 목표
+사용자의 입력 부담을 줄이기 위해 음식/운동 정보를 기반으로 칼로리를 자동 추정한다.
+자동 추정은 "보조 기능"으로 제공하고, 최종 저장 전 사용자 확인/수정을 필수로 한다.
+
+### 입력 채널
+1. 텍스트 입력: "닭가슴살 샐러드 1인분", "런닝 35분"
+2. 구조화 입력: 음식명 + 중량(g), 운동명 + 시간(분)
+3. 이미지 입력(Phase 3): 식단 사진 업로드 후 비전 모델 추정
+
+### 추정 파이프라인
+1. 사용자 입력 정규화(단위/오탈자/동의어 처리)
+2. 카테고리 분류(식단 vs 운동)
+3. AI 추정 호출
+4. 신뢰도(score) 및 근거(reason) 수신
+5. 앱 내 보정 규칙 적용(최소/최대 범위 클램프)
+6. 사용자 확인 후 저장
+
+### 응답 스키마 예시
+```json
+{
+  "type": "intake",
+  "estimatedKcal": 520,
+  "confidence": 0.82,
+  "reason": "닭가슴살/채소/드레싱 평균 열량 기준",
+  "suggestedPortion": "1 serving"
+}
+```
+
+### UX 규칙
+- 신뢰도 0.75 이상: 기본값 자동 채움 + "AI 추정" 배지
+- 신뢰도 0.50~0.74: 추천값 제시 후 확인 유도
+- 신뢰도 0.50 미만: 자동 입력 미적용, 수동 입력 유도
+- 항상 "직접 수정" 가능해야 하며, 최종 저장 권한은 사용자에게 있음
+
+### 안정성/비용 통제
+- 호출 제한: 사용자별 일일 AI 추정 횟수 제한(예: 30회)
+- 캐시: 동일 문구/조건 재입력 시 최근 추정값 재사용
+- 타임아웃: 2~3초 내 미응답 시 폴백
+- 로깅: 추정 요청/응답/수정 여부를 익명 이벤트로 기록
+
+### 보안/프라이버시
+- 민감정보(개인식별정보) 프롬프트 전송 금지
+- 이미지 업로드 시 메타데이터 제거 및 저장기간 정책 적용
+- 모델 호출 키는 클라이언트가 아닌 서버 함수에서만 보관
+
+### 구현 단계 (AI)
+- Phase A: 텍스트 기반 섭취/소모 추정 MVP
+- Phase B: 개인화 보정(사용자 과거 수정 패턴 반영)
+- Phase C: 이미지 기반 식단 추정 + 멀티모달 확장
+
+---
+
+## 14) AI + 칼로리 기록 연동 QA 체크리스트
+- [ ] AI 추정값 적용 후 사용자 수정 시 최종 저장값이 정확한가
+- [ ] 신뢰도 구간별 UI 정책(자동채움/권장/수동유도)이 올바른가
+- [ ] AI API 타임아웃/실패 시 수동 입력으로 정상 폴백되는가
+- [ ] 동일 입력 반복 시 캐시 재사용으로 응답시간이 개선되는가
+- [ ] 일일 AI 호출 제한 초과 시 안내 메시지와 차단 동작이 정상인가
