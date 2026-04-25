@@ -555,11 +555,11 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 .task-rank-num { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; background: rgba(255,204,0,0.15); color: var(--neon-gold); font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; justify-content: center; }
 
 /* 칩 뱅크 (드래그 소스) */
-.planner-task-chips-bank { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 10px 0; min-height: 38px; border-bottom: 1px dashed var(--border-color); margin-bottom: 8px; }
-.task-chip { padding: 4px 10px; background: rgba(0,217,255,0.08); border: 1px solid var(--neon-blue); color: var(--neon-blue); border-radius: 16px; font-size: 0.78rem; cursor: grab; user-select: none; white-space: nowrap; touch-action: none; }
+.planner-task-chips-bank { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 0 6px 0; margin-bottom: 6px; }
+.task-chip { padding: 5px 12px; background: rgba(0,217,255,0.12); border: 1.5px solid var(--neon-blue); color: var(--neon-blue); border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: grab; user-select: none; white-space: nowrap; touch-action: none; letter-spacing: 0.2px; }
 .task-chip:active { cursor: grabbing; }
 .task-chip.chip-dragging { opacity: 0.35; }
-.chip-ghost { padding: 4px 10px; background: rgba(0,217,255,0.25); border: 1px solid var(--neon-blue); color: var(--neon-blue); border-radius: 16px; font-size: 0.78rem; white-space: nowrap; pointer-events: none; }
+.chip-ghost { padding: 5px 12px; background: rgba(0,217,255,0.25); border: 1.5px solid var(--neon-blue); color: var(--neon-blue); border-radius: 20px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; pointer-events: none; }
 
 /* 타임박스 슬롯 (셀렉트 대체) */
 .timebox-slot { flex: 1; min-height: 30px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 4px; padding: 3px 5px; font-size: 0.78rem; color: var(--text-sub); display: flex; align-items: center; gap: 3px; min-width: 0; transition: border-color 0.15s, background 0.15s; overflow: hidden; }

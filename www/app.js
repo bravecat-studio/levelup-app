@@ -5415,8 +5415,8 @@ function renderTaskChipsBank() {
         bank.innerHTML = `<span style="font-size:0.72rem; color:var(--text-sub);">${i18n[AppState.currentLang]?.planner_chips_hint || '위 우선순위 태스크를 시간 슬롯으로 드래그하세요'}</span>`;
         return;
     }
-    bank.innerHTML = tasks.map((t, i) =>
-        `<div class="task-chip" data-task="${t.text.replace(/"/g,'&quot;').replace(/</g,'&lt;')}">${i + 1}. ${sanitizeText(t.text)}</div>`
+    bank.innerHTML = tasks.map((t) =>
+        `<div class="task-chip" data-task="${t.text.replace(/"/g,'&quot;').replace(/</g,'&lt;')}">${t.rankOrder}. ${sanitizeText(t.text)}</div>`
     ).join('');
 }
 
@@ -5435,9 +5435,7 @@ function renderPlannerTasks() {
         const isDone = isDiy ? isDiyDone : !!task.done;
 
         const statTag = (isDiy && diyQuest) ? `<span class="diy-task-stat-inline">${sanitizeText(diyQuest.stat)}</span>` : '';
-        const dragHandle = isDiy
-            ? `<span style="width:20px;flex-shrink:0;"></span>`
-            : `<span class="planner-task-drag-handle" ${isFuture ? 'style="opacity:0.3;pointer-events:none"' : ''}>⠿</span>`;
+        const dragHandle = `<span class="planner-task-drag-handle" ${isFuture ? 'style="opacity:0.3;pointer-events:none"' : ''}>⠿</span>`;
 
         let checkBtn = '';
         if (isDiy) {
