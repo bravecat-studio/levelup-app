@@ -230,14 +230,94 @@ script-src ... https://unpkg.com https://accounts.google.com
 
 ---
 
-## 5) 수정 대상 파일
+## 5) 구현 방식: IIFE 모듈 분리
+
+기능 코드를 `app.js`에 직접 추가하는 대신 기존 `dday.js`, `pomodoro.js` 등과 동일한 **IIFE 모듈 패턴**으로 별도 파일로 분리한다. app.js 줄수 증가를 최소화하고 유지보수성을 높인다.
+
+### app.js 줄수 영향도 비교
+
+| 방식 | app.js 증가 | 신규 파일 | 비고 |
+|------|------------|----------|------|
+| app.js 직접 추가 (기존) | **+240줄** (7,365 → 7,605) | 없음 | 함수 7개 + 리스너 4개 |
+| **IIFE 모듈 분리 (채택)** | **+5줄** (7,365 → 7,370) | 2개 | window 노출 3줄 + import 2줄 |
+
+### IIFE 모듈 구조 패턴
+
+`dday.js`와 동일한 구조:
+
+```javascript
+// www/modules/planner-excel.js
+(function() {
+    'use strict';
+    const AppState  = window.AppState;
+    const i18n      = window.i18n;
+    const AppLogger = window.AppLogger;
+
+    // ... 기능 함수 구현 ...
+
+    function initPlannerExcel() {
+        const exportBtn = document.getElementById('btn-excel-export');
+        if (exportBtn) exportBtn.addEventListener('click', exportPlannerToExcel);
+        // ... 나머지 이벤트 바인딩 (bindEvents() 수정 불필요)
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPlannerExcel);
+    } else {
+        initPlannerExcel();
+    }
+
+    // Public API
+    window.exportPlannerToExcel = exportPlannerToExcel;
+    window.importPlannerFromExcel = importPlannerFromExcel;
+})();
+```
+
+### 수정 대상 파일
 
 | 파일 | 변경 내용 |
 |------|-----------|
 | `www/app.html` | CSP line 9 업데이트, 버튼 3개 + 파일 input 추가 (line ~893) |
 | `www/data.js` | i18n 키 14개 추가 (ko/en/ja 각각) |
-| `www/app.js` | Excel 함수 3개 + GCal 함수 4개 추가, 이벤트 리스너 4개 추가 |
+| `www/app.js` | **+5줄만 추가** (window 노출 3줄 + 동적 import 2줄) |
 | `www/style.css` | 별도 신규 스타일 불필요 (`.btn-info-sm` 재사용) |
+| `www/modules/planner-excel.js` | **신규 생성** (~130줄): IIFE, SheetJS lazy load + export + import |
+| `www/modules/planner-gcal.js` | **신규 생성** (~150줄): IIFE, GIS lazy load + OAuth2 + Calendar REST API |
+
+### app.js 변경 상세 (+5줄)
+
+**window export 블록 (line ~7284) — 3줄 추가**
+
+모듈에서 접근하기 위해 현재 미노출된 플래너 함수 3개를 window에 노출:
+
+```javascript
+window.getAllDiaryEntries  = getAllDiaryEntries;   // 신규 노출 (Excel export/import 용)
+window.loadPlannerForDate  = loadPlannerForDate;   // 신규 노출 (import 후 UI 갱신 용)
+window.renderPlannerCalendar = renderPlannerCalendar; // 신규 노출 (import 후 캘린더 갱신 용)
+```
+
+**파일 끝 동적 import — 2줄 추가**
+
+```javascript
+import('./modules/planner-excel.js').catch(e => console.error('[PlannerExcel] 모듈 로드 실패:', e));
+import('./modules/planner-gcal.js').catch(e => console.error('[PlannerGCal] 모듈 로드 실패:', e));
+```
+
+### 모듈이 사용하는 window 전역 현황
+
+| 전역 | 노출 위치 | 신규? | Excel | GCal |
+|------|----------|-------|-------|------|
+| `window.AppState` | app.js:7236 | — | ✅ | ✅ |
+| `window.i18n` | app.js:7252 | — | ✅ | ✅ |
+| `window.AppLogger` | logger.js:379 | — | ✅ | ✅ |
+| `window.getTodayStr` | app.js:7286 | — | ✅ | — |
+| `window.getDiaryEntry` | app.js:7284 | — | ✅ | ✅ |
+| `window.diarySelectedDate` | app.js:7291 (getter) | — | ✅ | ✅ |
+| `window.isNativePlatform` | app.js:7243 | — | — | ✅ |
+| `window.saveUserData` | app.js:7237 | — | — | — |
+| `window.getAllDiaryEntries` | — | **신규** | ✅ | — |
+| `window.loadPlannerForDate` | — | **신규** | ✅ | — |
+| `window.renderPlannerCalendar` | — | **신규** | ✅ | — |
 
 ---
 
