@@ -1206,7 +1206,8 @@ async function _doSaveUserData() {
             ormLastRewardDate: localStorage.getItem('orm_last_reward_date') || '',
             onboardingSeen: localStorage.getItem(ONBOARDING_STORAGE_KEY) || '',
             big5Str: JSON.stringify(AppState.user.big5 || null),
-            futureNetworthStr: localStorage.getItem('fnw_consent') ? (localStorage.getItem('future_networth_config') || '') : ''
+            futureNetworthStr: localStorage.getItem('fnw_consent') ? (localStorage.getItem('future_networth_config') || '') : '',
+            schedulePresetsStr: localStorage.getItem('planner_schedule_presets') || '{}'
         };
         // Firestore 보안 규칙 크기 제한에 맞춰 클라이언트에서 사전 검증/절삭
         const _strLimits = {
@@ -1215,7 +1216,7 @@ async function _doSaveUserData() {
             titleHistoryStr: 50000, streakStr: 5000, rareTitleStr: 10000,
             ddaysStr: 50000, ddayCaption: 200, lifeStatusStr: 1000,
             libraryStr: 50000, moviesStr: 50000, runningCalcHistoryStr: 10000, ormCalcHistoryStr: 10000,
-            big5Str: 500, futureNetworthStr: 1000
+            big5Str: 500, futureNetworthStr: 1000, schedulePresetsStr: 10000
         };
         const _overflowed = [];
         for (const [key, limit] of Object.entries(_strLimits)) {
@@ -1265,7 +1266,7 @@ async function _doSaveUserData() {
                     'streakStr','rareTitleStr','hasActiveReels','_profileUploadFailed','privateAccount',
                     'ddaysStr','ddayCaption','lastBonusExpDate','lifeStatusStr',
                     'libraryStr','moviesStr','runningCalcHistoryStr','ormCalcHistoryStr',
-                    'big5Str','futureNetworthStr'
+                    'big5Str','futureNetworthStr','schedulePresetsStr'
                 ]);
                 // 기존 문서의 허용되지 않은 필드
                 const _extraFields = _existingKeys.filter(k => !_allowedFields.has(k));
@@ -1315,7 +1316,7 @@ async function _doSaveUserData() {
                     if (bk in _merged && typeof _merged[bk] !== 'boolean') _issues.push(`${bk}(type=${typeof _merged[bk]})`);
                 });
                 // 문자열 크기 검증
-                const _strChecks = {questStr:10000,diaryStr:500000,reelsStr:500000,dungeonStr:50000,diyQuestsStr:50000,questHistoryStr:200000,titleHistoryStr:50000,streakStr:5000,rareTitleStr:10000,ddaysStr:50000,ddayCaption:200,lifeStatusStr:1000,libraryStr:50000,moviesStr:50000,runningCalcHistoryStr:10000,ormCalcHistoryStr:10000,questWeekStart:10,lastRouletteDate:10,lastBonusExpDate:10,futureNetworthStr:1000};
+                const _strChecks = {questStr:10000,diaryStr:500000,reelsStr:500000,dungeonStr:50000,diyQuestsStr:50000,questHistoryStr:200000,titleHistoryStr:50000,streakStr:5000,rareTitleStr:10000,ddaysStr:50000,ddayCaption:200,lifeStatusStr:1000,libraryStr:50000,moviesStr:50000,runningCalcHistoryStr:10000,ormCalcHistoryStr:10000,questWeekStart:10,lastRouletteDate:10,lastBonusExpDate:10,futureNetworthStr:1000,schedulePresetsStr:10000};
                 for (const [sk, sl] of Object.entries(_strChecks)) {
                     if (sk in _merged && (typeof _merged[sk] !== 'string' || _merged[sk].length > sl)) _issues.push(`${sk}(type=${typeof _merged[sk]},len=${_merged[sk]?.length},limit=${sl})`);
                 }
@@ -1517,6 +1518,10 @@ async function loadUserDataFromDB(user) {
                 localStorage.setItem('fnw_consent', '1');
             }
             window.renderFutureNetworth?.();
+            // 플래너 자동 채우기 프리셋 복원 (로그아웃 시 localStorage.clear() 대응)
+            if (data.schedulePresetsStr) {
+                localStorage.setItem('planner_schedule_presets', data.schedulePresetsStr);
+            }
             // 러닝 계산기 기록 복원 (로그아웃 시 localStorage.clear() 대응)
             if (data.runningCalcHistoryStr) {
                 localStorage.setItem('running_calc_history', data.runningCalcHistoryStr);
