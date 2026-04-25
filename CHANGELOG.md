@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.567] - 2026-04-25
+
+### 변경
+- docs: 소셜 프로필 메시지 수발신 도입 검토문서 추가
+
 ## [1.0.566] - 2026-04-25
 
 ### 변경
