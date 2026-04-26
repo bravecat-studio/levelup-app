@@ -73,9 +73,13 @@
                 s.id = scriptId;
                 s.src = XLSX_CDN_URLS[idx];
                 s.async = true;
-                s.crossOrigin = 'anonymous';
+                console.log('[PlannerExcel] xlsx 로드 시도:', XLSX_CDN_URLS[idx]);
+                if (XLSX_CDN_URLS[idx].startsWith('http')) {
+                    s.crossOrigin = 'anonymous';
+                }
                 s.onload = () => {
                     if (window.XLSX) {
+                        console.log('[PlannerExcel] xlsx 로드 성공:', XLSX_CDN_URLS[idx]);
                         _xlsxLoaded = true;
                         _xlsxLoading = false;
                         resolve();
@@ -85,6 +89,7 @@
                     }
                 };
                 s.onerror = () => {
+                    console.warn('[PlannerExcel] xlsx 로드 실패:', XLSX_CDN_URLS[idx]);
                     s.remove();
                     tryLoad(idx + 1);
                 };
@@ -97,14 +102,78 @@
         return _xlsxLoadPromise;
     }
 
-    function downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result;
+                if (typeof result !== 'string' || result.indexOf(',') === -1) {
+                    reject(new Error('blobToBase64 failed'));
+                    return;
+                }
+                resolve(result.split(',')[1]);
+            };
+            reader.onerror = () => reject(reader.error || new Error('blobToBase64 read error'));
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function downloadBlob(blob, filename) {
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+        if (!isNative) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+            return;
+        }
+
+        // Native(WebView): 단순 anchor 다운로드는 동작하지 않는 경우가 많음
+        // 1) 앱 내부 저장소에 파일 작성 2) 공유 시트로 내보내기
+        const Filesystem = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+        const SharePlugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+        let savedUri = '';
+
+        if (Filesystem) {
+            try {
+                const base64Data = await blobToBase64(blob);
+                const stampedName = `${Date.now()}_${filename}`;
+                const result = await Filesystem.writeFile({
+                    path: stampedName,
+                    data: base64Data,
+                    directory: 'CACHE',
+                    recursive: true
+                });
+                savedUri = (result && result.uri) ? result.uri : '';
+                console.log('[PlannerExcel] 파일 준비 완료:', savedUri || stampedName);
+            } catch (fsErr) {
+                console.error('[PlannerExcel] Filesystem write 실패:', fsErr);
+            }
+        }
+
+        if (SharePlugin && typeof SharePlugin.share === 'function' && savedUri) {
+            await SharePlugin.share({
+                title: 'Planner Excel',
+                text: filename,
+                url: savedUri,
+                dialogTitle: '플래너 파일 내보내기'
+            });
+            return;
+        }
+
+        if (navigator.share && navigator.canShare) {
+            const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+            const shareData = { files: [file] };
+            if (navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+                return;
+            }
+        }
+
+        throw new Error('native file export unavailable');
     }
 
     function buildWorkbook(headerRow, dataRows, sheetName) {
@@ -169,10 +238,13 @@
             const today = window.getTodayStr ? window.getTodayStr() : new Date().toISOString().slice(0, 10);
             const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            downloadBlob(blob, `levelup_planner_${today}.xlsx`);
-
-            if (AppLogger) AppLogger.log('[PlannerExcel] exported', dates.length, 'entries');
+            return downloadBlob(blob, `levelup_planner_${today}.xlsx`).then(() => {
+                if (AppLogger && typeof AppLogger.info === 'function') {
+                    AppLogger.info(`[PlannerExcel] exported ${dates.length} entries`);
+                }
+            });
         }).catch(err => {
+            console.error('[PlannerExcel] export error', err);
             if (AppLogger) AppLogger.error('[PlannerExcel] export error', err);
             notify(t('excel_export_error'));
         });
@@ -194,10 +266,13 @@
             const wb = buildWorkbook(header, [example], 'Planner');
             const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            downloadBlob(blob, 'levelup_planner_template.xlsx');
-
-            if (AppLogger) AppLogger.log('[PlannerExcel] template downloaded');
+            return downloadBlob(blob, 'levelup_planner_template.xlsx').then(() => {
+                if (AppLogger && typeof AppLogger.info === 'function') {
+                    AppLogger.info('[PlannerExcel] template downloaded');
+                }
+            });
         }).catch(err => {
+            console.error('[PlannerExcel] template error', err);
             if (AppLogger) AppLogger.error('[PlannerExcel] template error', err);
             notify(t('excel_export_error'));
         });
@@ -285,8 +360,11 @@
                     if (window.loadPlannerForDate && currentDate) window.loadPlannerForDate(currentDate);
 
                     notify(t('excel_import_done', { count }));
-                    if (AppLogger) AppLogger.log('[PlannerExcel] imported', count, 'entries');
+                    if (AppLogger && typeof AppLogger.info === 'function') {
+                        AppLogger.info(`[PlannerExcel] imported ${count} entries`);
+                    }
                 } catch (err) {
+                    console.error('[PlannerExcel] import parse error', err);
                     if (AppLogger) AppLogger.error('[PlannerExcel] import parse error', err);
                     notify(t('excel_import_error'));
                 }
@@ -294,6 +372,7 @@
             reader.onerror = () => notify(t('excel_import_error'));
             reader.readAsArrayBuffer(file);
         }).catch(err => {
+            console.error('[PlannerExcel] import library load error', err);
             if (AppLogger) AppLogger.error('[PlannerExcel] import library load error', err);
             notify(t('excel_import_error'));
         });
