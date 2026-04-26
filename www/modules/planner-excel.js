@@ -40,6 +40,33 @@
         }
     }
 
+    function buildNativeExportErrorMessage(logs) {
+        const hasFilesystemMissing = logs.some(l => l.stage === 'filesystem' && l.code === 'MISSING');
+        const hasFilesystemWriteFail = logs.some(l => l.stage === 'filesystem' && l.code === 'WRITE_FAIL');
+        const hasShareMissing = logs.some(l => l.stage === 'share_plugin' && l.code === 'UNSUPPORTED');
+        const hasNavigatorMissing = logs.some(l => l.stage === 'navigator_share' && l.code === 'UNSUPPORTED');
+        const hasBridgeMissing = logs.some(l => l.stage === 'native_bridge' && l.code === 'UNSUPPORTED');
+
+        if (hasShareMissing && hasNavigatorMissing && hasBridgeMissing) {
+            return '파일 공유 플러그인(Share/File Opener)이 설치되지 않았거나 비활성화되어 있어요. 앱 설정/빌드 구성을 확인해주세요.';
+        }
+        if (hasFilesystemMissing || hasFilesystemWriteFail) {
+            return '파일 저장소 권한 또는 Filesystem 플러그인 문제로 파일을 준비하지 못했어요. 저장소 권한과 앱 플러그인 설정을 확인해주세요.';
+        }
+        return '파일 내보내기에 실패했어요. 파일 공유 플러그인 설치 여부, 저장소 권한, WebView 환경(Android/iOS)을 확인해주세요.';
+    }
+
+    function handleExcelExportError(contextLabel, err) {
+        const defaultMessage = t('excel_export_error');
+        if (err && err.userMessage) {
+            notify(err.userMessage);
+            return;
+        }
+        console.error(`[PlannerExcel] ${contextLabel} error`, err);
+        if (AppLogger) AppLogger.error(`[PlannerExcel] ${contextLabel} error`, err);
+        notify(defaultMessage);
+    }
+
     function loadXlsx() {
         if (window.XLSX) {
             _xlsxLoaded = true;
@@ -135,7 +162,9 @@
         // 1) 앱 내부 저장소에 파일 작성 2) 공유 시트로 내보내기
         const Filesystem = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
         const SharePlugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+        const FileOpenerPlugin = window.Capacitor && window.Capacitor.Plugins && (window.Capacitor.Plugins.FileOpener || window.Capacitor.Plugins.FileOpener2);
         let savedUri = '';
+        const logs = [];
 
         if (Filesystem) {
             try {
@@ -148,32 +177,118 @@
                     recursive: true
                 });
                 savedUri = (result && result.uri) ? result.uri : '';
-                console.log('[PlannerExcel] 파일 준비 완료:', savedUri || stampedName);
+                logs.push({ stage: 'filesystem', code: 'SUCCESS', path: stampedName, uri: savedUri || null });
+                console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
             } catch (fsErr) {
-                console.error('[PlannerExcel] Filesystem write 실패:', fsErr);
+                logs.push({ stage: 'filesystem', code: 'WRITE_FAIL', reason: fsErr && fsErr.message ? fsErr.message : String(fsErr) });
+                console.error('[PlannerExcel] native export stage', logs[logs.length - 1], fsErr);
             }
+        } else {
+            logs.push({ stage: 'filesystem', code: 'MISSING', reason: 'Filesystem plugin unavailable' });
+            console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
         }
 
-        if (SharePlugin && typeof SharePlugin.share === 'function' && savedUri) {
-            await SharePlugin.share({
-                title: 'Planner Excel',
-                text: filename,
-                url: savedUri,
-                dialogTitle: '플래너 파일 내보내기'
-            });
-            return;
+        if (SharePlugin && typeof SharePlugin.share === 'function') {
+            if (savedUri) {
+                try {
+                    await SharePlugin.share({
+                        title: 'Planner Excel',
+                        text: filename,
+                        url: savedUri,
+                        dialogTitle: '플래너 파일 내보내기'
+                    });
+                    logs.push({ stage: 'share_plugin', code: 'SUCCESS', via: 'uri' });
+                    console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
+                    return;
+                } catch (shareErr) {
+                    logs.push({ stage: 'share_plugin', code: 'SHARE_FAIL', reason: shareErr && shareErr.message ? shareErr.message : String(shareErr) });
+                    console.error('[PlannerExcel] native export stage', logs[logs.length - 1], shareErr);
+                }
+            } else {
+                logs.push({ stage: 'share_plugin', code: 'SKIP_NO_URI' });
+                console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
+            }
+        } else {
+            logs.push({ stage: 'share_plugin', code: 'UNSUPPORTED' });
+            console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
+        }
+
+        if (FileOpenerPlugin && typeof FileOpenerPlugin.open === 'function' && savedUri) {
+            try {
+                await FileOpenerPlugin.open({
+                    filePath: savedUri,
+                    path: savedUri,
+                    contentType: blob.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                });
+                logs.push({ stage: 'file_opener', code: 'SUCCESS' });
+                console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
+                return;
+            } catch (openErr) {
+                logs.push({ stage: 'file_opener', code: 'OPEN_FAIL', reason: openErr && openErr.message ? openErr.message : String(openErr) });
+                console.error('[PlannerExcel] native export stage', logs[logs.length - 1], openErr);
+            }
+        } else if (!FileOpenerPlugin) {
+            logs.push({ stage: 'file_opener', code: 'UNSUPPORTED' });
+            console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
         }
 
         if (navigator.share && navigator.canShare) {
             const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
             const shareData = { files: [file] };
             if (navigator.canShare(shareData)) {
-                await navigator.share(shareData);
-                return;
+                try {
+                    await navigator.share(shareData);
+                    logs.push({ stage: 'navigator_share', code: 'SUCCESS' });
+                    console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
+                    return;
+                } catch (navErr) {
+                    logs.push({ stage: 'navigator_share', code: 'SHARE_FAIL', reason: navErr && navErr.message ? navErr.message : String(navErr) });
+                    console.error('[PlannerExcel] native export stage', logs[logs.length - 1], navErr);
+                }
             }
+            logs.push({ stage: 'navigator_share', code: 'CAN_SHARE_FALSE' });
+            console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
+        } else {
+            logs.push({ stage: 'navigator_share', code: 'UNSUPPORTED' });
+            console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
         }
 
-        throw new Error('native file export unavailable');
+        const customBridge = window.LevelUpNativeBridge || window.Android || window.webkit;
+        if (customBridge) {
+            try {
+                if (window.LevelUpNativeBridge && typeof window.LevelUpNativeBridge.openFile === 'function') {
+                    await Promise.resolve(window.LevelUpNativeBridge.openFile(savedUri || '', filename, blob.type || 'application/octet-stream'));
+                    logs.push({ stage: 'native_bridge', code: 'SUCCESS', bridge: 'LevelUpNativeBridge.openFile' });
+                    console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
+                    return;
+                }
+                if (window.Android && typeof window.Android.openFile === 'function') {
+                    await Promise.resolve(window.Android.openFile(savedUri || '', filename));
+                    logs.push({ stage: 'native_bridge', code: 'SUCCESS', bridge: 'Android.openFile' });
+                    console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
+                    return;
+                }
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openFile) {
+                    window.webkit.messageHandlers.openFile.postMessage({ uri: savedUri || '', filename, mimeType: blob.type || 'application/octet-stream' });
+                    logs.push({ stage: 'native_bridge', code: 'SUCCESS', bridge: 'webkit.messageHandlers.openFile' });
+                    console.log('[PlannerExcel] native export stage', logs[logs.length - 1]);
+                    return;
+                }
+                logs.push({ stage: 'native_bridge', code: 'UNSUPPORTED', reason: 'No callable method on detected bridge object' });
+                console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
+            } catch (bridgeErr) {
+                logs.push({ stage: 'native_bridge', code: 'BRIDGE_FAIL', reason: bridgeErr && bridgeErr.message ? bridgeErr.message : String(bridgeErr) });
+                console.error('[PlannerExcel] native export stage', logs[logs.length - 1], bridgeErr);
+            }
+        } else {
+            logs.push({ stage: 'native_bridge', code: 'UNSUPPORTED', reason: 'bridge object missing' });
+            console.warn('[PlannerExcel] native export stage', logs[logs.length - 1]);
+        }
+
+        const nativeError = new Error('native file export unavailable');
+        nativeError.logs = logs;
+        nativeError.userMessage = buildNativeExportErrorMessage(logs);
+        throw nativeError;
     }
 
     function buildWorkbook(headerRow, dataRows, sheetName) {
@@ -243,11 +358,7 @@
                     AppLogger.info(`[PlannerExcel] exported ${dates.length} entries`);
                 }
             });
-        }).catch(err => {
-            console.error('[PlannerExcel] export error', err);
-            if (AppLogger) AppLogger.error('[PlannerExcel] export error', err);
-            notify(t('excel_export_error'));
-        });
+        }).catch(err => handleExcelExportError('export', err));
     }
 
     function generateTemplateExcel() {
@@ -271,11 +382,7 @@
                     AppLogger.info('[PlannerExcel] template downloaded');
                 }
             });
-        }).catch(err => {
-            console.error('[PlannerExcel] template error', err);
-            if (AppLogger) AppLogger.error('[PlannerExcel] template error', err);
-            notify(t('excel_export_error'));
-        });
+        }).catch(err => handleExcelExportError('template', err));
     }
 
     function parseTasks(cellValue) {
