@@ -352,6 +352,7 @@
         const _currCode = labelLang === 'en' ? 'USD' : labelLang === 'ja' ? 'JPY' : 'KRW';
         const iStyle = 'width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--panel-bg);color:var(--text-main);font-size:0.85rem;box-sizing:border-box;';
         const lStyle = 'display:block;font-size:0.75rem;color:var(--text-sub);margin-bottom:4px;';
+        const lStyleCompact = 'display:block;font-size:0.72rem;color:var(--text-sub);margin-bottom:4px;white-space:nowrap;';
         const fWrap  = 'margin-bottom:10px;';
 
         // 구버전(A_0) 데이터 호환
@@ -392,35 +393,38 @@
                     <input id="fnw-i-n" type="text" inputmode="numeric"
                         value="${fmtComma(cfg.n)}" placeholder="10" style="${iStyle}">
                 </div>
-                <div style="display:grid;grid-template-columns:1.5fr 0.8fr 0.8fr;gap:8px;${fWrap}">
+                <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:8px;padding-top:2px;">
+                    ${_t('fnw_section_income')}
+                </div>
+                <div style="display:grid;grid-template-columns:1.25fr 0.9fr 0.9fr;gap:8px;${fWrap}">
                     <div>
-                        <label style="${lStyle}">${_tL('fnw_label_w0')}</label>
+                        <label style="${lStyle}">${_t('fnw_label_w0')}</label>
                         <input id="fnw-i-w0" type="text" inputmode="numeric"
                             value="${fmtComma(cfg.W_0)}" placeholder="0" style="${iStyle}">
                     </div>
                     <div>
-                        <label style="${lStyle}">${_t('fnw_label_g')}</label>
+                        <label style="${lStyleCompact}">${_t('fnw_label_g')}</label>
                         <input id="fnw-i-g" type="number" min="0" max="20" step="0.1"
                             value="${cfg.g !== undefined ? cfg.g : 3.0}" placeholder="3.0" style="${iStyle}">
                     </div>
                     <div>
-                        <label style="${lStyle}">${_t('fnw_label_roi')}</label>
+                        <label style="${lStyleCompact}">${_t('fnw_label_roi')}</label>
                         <input id="fnw-i-roi" type="number" min="0" max="30" step="0.1"
                             value="${cfg.roi !== undefined ? cfg.roi : 3.5}" placeholder="3.5" style="${iStyle}">
                     </div>
                 </div>
 
-                <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:6px;padding-top:4px;">
+                <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:6px;padding-top:8px;border-top:1px solid var(--border-color);">
                     ${_t('fnw_label_net_section')}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
                     <div>
-                        <label style="${lStyle}">${_tL('fnw_label_assets')}</label>
+                        <label style="${lStyle}">${_t('fnw_label_assets')}</label>
                         <input id="fnw-i-assets" type="text" inputmode="numeric"
                             value="${assetsVal}" placeholder="0" style="${iStyle}">
                     </div>
                     <div>
-                        <label style="${lStyle}">${_tL('fnw_label_liabilities')}</label>
+                        <label style="${lStyle}">${_t('fnw_label_liabilities')}</label>
                         <input id="fnw-i-liabilities" type="text" inputmode="numeric"
                             value="${liabilitiesVal}" placeholder="0" style="${iStyle}">
                     </div>
@@ -441,7 +445,7 @@
                 </div>
 
                 <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:8px;padding-top:6px;border-top:1px solid var(--border-color);">
-                    ${_tL('fnw_section_lump')}
+                    ${_t('fnw_section_lump')}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                     ${lumpGrid}
