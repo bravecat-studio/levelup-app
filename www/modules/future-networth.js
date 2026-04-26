@@ -163,6 +163,8 @@
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
                      <div>🔹 <b>인플레이션율(r)</b>: 한국은행 목표 물가 상승률(2~3%)</div>
+                     <div>🔹 <b>ROI(할인율)</b>: 예·적금 평균 금리 기반 기본값(2.5%), 개인 기대수익률에 맞게 수정 가능</div>
+                     <div>🔹 <b>현재가치 환산식</b>: 현재가치 = 명목 순자산 / (1+r)^n</div>
                      <div>🔹 <b>명목 임금상승률(g)</b>: 평균 임금상승률(기본 3.0%), 상황에 맞게 조정</div>
                      <div>🔹 <b>고정 지출 비율(e)</b>: 가계 평균 70%, 본인 소비 패턴에 맞게 조정</div>
                      <div>🔹 <b>목돈 지출</b>: 미래 물가 반영 가격으로 입력하면 더 정확</div>
@@ -181,6 +183,8 @@
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
                      <div>🔹 <b>Inflation (r)</b>: Central bank target (2–3%)</div>
+                     <div>🔹 <b>ROI (discount rate)</b>: default based on average savings/deposit rate (2.5%), editable</div>
+                     <div>🔹 <b>Present Value Formula</b>: Present Value = Nominal Net Worth / (1+r)^n</div>
                      <div>🔹 <b>Nominal Wage Growth (g)</b>: avg. wage growth (default 3.0%), editable</div>
                      <div>🔹 <b>Expense Ratio (e)</b>: Avg. ~70%; adjust to your spending habits</div>
                      <div>🔹 <b>Lump-Sum items</b>: Use future prices for accuracy</div>
@@ -199,6 +203,8 @@
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
                      <div>🔹 <b>インフレ率(r)</b>: 中央銀行目標値(2〜3%)</div>
+                     <div>🔹 <b>ROI（割引率）</b>: 預金・積立の平均金利ベース初期値(2.5%)、必要に応じて調整可能</div>
+                     <div>🔹 <b>現在価値換算式</b>: 現在価値 = 名目純資産 / (1+r)^n</div>
                      <div>🔹 <b>名目賃金上昇率(g)</b>: 平均賃金上昇率（初期値 3.0%）、必要に応じて調整</div>
                      <div>🔹 <b>支出比率(e)</b>: 家計平均70%基準、生活スタイルに合わせて調整</div>
                      <div>🔹 <b>一括支出</b>: 将来物価で入力すると精度UP</div>
@@ -269,9 +275,14 @@
         if (!res) return;
 
         const rPct = (cfg.r !== undefined ? cfg.r : 2.5);
+        const rVal = rPct / 100;
         const gPct = (cfg.g !== undefined ? cfg.g : 3.0);
         const roiPct = (cfg.roi !== undefined ? cfg.roi : getDefaultRoiByLangOrRegion());
         const ePct = (cfg.e !== undefined ? cfg.e : 70);
+        const discountFactor = Math.pow(1 + rVal, cfg.n);
+        const discountInverse = discountFactor > 0 ? 1 / discountFactor : 0;
+        const nwNominal = res.NW_n;
+        const nwReal = discountFactor > 0 ? nwNominal / discountFactor : nwNominal;
         const fc   = res.feasible ? 'var(--neon-green,#00ff88)' : 'var(--neon-red,#ff4d6d)';
         const ft   = res.feasible ? _t('fnw_feasible') : _t('fnw_not_feasible');
 
@@ -318,6 +329,11 @@
                     <span style="font-size:0.88rem;font-weight:bold;color:var(--neon-red,#ff4d6d);">${f(res.S_non)}${u}</span>
                 </div>
                 ${snonInflateDetail}
+                ${row(_t('fnw_detail_nwn_nominal'), `${f(nwNominal)}${u}`, 'var(--neon-gold,#ffd700)')}
+                ${row(_t('fnw_detail_nwn_real'),    `${f(nwReal)}${u}`,    'var(--neon-green,#00ff88)')}
+                <div style="font-size:0.71rem;color:var(--text-sub);margin-top:3px;padding-left:4px;">
+                    ${_t('fnw_detail_discount_factor')}: (1+r)^n = ${discountFactor.toFixed(4)}, 1/(1+r)^n = ${discountInverse.toFixed(4)}
+                </div>
                 ${row(_t('fnw_detail_nwn'),    `${f(res.NW_n)}${u}`,    'var(--text-main)')}
                 ${row(_t('fnw_detail_roi'),    `${roiPct}%`,            'var(--neon-blue)')}
                 ${row(_t('fnw_detail_nw_real'),`${f(res.NW_n_nominal)}${u}`, 'var(--neon-gold,#ffd700)')}
