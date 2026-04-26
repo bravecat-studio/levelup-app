@@ -1,3 +1,4 @@
+import { calcFutureNetworth, normalizeFutureNetworthConfig } from './utils/future-networth-utils.js';
 // ===== 미래 순자산 (Future Net Worth) 모듈 =====
 (function() {
     'use strict';
@@ -53,6 +54,7 @@
 
     // ── 산식 ──────────────────────────────────────────────────────────────
     function calcNetWorth(cfg) {
+        return calcFutureNetworth(cfg);
         const { n, W_0, assets, liabilities, r, g, e, roi, inflateS,
                 s_car, s_housing, s_wedding, s_edu, s_medical, s_travel } = cfg;
         if (!n || !W_0 || n <= 0 || W_0 <= 0) return null;
@@ -274,6 +276,8 @@
         const res = calcNetWorth(cfg);
         if (!res) return;
 
+        const normalizedCfg = normalizeFutureNetworthConfig(cfg);
+        const { r: rPct, g: gPct, e: ePct } = normalizedCfg;
         const rPct = (cfg.r !== undefined ? cfg.r : 2.5);
         const rVal = rPct / 100;
         const gPct = (cfg.g !== undefined ? cfg.g : 3.0);
@@ -574,7 +578,7 @@
         const roiRaw = document.getElementById('fnw-i-roi')?.value;
         const eRaw = document.getElementById('fnw-i-e')?.value;
 
-        const cfg = {
+        let cfg = {
             n, W_0,
             assets:      parseComma(document.getElementById('fnw-i-assets')?.value),
             liabilities: parseComma(document.getElementById('fnw-i-liabilities')?.value),
@@ -590,6 +594,8 @@
             s_medical: parseComma(document.getElementById('fnw-i-s_medical')?.value),
             s_travel:  parseComma(document.getElementById('fnw-i-s_travel')?.value),
         };
+
+        cfg = normalizeFutureNetworthConfig(cfg);
 
         // 2. 동의 필수 확인 — 미동의 시 저장 차단
         const consentChecked = document.getElementById('fnw-consent-checkbox')?.checked;
