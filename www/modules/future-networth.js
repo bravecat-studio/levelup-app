@@ -63,11 +63,13 @@
         const W_total  = gVal === 0 ? W_0 * n : W_0 * (Math.pow(1 + gVal, n) - 1) / gVal;
         const E_fixed  = W_total * eVal;
         const NW_n     = A_0 + (W_total - E_fixed) - S_non;
+        const discount = rVal === 0 ? 1 : Math.pow(1 + rVal, n);
+        const NW_real  = NW_n / discount;
         const M_save   = S_non > 0 ? S_non / (n * 12) : 0;
         const M_avail  = W_total * (1 - eVal) / (n * 12);
 
-        return { NW_n, M_save, M_avail, W_total, E_fixed,
-                 S_non, S_non_raw, inflFactor, A_0,
+        return { NW_n, NW_real, M_save, M_avail, W_total, E_fixed,
+                 S_non, S_non_raw, inflFactor, discount, A_0,
                  feasible: M_avail >= M_save };
     }
 
@@ -99,6 +101,10 @@
                 <div class="life-status-item">
                     <div><div class="ls-label">${nwL}</div></div>
                     <div class="ls-value gold">${f(res.NW_n)}${u}</div>
+                </div>
+                <div class="life-status-item">
+                    <div><div class="ls-label">${_t('fnw_label_nw_real')}</div></div>
+                    <div class="ls-value gold">${f(res.NW_real)}${u}</div>
                 </div>
                 <div class="life-status-item">
                     <div><div class="ls-label">${_t('fnw_label_m_save')}${inflateBadge}</div></div>
