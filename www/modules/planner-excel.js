@@ -102,14 +102,82 @@
         return _xlsxLoadPromise;
     }
 
-    function downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+    function blobToBase64(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result;
+                if (typeof result !== 'string' || result.indexOf(',') === -1) {
+                    reject(new Error('blobToBase64 failed'));
+                    return;
+                }
+                resolve(result.split(',')[1]);
+            };
+            reader.onerror = () => reject(reader.error || new Error('blobToBase64 read error'));
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function downloadBlob(blob, filename) {
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+        let saved = false;
+
+        if (isNative && window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem) {
+            const Filesystem = window.Capacitor.Plugins.Filesystem;
+            try {
+                const base64Data = await blobToBase64(blob);
+                const dirs = ['DOCUMENTS', 'EXTERNAL', 'CACHE'];
+                for (const dir of dirs) {
+                    try {
+                        const result = await Filesystem.writeFile({
+                            path: filename,
+                            data: base64Data,
+                            directory: dir,
+                            recursive: true
+                        });
+                        if (result && result.uri) {
+                            console.log('[PlannerExcel] 파일 저장 성공:', result.uri);
+                        }
+                        saved = true;
+                        break;
+                    } catch (dirErr) {
+                        console.warn('[PlannerExcel] Filesystem 저장 실패:', dir, dirErr);
+                    }
+                }
+            } catch (fsErr) {
+                console.warn('[PlannerExcel] Filesystem 저장 준비 실패:', fsErr);
+            }
+        }
+
+        if (!saved && navigator.share && navigator.canShare) {
+            try {
+                const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+                const shareData = { files: [file] };
+                if (navigator.canShare(shareData)) {
+                    await navigator.share(shareData);
+                    saved = true;
+                }
+            } catch (shareErr) {
+                if (shareErr && shareErr.name === 'AbortError') {
+                    saved = true;
+                } else {
+                    console.warn('[PlannerExcel] Share API 실패:', shareErr);
+                }
+            }
+        }
+
+        if (!saved) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 300);
+            saved = true;
+        }
+
+        if (!saved) throw new Error('download failed');
     }
 
     function buildWorkbook(headerRow, dataRows, sheetName) {
@@ -174,11 +242,11 @@
             const today = window.getTodayStr ? window.getTodayStr() : new Date().toISOString().slice(0, 10);
             const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            downloadBlob(blob, `levelup_planner_${today}.xlsx`);
-
-            if (AppLogger && typeof AppLogger.info === 'function') {
-                AppLogger.info(`[PlannerExcel] exported ${dates.length} entries`);
-            }
+            return downloadBlob(blob, `levelup_planner_${today}.xlsx`).then(() => {
+                if (AppLogger && typeof AppLogger.info === 'function') {
+                    AppLogger.info(`[PlannerExcel] exported ${dates.length} entries`);
+                }
+            });
         }).catch(err => {
             console.error('[PlannerExcel] export error', err);
             if (AppLogger) AppLogger.error('[PlannerExcel] export error', err);
@@ -202,11 +270,11 @@
             const wb = buildWorkbook(header, [example], 'Planner');
             const data = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
             const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            downloadBlob(blob, 'levelup_planner_template.xlsx');
-
-            if (AppLogger && typeof AppLogger.info === 'function') {
-                AppLogger.info('[PlannerExcel] template downloaded');
-            }
+            return downloadBlob(blob, 'levelup_planner_template.xlsx').then(() => {
+                if (AppLogger && typeof AppLogger.info === 'function') {
+                    AppLogger.info('[PlannerExcel] template downloaded');
+                }
+            });
         }).catch(err => {
             console.error('[PlannerExcel] template error', err);
             if (AppLogger) AppLogger.error('[PlannerExcel] template error', err);
