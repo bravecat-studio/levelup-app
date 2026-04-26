@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.613] - 2026-04-26
+
+### 변경
+- Align FNW unit text across labels with saved unit
+
 ## [1.0.612] - 2026-04-26
 
 ### 변경
