@@ -1,3 +1,4 @@
+import { calcFutureNetworth, normalizeFutureNetworthConfig } from './utils/future-networth-utils.js';
 // ===== 미래 순자산 (Future Net Worth) 모듈 =====
 (function() {
     'use strict';
@@ -46,29 +47,7 @@
 
     // ── 산식 ──────────────────────────────────────────────────────────────
     function calcNetWorth(cfg) {
-        const { n, W_0, assets, liabilities, r, g, e, inflateS,
-                s_car, s_housing, s_wedding, s_edu, s_medical, s_travel } = cfg;
-        if (!n || !W_0 || n <= 0 || W_0 <= 0) return null;
-
-        const A_0   = (assets || 0) - (liabilities || 0);
-        const rVal  = ((r !== undefined ? r : 2.5)) / 100;
-        const gVal  = ((g !== undefined ? g : 3.0)) / 100;
-        const eVal  = ((e !== undefined ? e : 70))  / 100;
-
-        const S_non_raw = (s_car||0) + (s_housing||0) + (s_wedding||0)
-                        + (s_edu||0) + (s_medical||0) + (s_travel||0);
-        const inflFactor = (inflateS && rVal > 0) ? Math.pow(1 + rVal, n) : 1;
-        const S_non = S_non_raw * inflFactor;
-
-        const W_total  = gVal === 0 ? W_0 * n : W_0 * (Math.pow(1 + gVal, n) - 1) / gVal;
-        const E_fixed  = W_total * eVal;
-        const NW_n     = A_0 + (W_total - E_fixed) - S_non;
-        const M_save   = S_non > 0 ? S_non / (n * 12) : 0;
-        const M_avail  = W_total * (1 - eVal) / (n * 12);
-
-        return { NW_n, M_save, M_avail, W_total, E_fixed,
-                 S_non, S_non_raw, inflFactor, A_0,
-                 feasible: M_avail >= M_save };
+        return calcFutureNetworth(cfg);
     }
 
     // ── 카드 렌더 ─────────────────────────────────────────────────────────
@@ -239,9 +218,8 @@
         const res = calcNetWorth(cfg);
         if (!res) return;
 
-        const rPct = (cfg.r !== undefined ? cfg.r : 2.5);
-        const gPct = (cfg.g !== undefined ? cfg.g : 3.0);
-        const ePct = (cfg.e !== undefined ? cfg.e : 70);
+        const normalizedCfg = normalizeFutureNetworthConfig(cfg);
+        const { r: rPct, g: gPct, e: ePct } = normalizedCfg;
         const fc   = res.feasible ? 'var(--neon-green,#00ff88)' : 'var(--neon-red,#ff4d6d)';
         const ft   = res.feasible ? _t('fnw_feasible') : _t('fnw_not_feasible');
 
@@ -516,7 +494,7 @@
         const gRaw = document.getElementById('fnw-i-g')?.value;
         const eRaw = document.getElementById('fnw-i-e')?.value;
 
-        const cfg = {
+        let cfg = {
             n, W_0,
             assets:      parseComma(document.getElementById('fnw-i-assets')?.value),
             liabilities: parseComma(document.getElementById('fnw-i-liabilities')?.value),
@@ -531,6 +509,8 @@
             s_medical: parseComma(document.getElementById('fnw-i-s_medical')?.value),
             s_travel:  parseComma(document.getElementById('fnw-i-s_travel')?.value),
         };
+
+        cfg = normalizeFutureNetworthConfig(cfg);
 
         // 2. 동의 필수 확인 — 미동의 시 저장 차단
         const consentChecked = document.getElementById('fnw-consent-checkbox')?.checked;
