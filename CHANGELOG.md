@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.607] - 2026-04-26
+
+### 변경
+- 미래 순자산: 명목 임금상승률 입력/계산 반영
+
 ## [1.0.606] - 2026-04-26
 
 ### 변경
