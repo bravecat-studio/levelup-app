@@ -46,7 +46,7 @@
 
     // ── 산식 ──────────────────────────────────────────────────────────────
     function calcNetWorth(cfg) {
-        const { n, W_0, assets, liabilities, r, g, e, inflateS,
+        const { n, W_0, assets, liabilities, r, g, e, roi, inflateS,
                 s_car, s_housing, s_wedding, s_edu, s_medical, s_travel } = cfg;
         if (!n || !W_0 || n <= 0 || W_0 <= 0) return null;
 
@@ -54,6 +54,7 @@
         const rVal  = ((r !== undefined ? r : 2.5)) / 100;
         const gVal  = ((g !== undefined ? g : 3.0)) / 100;
         const eVal  = ((e !== undefined ? e : 70))  / 100;
+        const iVal  = ((roi !== undefined ? roi : 3.5)) / 100;
 
         const S_non_raw = (s_car||0) + (s_housing||0) + (s_wedding||0)
                         + (s_edu||0) + (s_medical||0) + (s_travel||0);
@@ -62,12 +63,25 @@
 
         const W_total  = gVal === 0 ? W_0 * n : W_0 * (Math.pow(1 + gVal, n) - 1) / gVal;
         const E_fixed  = W_total * eVal;
-        const NW_n     = A_0 + (W_total - E_fixed) - S_non;
+
+        // ROI-adjusted future value: growing annuity compounded at investment rate
+        let FV_savings;
+        if (iVal === 0) {
+            FV_savings = W_total * (1 - eVal);
+        } else if (Math.abs(gVal - iVal) < 1e-9) {
+            FV_savings = W_0 * (1 - eVal) * n * Math.pow(1 + gVal, n - 1);
+        } else {
+            FV_savings = W_0 * (1 - eVal) * (Math.pow(1 + gVal, n) - Math.pow(1 + iVal, n)) / (gVal - iVal);
+        }
+        const A_0_future = A_0 * Math.pow(1 + iVal, n);
+        const NW_n     = A_0_future + FV_savings - S_non;
+        const NW_pv    = NW_n / Math.pow(1 + rVal, n);
+
         const M_save   = S_non > 0 ? S_non / (n * 12) : 0;
         const M_avail  = W_total * (1 - eVal) / (n * 12);
 
-        return { NW_n, M_save, M_avail, W_total, E_fixed,
-                 S_non, S_non_raw, inflFactor, A_0,
+        return { NW_n, NW_pv, M_save, M_avail, W_total, E_fixed,
+                 S_non, S_non_raw, inflFactor, A_0, A_0_future, FV_savings,
                  feasible: M_avail >= M_save };
     }
 
@@ -101,6 +115,10 @@
                     <div class="ls-value gold">${f(res.NW_n)}${u}</div>
                 </div>
                 <div class="life-status-item">
+                    <div><div class="ls-label">${_t('fnw_label_nw_pv')}</div></div>
+                    <div class="ls-value" style="color:var(--neon-blue,#00d9ff);">${f(res.NW_pv)}${u}</div>
+                </div>
+                <div class="life-status-item">
                     <div><div class="ls-label">${_t('fnw_label_m_save')}${inflateBadge}</div></div>
                     <div class="ls-value blue">${f(res.M_save)}${u}</div>
                 </div>
@@ -128,13 +146,15 @@
                  <div style="background:var(--bg-main,#0a0a0a);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;line-height:1.9;color:var(--text-sub);">
                      <div>📈 <b>누적 수입</b> = 연소득 × <span style="color:var(--neon-blue)">((1+g)ⁿ − 1) / g</span></div>
                      <div>💸 <b>고정 지출</b> = 누적 수입 × 지출비율(e)</div>
-                     <div>💰 <b>미래 순자산</b> = 현재 순자산 + (누적 수입 − 고정 지출) − 비정기 지출</div>
+                     <div>💰 <b>미래 순자산</b> = 현재 순자산×(1+i)ⁿ + W₀×(1−e)×<span style="color:var(--neon-blue)">((1+g)ⁿ−(1+i)ⁿ)/(g−i)</span> − 비정기 지출</div>
+                     <div>📉 <b>현재가치 환산</b> = 미래 순자산 ÷ <span style="color:var(--neon-blue)">(1+r)ⁿ</span></div>
                      <div style="margin-top:6px;">📅 <b>월 필요 저축액</b> = 비정기 지출 ÷ (n × 12)</div>
                      <div>💸 <b>월 가용 저축력</b> = 누적 수입 × (1 − e) ÷ (n × 12)</div>
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
                      <div>🔹 <b>인플레이션율(r)</b>: 한국은행 목표 물가 상승률(2~3%)</div>
                      <div>🔹 <b>명목 임금상승률(g)</b>: 평균 임금상승률(기본 3.0%), 상황에 맞게 조정</div>
+                     <div>🔹 <b>투자수익률(i)</b>: 예적금 평균 금리(기본 3.5%), 자산 운용 수익률로 조정</div>
                      <div>🔹 <b>고정 지출 비율(e)</b>: 가계 평균 70%, 본인 소비 패턴에 맞게 조정</div>
                      <div>🔹 <b>목돈 지출</b>: 미래 물가 반영 가격으로 입력하면 더 정확</div>
                      <div>🔹 월 가용 저축력 ≥ 월 필요 저축액 → <span style="color:var(--neon-green,#00ff88)">✅ 목표 달성 가능</span></div>
@@ -146,13 +166,15 @@
                  <div style="background:var(--bg-main,#0a0a0a);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;line-height:1.9;color:var(--text-sub);">
                      <div>📈 <b>Cumul. Income</b> = Annual × <span style="color:var(--neon-blue)">((1+g)ⁿ − 1) / g</span></div>
                      <div>💸 <b>Fixed Expenses</b> = Cumul. Income × Expense Ratio (e)</div>
-                     <div>💰 <b>Future Net Worth</b> = Current NW + (Income − Expenses) − Lump-Sum</div>
+                     <div>💰 <b>Future Net Worth</b> = NW₀×(1+i)ⁿ + W₀×(1−e)×<span style="color:var(--neon-blue)">((1+g)ⁿ−(1+i)ⁿ)/(g−i)</span> − Lump-Sum</div>
+                     <div>📉 <b>Present Value</b> = Future Net Worth ÷ <span style="color:var(--neon-blue)">(1+r)ⁿ</span></div>
                      <div style="margin-top:6px;">📅 <b>Monthly Savings Needed</b> = Lump-Sum ÷ (n × 12)</div>
                      <div>💸 <b>Monthly Capacity</b> = Cumul. Income × (1 − e) ÷ (n × 12)</div>
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
                      <div>🔹 <b>Inflation (r)</b>: Central bank target (2–3%)</div>
                      <div>🔹 <b>Nominal Wage Growth (g)</b>: avg. wage growth (default 3.0%), editable</div>
+                     <div>🔹 <b>Investment ROI (i)</b>: avg. deposit rate (default 3.5%), adjust to expected returns</div>
                      <div>🔹 <b>Expense Ratio (e)</b>: Avg. ~70%; adjust to your spending habits</div>
                      <div>🔹 <b>Lump-Sum items</b>: Use future prices for accuracy</div>
                      <div>🔹 Capacity ≥ Needed → <span style="color:var(--neon-green,#00ff88)">✅ Goal Achievable</span></div>
@@ -164,13 +186,15 @@
                  <div style="background:var(--bg-main,#0a0a0a);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;line-height:1.9;color:var(--text-sub);">
                      <div>📈 <b>累積収入</b> = 年収 × <span style="color:var(--neon-blue)">((1+g)ⁿ − 1) / g</span></div>
                      <div>💸 <b>固定支出</b> = 累積収入 × 支出比率(e)</div>
-                     <div>💰 <b>将来純資産</b> = 現在純資産 + (収入 − 支出) − 一括支出合計</div>
+                     <div>💰 <b>将来純資産</b> = 現在純資産×(1+i)ⁿ + W₀×(1−e)×<span style="color:var(--neon-blue)">((1+g)ⁿ−(1+i)ⁿ)/(g−i)</span> − 一括支出</div>
+                     <div>📉 <b>現在価値換算</b> = 将来純資産 ÷ <span style="color:var(--neon-blue)">(1+r)ⁿ</span></div>
                      <div style="margin-top:6px;">📅 <b>月必要積立額</b> = 一括支出 ÷ (n × 12)</div>
                      <div>💸 <b>月積立能力</b> = 累積収入 × (1 − e) ÷ (n × 12)</div>
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
                      <div>🔹 <b>インフレ率(r)</b>: 中央銀行目標値(2〜3%)</div>
                      <div>🔹 <b>名目賃金上昇率(g)</b>: 平均賃金上昇率（初期値 3.0%）、必要に応じて調整</div>
+                     <div>🔹 <b>投資収益率(i)</b>: 預金平均金利（初期値 3.5%）、期待収益率に合わせて調整</div>
                      <div>🔹 <b>支出比率(e)</b>: 家計平均70%基準、生活スタイルに合わせて調整</div>
                      <div>🔹 <b>一括支出</b>: 将来物価で入力すると精度UP</div>
                      <div>🔹 月積立能力 ≥ 月必要積立額 → <span style="color:var(--neon-green,#00ff88)">✅ 目標達成可能</span></div>
@@ -239,9 +263,10 @@
         const res = calcNetWorth(cfg);
         if (!res) return;
 
-        const rPct = (cfg.r !== undefined ? cfg.r : 2.5);
-        const gPct = (cfg.g !== undefined ? cfg.g : 3.0);
-        const ePct = (cfg.e !== undefined ? cfg.e : 70);
+        const rPct = (cfg.r   !== undefined ? cfg.r   : 2.5);
+        const gPct = (cfg.g   !== undefined ? cfg.g   : 3.0);
+        const ePct = (cfg.e   !== undefined ? cfg.e   : 70);
+        const iPct = (cfg.roi !== undefined ? cfg.roi : 3.5);
         const fc   = res.feasible ? 'var(--neon-green,#00ff88)' : 'var(--neon-red,#ff4d6d)';
         const ft   = res.feasible ? _t('fnw_feasible') : _t('fnw_not_feasible');
 
@@ -276,6 +301,7 @@
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">n = ${cfg.n}yr</span>
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">r = ${rPct}%</span>
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">g = ${gPct}%</span>
+                    <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">i = ${iPct}%</span>
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">e = ${ePct}%</span>
                 </div>
 
@@ -288,6 +314,7 @@
                 </div>
                 ${snonInflateDetail}
                 ${row(_t('fnw_detail_nwn'),    `${f(res.NW_n)}${u}`,    'var(--neon-gold,#ffd700)')}
+                ${row(_t('fnw_detail_nwn_pv'), `${f(res.NW_pv)}${u}`,  'var(--neon-blue,#00d9ff)')}
 
                 <div style="height:8px;"></div>
                 ${row(_t('fnw_detail_msave'),  `${f(res.M_save)}${u}`,  'var(--neon-blue)')}
@@ -365,7 +392,7 @@
                     <input id="fnw-i-n" type="text" inputmode="numeric"
                         value="${fmtComma(cfg.n)}" placeholder="10" style="${iStyle}">
                 </div>
-                <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:8px;${fWrap}">
+                <div style="display:grid;grid-template-columns:1.5fr 0.8fr 0.8fr;gap:8px;${fWrap}">
                     <div>
                         <label style="${lStyle}">${_tL('fnw_label_w0')}</label>
                         <input id="fnw-i-w0" type="text" inputmode="numeric"
@@ -375,6 +402,11 @@
                         <label style="${lStyle}">${_t('fnw_label_g')}</label>
                         <input id="fnw-i-g" type="number" min="0" max="20" step="0.1"
                             value="${cfg.g !== undefined ? cfg.g : 3.0}" placeholder="3.0" style="${iStyle}">
+                    </div>
+                    <div>
+                        <label style="${lStyle}">${_t('fnw_label_roi')}</label>
+                        <input id="fnw-i-roi" type="number" min="0" max="30" step="0.1"
+                            value="${cfg.roi !== undefined ? cfg.roi : 3.5}" placeholder="3.5" style="${iStyle}">
                     </div>
                 </div>
 
@@ -512,17 +544,19 @@
         if (!W_0 || W_0 <= 0) { alert(_t('fnw_income_required')); return; }
         if (!n   || n   <= 0) { alert(_t('fnw_n_required'));       return; }
 
-        const rRaw = document.getElementById('fnw-i-r')?.value;
-        const gRaw = document.getElementById('fnw-i-g')?.value;
-        const eRaw = document.getElementById('fnw-i-e')?.value;
+        const rRaw   = document.getElementById('fnw-i-r')?.value;
+        const gRaw   = document.getElementById('fnw-i-g')?.value;
+        const eRaw   = document.getElementById('fnw-i-e')?.value;
+        const roiRaw = document.getElementById('fnw-i-roi')?.value;
 
         const cfg = {
             n, W_0,
             assets:      parseComma(document.getElementById('fnw-i-assets')?.value),
             liabilities: parseComma(document.getElementById('fnw-i-liabilities')?.value),
-            r: rRaw !== '' && rRaw !== null ? parseFloat(rRaw) : 2.5,
-            g: gRaw !== '' && gRaw !== null ? parseFloat(gRaw) : 3.0,
-            e: eRaw !== '' && eRaw !== null ? parseFloat(eRaw) : 70,
+            r:   rRaw   !== '' && rRaw   !== null ? parseFloat(rRaw)   : 2.5,
+            g:   gRaw   !== '' && gRaw   !== null ? parseFloat(gRaw)   : 3.0,
+            e:   eRaw   !== '' && eRaw   !== null ? parseFloat(eRaw)   : 70,
+            roi: roiRaw !== '' && roiRaw !== null ? parseFloat(roiRaw) : 3.5,
             inflateS: document.getElementById('fnw-inflate-checkbox')?.checked === true,
             s_car:     parseComma(document.getElementById('fnw-i-s_car')?.value),
             s_housing: parseComma(document.getElementById('fnw-i-s_housing')?.value),
