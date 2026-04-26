@@ -46,12 +46,13 @@
 
     // ── 산식 ──────────────────────────────────────────────────────────────
     function calcNetWorth(cfg) {
-        const { n, W_0, assets, liabilities, r, e, inflateS,
+        const { n, W_0, assets, liabilities, r, g, e, inflateS,
                 s_car, s_housing, s_wedding, s_edu, s_medical, s_travel } = cfg;
         if (!n || !W_0 || n <= 0 || W_0 <= 0) return null;
 
         const A_0   = (assets || 0) - (liabilities || 0);
         const rVal  = ((r !== undefined ? r : 2.5)) / 100;
+        const gVal  = ((g !== undefined ? g : 3.0)) / 100;
         const eVal  = ((e !== undefined ? e : 70))  / 100;
 
         const S_non_raw = (s_car||0) + (s_housing||0) + (s_wedding||0)
@@ -59,7 +60,7 @@
         const inflFactor = (inflateS && rVal > 0) ? Math.pow(1 + rVal, n) : 1;
         const S_non = S_non_raw * inflFactor;
 
-        const W_total  = rVal === 0 ? W_0 * n : W_0 * (Math.pow(1 + rVal, n) - 1) / rVal;
+        const W_total  = gVal === 0 ? W_0 * n : W_0 * (Math.pow(1 + gVal, n) - 1) / gVal;
         const E_fixed  = W_total * eVal;
         const NW_n     = A_0 + (W_total - E_fixed) - S_non;
         const M_save   = S_non > 0 ? S_non / (n * 12) : 0;
@@ -125,14 +126,15 @@
                     <b style="color:var(--neon-blue)">월 적립 목표액</b>을 계산합니다.
                  </p>
                  <div style="background:var(--bg-main,#0a0a0a);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;line-height:1.9;color:var(--text-sub);">
-                     <div>📈 <b>누적 수입</b> = 연소득 × <span style="color:var(--neon-blue)">((1+r)ⁿ − 1) / r</span></div>
+                     <div>📈 <b>누적 수입</b> = 연소득 × <span style="color:var(--neon-blue)">((1+g)ⁿ − 1) / g</span></div>
                      <div>💸 <b>고정 지출</b> = 누적 수입 × 지출비율(e)</div>
                      <div>💰 <b>미래 순자산</b> = 현재 순자산 + (누적 수입 − 고정 지출) − 비정기 지출</div>
                      <div style="margin-top:6px;">📅 <b>월 필요 저축액</b> = 비정기 지출 ÷ (n × 12)</div>
                      <div>💸 <b>월 가용 저축력</b> = 누적 수입 × (1 − e) ÷ (n × 12)</div>
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
-                     <div>🔹 <b>인플레이션율(r)</b>: 한국은행 목표 물가 상승률(2~3%) 또는 평균 연봉 인상률</div>
+                     <div>🔹 <b>인플레이션율(r)</b>: 한국은행 목표 물가 상승률(2~3%)</div>
+                     <div>🔹 <b>명목 임금상승률(g)</b>: 평균 임금상승률(기본 3.0%), 상황에 맞게 조정</div>
                      <div>🔹 <b>고정 지출 비율(e)</b>: 가계 평균 70%, 본인 소비 패턴에 맞게 조정</div>
                      <div>🔹 <b>목돈 지출</b>: 미래 물가 반영 가격으로 입력하면 더 정확</div>
                      <div>🔹 월 가용 저축력 ≥ 월 필요 저축액 → <span style="color:var(--neon-green,#00ff88)">✅ 목표 달성 가능</span></div>
@@ -142,14 +144,15 @@
                     <b style="color:var(--neon-blue)">required monthly savings</b> using inflation + lifecycle expenses.
                  </p>
                  <div style="background:var(--bg-main,#0a0a0a);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;line-height:1.9;color:var(--text-sub);">
-                     <div>📈 <b>Cumul. Income</b> = Annual × <span style="color:var(--neon-blue)">((1+r)ⁿ − 1) / r</span></div>
+                     <div>📈 <b>Cumul. Income</b> = Annual × <span style="color:var(--neon-blue)">((1+g)ⁿ − 1) / g</span></div>
                      <div>💸 <b>Fixed Expenses</b> = Cumul. Income × Expense Ratio (e)</div>
                      <div>💰 <b>Future Net Worth</b> = Current NW + (Income − Expenses) − Lump-Sum</div>
                      <div style="margin-top:6px;">📅 <b>Monthly Savings Needed</b> = Lump-Sum ÷ (n × 12)</div>
                      <div>💸 <b>Monthly Capacity</b> = Cumul. Income × (1 − e) ÷ (n × 12)</div>
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
-                     <div>🔹 <b>Inflation (r)</b>: Central bank target (2–3%) or avg. salary growth</div>
+                     <div>🔹 <b>Inflation (r)</b>: Central bank target (2–3%)</div>
+                     <div>🔹 <b>Nominal Wage Growth (g)</b>: avg. wage growth (default 3.0%), editable</div>
                      <div>🔹 <b>Expense Ratio (e)</b>: Avg. ~70%; adjust to your spending habits</div>
                      <div>🔹 <b>Lump-Sum items</b>: Use future prices for accuracy</div>
                      <div>🔹 Capacity ≥ Needed → <span style="color:var(--neon-green,#00ff88)">✅ Goal Achievable</span></div>
@@ -159,14 +162,15 @@
                     <b style="color:var(--neon-blue)">月積立目標額</b>を計算します。
                  </p>
                  <div style="background:var(--bg-main,#0a0a0a);border-radius:8px;padding:12px;margin-bottom:10px;font-size:0.78rem;line-height:1.9;color:var(--text-sub);">
-                     <div>📈 <b>累積収入</b> = 年収 × <span style="color:var(--neon-blue)">((1+r)ⁿ − 1) / r</span></div>
+                     <div>📈 <b>累積収入</b> = 年収 × <span style="color:var(--neon-blue)">((1+g)ⁿ − 1) / g</span></div>
                      <div>💸 <b>固定支出</b> = 累積収入 × 支出比率(e)</div>
                      <div>💰 <b>将来純資産</b> = 現在純資産 + (収入 − 支出) − 一括支出合計</div>
                      <div style="margin-top:6px;">📅 <b>月必要積立額</b> = 一括支出 ÷ (n × 12)</div>
                      <div>💸 <b>月積立能力</b> = 累積収入 × (1 − e) ÷ (n × 12)</div>
                  </div>
                  <div style="font-size:0.78rem;color:var(--text-sub);line-height:1.7;">
-                     <div>🔹 <b>インフレ率(r)</b>: 中央銀行目標値(2〜3%)または平均昇給率を適用</div>
+                     <div>🔹 <b>インフレ率(r)</b>: 中央銀行目標値(2〜3%)</div>
+                     <div>🔹 <b>名目賃金上昇率(g)</b>: 平均賃金上昇率（初期値 3.0%）、必要に応じて調整</div>
                      <div>🔹 <b>支出比率(e)</b>: 家計平均70%基準、生活スタイルに合わせて調整</div>
                      <div>🔹 <b>一括支出</b>: 将来物価で入力すると精度UP</div>
                      <div>🔹 月積立能力 ≥ 月必要積立額 → <span style="color:var(--neon-green,#00ff88)">✅ 目標達成可能</span></div>
@@ -236,6 +240,7 @@
         if (!res) return;
 
         const rPct = (cfg.r !== undefined ? cfg.r : 2.5);
+        const gPct = (cfg.g !== undefined ? cfg.g : 3.0);
         const ePct = (cfg.e !== undefined ? cfg.e : 70);
         const fc   = res.feasible ? 'var(--neon-green,#00ff88)' : 'var(--neon-red,#ff4d6d)';
         const ft   = res.feasible ? _t('fnw_feasible') : _t('fnw_not_feasible');
@@ -270,6 +275,7 @@
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border-color);">
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">n = ${cfg.n}yr</span>
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">r = ${rPct}%</span>
+                    <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">g = ${gPct}%</span>
                     <span style="background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:2px 8px;font-size:0.73rem;color:var(--neon-blue);">e = ${ePct}%</span>
                 </div>
 
@@ -359,10 +365,17 @@
                     <input id="fnw-i-n" type="text" inputmode="numeric"
                         value="${fmtComma(cfg.n)}" placeholder="10" style="${iStyle}">
                 </div>
-                <div style="${fWrap}">
-                    <label style="${lStyle}">${_tL('fnw_label_w0')}</label>
-                    <input id="fnw-i-w0" type="text" inputmode="numeric"
-                        value="${fmtComma(cfg.W_0)}" placeholder="0" style="${iStyle}">
+                <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:8px;${fWrap}">
+                    <div>
+                        <label style="${lStyle}">${_tL('fnw_label_w0')}</label>
+                        <input id="fnw-i-w0" type="text" inputmode="numeric"
+                            value="${fmtComma(cfg.W_0)}" placeholder="0" style="${iStyle}">
+                    </div>
+                    <div>
+                        <label style="${lStyle}">${_t('fnw_label_g')}</label>
+                        <input id="fnw-i-g" type="number" min="0" max="20" step="0.1"
+                            value="${cfg.g !== undefined ? cfg.g : 3.0}" placeholder="3.0" style="${iStyle}">
+                    </div>
                 </div>
 
                 <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:6px;padding-top:4px;">
@@ -500,6 +513,7 @@
         if (!n   || n   <= 0) { alert(_t('fnw_n_required'));       return; }
 
         const rRaw = document.getElementById('fnw-i-r')?.value;
+        const gRaw = document.getElementById('fnw-i-g')?.value;
         const eRaw = document.getElementById('fnw-i-e')?.value;
 
         const cfg = {
@@ -507,6 +521,7 @@
             assets:      parseComma(document.getElementById('fnw-i-assets')?.value),
             liabilities: parseComma(document.getElementById('fnw-i-liabilities')?.value),
             r: rRaw !== '' && rRaw !== null ? parseFloat(rRaw) : 2.5,
+            g: gRaw !== '' && gRaw !== null ? parseFloat(gRaw) : 3.0,
             e: eRaw !== '' && eRaw !== null ? parseFloat(eRaw) : 70,
             inflateS: document.getElementById('fnw-inflate-checkbox')?.checked === true,
             s_car:     parseComma(document.getElementById('fnw-i-s_car')?.value),
