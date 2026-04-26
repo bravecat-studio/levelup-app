@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.608] - 2026-04-26
+
+### 변경
+- fix: 언어별 신규 가입자 기본 명칭 적용
+
 ## [1.0.607] - 2026-04-26
 
 ### 변경
