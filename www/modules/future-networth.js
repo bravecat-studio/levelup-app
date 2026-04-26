@@ -101,8 +101,8 @@
                 return;
             }
             const f   = v => Math.round(v).toLocaleString();
-            const cfgLang = cfg._lang || (_app().currentLang || 'ko');
-            const u   = window.i18n?.[cfgLang]?.['fnw_unit_man'] ?? _t('fnw_unit_man');
+            const unitLang = cfg._unitLang || cfg._lang || (_app().currentLang || 'ko');
+            const u   = window.i18n?.[unitLang]?.['fnw_unit_man'] ?? _t('fnw_unit_man');
             const fc  = res.feasible ? 'var(--neon-green,#00ff88)' : 'var(--neon-red,#ff4d6d)';
             const ft  = res.feasible ? _t('fnw_feasible') : _t('fnw_not_feasible');
             const nwL = _t('fnw_label_nw').replace('{n}', cfg.n);
@@ -233,8 +233,8 @@
         if (document.getElementById('fnw-detail-overlay')) return;
 
         const cfg = getConfig();
-        const labelLang = cfg?._lang || (_app().currentLang || 'ko');
-        const u = window.i18n?.[labelLang]?.['fnw_unit_man'] ?? _t('fnw_unit_man');
+        const unitLang = cfg?._unitLang || cfg?._lang || (_app().currentLang || 'ko');
+        const u = window.i18n?.[unitLang]?.['fnw_unit_man'] ?? _t('fnw_unit_man');
         const f = v => Math.round(v).toLocaleString();
 
         const overlay = document.createElement('div');
@@ -347,9 +347,16 @@
 
         const cfg    = getConfig() || {};
         // 저장 시점 언어로 화폐단위 표기 (없으면 현재 언어)
-        const labelLang = cfg._lang || (_app().currentLang || 'ko');
-        const _tL = key => window.i18n?.[labelLang]?.[key] ?? key;
-        const _currCode = labelLang === 'en' ? 'USD' : labelLang === 'ja' ? 'JPY' : 'KRW';
+        const unitLang = cfg._unitLang || cfg._lang || (_app().currentLang || 'ko');
+        const _tUnit = key => window.i18n?.[unitLang]?.[key] ?? key;
+        const _currCode = unitLang === 'en' ? 'USD' : unitLang === 'ja' ? 'JPY' : 'KRW';
+        const _tWithSavedUnit = key => {
+            const label = _t(key);
+            const unit  = _tUnit('fnw_unit_man');
+            return String(label)
+                .replace(/\((만원|K USD)\)/g, `(${unit})`)
+                .replace(/（万円）/g, `（${unit}）`);
+        };
         const iStyle = 'width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--panel-bg);color:var(--text-main);font-size:0.85rem;box-sizing:border-box;';
         const lStyle = 'display:block;font-size:0.75rem;color:var(--text-sub);margin-bottom:4px;';
         const lStyleCompact = 'display:block;font-size:0.72rem;color:var(--text-sub);margin-bottom:4px;white-space:nowrap;';
@@ -388,7 +395,7 @@
                 <div style="${fWrap}">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                         <label style="font-size:0.75rem;color:var(--text-sub);">${_t('fnw_label_n')}</label>
-                        <span style="font-size:0.68rem;color:var(--neon-blue);background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:1px 7px;">💰 ${_currCode} ${_tL('fnw_unit_man')}</span>
+                        <span style="font-size:0.68rem;color:var(--neon-blue);background:rgba(0,217,255,0.1);border:1px solid rgba(0,217,255,0.3);border-radius:4px;padding:1px 7px;">💰 ${_currCode} ${_tUnit('fnw_unit_man')}</span>
                     </div>
                     <input id="fnw-i-n" type="text" inputmode="numeric"
                         value="${fmtComma(cfg.n)}" placeholder="10" style="${iStyle}">
@@ -398,7 +405,7 @@
                 </div>
                 <div style="display:grid;grid-template-columns:1.25fr 0.9fr 0.9fr;gap:8px;${fWrap}">
                     <div>
-                        <label style="${lStyle}">${_t('fnw_label_w0')}</label>
+                        <label style="${lStyle}">${_tWithSavedUnit('fnw_label_w0')}</label>
                         <input id="fnw-i-w0" type="text" inputmode="numeric"
                             value="${fmtComma(cfg.W_0)}" placeholder="0" style="${iStyle}">
                     </div>
@@ -419,12 +426,12 @@
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px;">
                     <div>
-                        <label style="${lStyle}">${_t('fnw_label_assets')}</label>
+                        <label style="${lStyle}">${_tWithSavedUnit('fnw_label_assets')}</label>
                         <input id="fnw-i-assets" type="text" inputmode="numeric"
                             value="${assetsVal}" placeholder="0" style="${iStyle}">
                     </div>
                     <div>
-                        <label style="${lStyle}">${_t('fnw_label_liabilities')}</label>
+                        <label style="${lStyle}">${_tWithSavedUnit('fnw_label_liabilities')}</label>
                         <input id="fnw-i-liabilities" type="text" inputmode="numeric"
                             value="${liabilitiesVal}" placeholder="0" style="${iStyle}">
                     </div>
@@ -445,7 +452,7 @@
                 </div>
 
                 <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:8px;padding-top:6px;border-top:1px solid var(--border-color);">
-                    ${_t('fnw_section_lump')}
+                    ${_tWithSavedUnit('fnw_section_lump')}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                     ${lumpGrid}
@@ -498,7 +505,7 @@
             const el  = document.getElementById('fnw-net-auto');
             if (!el) return;
             if (a || l) {
-                el.textContent = `${_t('fnw_label_net_auto')}: ${net.toLocaleString()}${_tL('fnw_unit_man')}`;
+                el.textContent = `${_t('fnw_label_net_auto')}: ${net.toLocaleString()}${_tUnit('fnw_unit_man')}`;
                 el.style.color = net >= 0 ? 'var(--neon-green,#00ff88)' : 'var(--neon-red,#ff4d6d)';
             } else {
                 el.textContent = '';
@@ -524,7 +531,7 @@
                 const factor  = rVal > 0 ? Math.pow(1 + rVal, nRaw) : 1;
                 const inflated = Math.round(S_raw * factor);
                 previewEl.textContent =
-                    `${_t('fnw_inflate_total')}: ${inflated.toLocaleString()}${_tL('fnw_unit_man')} (×${factor.toFixed(2)})`;
+                    `${_t('fnw_inflate_total')}: ${inflated.toLocaleString()}${_tUnit('fnw_unit_man')} (×${factor.toFixed(2)})`;
             } else {
                 previewEl.textContent = '';
             }
@@ -542,6 +549,7 @@
     // ── 저장 ──────────────────────────────────────────────────────────────
     function saveFutureNetworthFromModal() {
         // 1. 입력값 읽기
+        const prevCfg = getConfig() || {};
         const W_0 = parseComma(document.getElementById('fnw-i-w0')?.value);
         const n   = parseComma(document.getElementById('fnw-i-n')?.value);
 
@@ -582,6 +590,7 @@
         const res = calcNetWorth(cfg);
         if (res) cfg._M_avail = res.M_avail;
         cfg._lang = _app().currentLang || 'ko';
+        cfg._unitLang = prevCfg._unitLang || prevCfg._lang || (_app().currentLang || 'ko');
         saveConfig(cfg);
 
         // 4. UI 갱신 + 모달 닫기 (반드시 실행)
