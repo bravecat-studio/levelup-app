@@ -1,6 +1,6 @@
 {
   "name": "levelup-reboot",
-  "version": "1.0.597",
+  "version": "1.0.595",
   "description": "LEVEL UP: REBOOT - 게임처럼 현실을 레벨업하는 앱",
   "license": "UNLICENSED",
   "main": "www/app.html",
@@ -33,7 +33,6 @@
     "@capacitor/geolocation": "^6.1.1",
     "@capacitor/local-notifications": "^6.0.1",
     "@capacitor/push-notifications": "^6.0.2",
-    "@capacitor/share": "^6.2.0",
     "@codetrix-studio/capacitor-google-auth": "3.4.0-rc.4"
   },
   "devDependencies": {
