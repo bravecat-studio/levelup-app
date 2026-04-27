@@ -84,6 +84,19 @@
             .join('<br>');
     }
 
+    function escapeHabitNameText(value) {
+        const raw = String(value || '');
+        if (typeof window.escapeHtml === 'function') {
+            return window.escapeHtml(raw);
+        }
+        return raw
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function getHabitStageRanges(totalDays) {
         const safeTotalDays = Math.max(1, Number(totalDays) || 1);
         const stage1End = Math.max(1, Math.round(safeTotalDays / 3));
@@ -166,7 +179,7 @@
 
                 <div class="habit-info-row">
                     <label>${_t.habit_name_label || '원하는 습관명'}</label>
-                    <div class="habit-name-view">${window.escapeHtml?.(config.habitName || '') || ''}</div>
+                    <div class="habit-name-view">${escapeHabitNameText(config.habitName)}</div>
                     <div class="habit-start-date">${(_t.habit_start_date || '시작일: {date}').replace('{date}', config.startDate)}</div>
                 </div>
 
@@ -316,11 +329,7 @@
         overlay.innerHTML = `
             <div class="report-modal-content habit-guide-modal">
                 <div class="habit-guide-title">${_t.habit_guide_title || '습관 형성 가이드'}</div>
-                <div class="habit-guide-body">
-                    ${guideText}
-                    ${guideText ? '<br><br>' : ''}
-                    <strong>${persistNote}</strong>
-                </div>
+                <div class="habit-guide-body">${guideText}${guideText ? '<br><br>' : ''}<strong>${persistNote}</strong></div>
                 <div style="display:flex; justify-content:flex-end; margin-top:12px;">
                     <button onclick="window.closeHabitGuideModal()" class="btn-info-sm">${_t.ls_btn_cancel || '닫기'}</button>
                 </div>

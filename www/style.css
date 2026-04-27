@@ -863,7 +863,7 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
 .habit-stat-rate { color: #63ffb0; }
 .habit-guide-modal { max-width: 420px; width: calc(100% - 24px); }
 .habit-guide-title { font-size: 0.95rem; font-weight: 700; color: var(--neon-blue); margin-bottom: 8px; }
-.habit-guide-body { font-size: 0.78rem; color: var(--text-main); line-height: 1.55; max-height: 58vh; overflow-y: auto; white-space: pre-wrap; text-align:left; padding-right:2px; }
+.habit-guide-body { font-size: 0.78rem; color: var(--text-main); line-height: 1.55; max-height: 58vh; overflow-y: auto; white-space: normal; text-align:left; padding-right:2px; }
 .habit-settings-modal { max-width: 360px; width: calc(100% - 24px); }
 .habit-settings-field { margin-bottom: 10px; display:flex; flex-direction:column; gap:4px; }
 .habit-settings-field label { font-size: 0.75rem; color: var(--text-sub); }
