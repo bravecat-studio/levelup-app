@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.618] - 2026-04-27
+
+### 변경
+- fix: health connect 링크 진입 분기 처리
+
 ## [1.0.617] - 2026-04-27
 
 ### 변경
