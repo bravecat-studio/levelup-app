@@ -2106,7 +2106,7 @@ const i18n = {
         fnw_label_nw: "予想純資産 ({n}年後)",
         fnw_label_nw_pv: "予想純資産（現在価値換算）",
         fnw_label_m_save: "月必要貯蓄額",
-        fnw_label_m_avail: "月貯蓄能力",
+        fnw_label_m_avail: "月利用可能貯蓄額",
         fnw_feasible: "✅ 目標達成可能",
         fnw_not_feasible: "⚠️ 貯蓄不足",
         fnw_unit_man: "万円",
