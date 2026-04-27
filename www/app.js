@@ -6392,6 +6392,27 @@ async function syncHealthData(showMsg = false) {
     return healthService.syncHealthData({ showMsg });
 }
 
+async function openHealthConnectEntryPoint() {
+    const healthConnectUrl = 'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata';
+    try {
+        const HealthConnect = window.Capacitor?.Plugins?.HealthConnect;
+        if (!HealthConnect) {
+            window.open(healthConnectUrl, '_blank');
+            return;
+        }
+        const availability = await HealthConnect.isAvailable();
+        if (availability?.available && typeof HealthConnect.openHealthConnect === 'function') {
+            await HealthConnect.openHealthConnect();
+            return;
+        }
+        window.open(healthConnectUrl, '_blank');
+    } catch (e) {
+        console.warn('[HealthConnect] open entry failed, fallback to store:', e?.message || e);
+        window.open(healthConnectUrl, '_blank');
+    }
+}
+window.openHealthConnectEntryPoint = openHealthConnectEntryPoint;
+
 // --- 걸음수 상태창 UI 업데이트 ---
 function updateStepCountUI() {
     const card = document.getElementById('step-count-card');
@@ -6415,9 +6436,8 @@ function updateStepCountUI() {
             const listEl = document.getElementById('step-req-list');
             if (titleEl) titleEl.textContent = lang.step_req_title || '걸음수 연동 필수 조건';
             if (listEl) {
-                const healthConnectUrl = 'https://play.google.com/store/apps/details?id=com.google.android.apps.healthdata';
                 const req1Text = lang.step_req_1 || 'Health Connect 앱 설치 필요';
-                const req1Html = req1Text.replace('Health Connect', `<a href="${healthConnectUrl}" target="_blank" style="color:inherit;text-decoration:underline;">Health Connect</a>`);
+                const req1Html = req1Text.replace('Health Connect', `<a href="javascript:void(0)" onclick="openHealthConnectEntryPoint()" style="color:inherit;text-decoration:underline;">Health Connect</a>`);
                 const items = [
                     { icon: '📲', html: req1Html },
                     { icon: '⚙️', html: (() => {
