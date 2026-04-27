@@ -201,6 +201,7 @@ export function createAuthProfileModule(deps) {
         const isMe = userId === auth.currentUser?.uid;
         const isFollowing = (AppState.user.friends || []).includes(userId);
         const followBtnHTML = !isMe ? `<button id="profile-modal-follow-btn" class="btn-reels-follow ${isFollowing ? 'following' : ''}" onclick="event.stopPropagation();window.toggleProfileModalFollow('${sanitizeAttr(userId)}')">${isFollowing ? (i18n[lang]?.btn_added || '팔로잉') : (i18n[lang]?.btn_add || '팔로우')}</button>` : '';
+        const shareBtnHTML = `<button class="btn-profile-share" onclick="event.stopPropagation();window.shareSocialProfile('${sanitizeAttr(userId)}')" title="${i18n[lang]?.profile_share_btn || '공유'}">${i18n[lang]?.profile_share_btn || '공유'}</button>`;
         const saveBtnHTML = isMe ? `<button class="btn-profile-save" onclick="event.stopPropagation();window.saveProfileCardAsImage('${sanitizeAttr(userId)}')">${i18n[lang]?.profile_save_btn || '저장'}</button>` : '';
         const shareBtnHTML = isMe ? `<button class="btn-profile-share" onclick="event.stopPropagation();window.shareSocialProfile('${sanitizeAttr(userId)}')" title="${i18n[lang]?.profile_share_btn || '공유'}">${i18n[lang]?.profile_share_btn || '공유'}</button>` : '';
 
