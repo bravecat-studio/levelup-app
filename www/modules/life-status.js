@@ -90,13 +90,6 @@
         };
     }
 
-    function getStageTypeByDay(day, totalDays) {
-        const ranges = getHabitStageRanges(totalDays);
-        if (day <= ranges.stage1End) return 'resistance';
-        if (day <= ranges.stage2End) return 'transition';
-        return 'automation';
-    }
-
     function getHabitElapsedDays(config) {
         const start = new Date(config.startDate);
         const today = new Date();
@@ -191,8 +184,6 @@
         if (!container) return;
 
         const config = getLifeStatusConfig();
-        const habitConfig = getHabitProjectConfig();
-
         const _t = i18n[AppState.currentLang] || {};
         let lifeStatusHTML = '';
 
