@@ -251,7 +251,7 @@ const i18n = {
         fitness_unsupported_plugin: "건강 연동 모듈이 포함되지 않은 빌드입니다. 앱을 최신 버전으로 업데이트해주세요.",
         login_terms_html: '계속하면 BRAVECAT의 <a href="terms/terms.html" target="_blank">소비자 약관</a> 및 <a href="terms/usage-policy.html" target="_blank">이용 정책</a>에 동의하고, <a href="terms/privacy.html" target="_blank">개인정보 처리방침</a>을 확인하는 것으로 간주됩니다.',
         // 온보딩 가이드
-        ob_title_1: "나만의 캐릭터 성장", ob_desc_1: "6가지 스탯을 키우고 레벨업하며<br>최고의 나를 만들어보세요",
+        ob_title_1: "나만의 캐릭터 성장", ob_desc_1: "6가지 스탯을 키우고 레벨업하며<br>최고의 나를 만들어보세요", ob_message_1: "성공은 돈과 명예가 아니라 당신 자신의 변화입니다. 당신의 성공, 아니 변화를 응원합니다.",
         ob_title_2: "데일리 퀘스트", ob_desc_2: "매일 주어지는 퀘스트를 완료하고<br>포인트와 스탯 보상을 받으세요",
         ob_title_3: "던전 & 레이드", ob_desc_3: "보스를 처치하고 전리품을 획득하세요<br>다른 플레이어와 함께 연합 레이드!",
         ob_title_4: "스마트 툴", ob_desc_4: "뽀모도로 타이머, 러닝 계산기, 1RM 계산기로<br>운동과 집중을 스마트하게 관리하세요",
@@ -1013,7 +1013,7 @@ const i18n = {
         fitness_unsupported_plugin: "This build does not include the health integration module. Please update to the latest app version.",
         login_terms_html: 'By continuing, you agree to BRAVECAT\'s <a href="terms/terms.html" target="_blank">Terms of Service</a> and <a href="terms/usage-policy.html" target="_blank">Usage Policy</a>, and acknowledge the <a href="terms/privacy.html" target="_blank">Privacy Policy</a>.',
         // Onboarding Guide
-        ob_title_1: "Build Your Character", ob_desc_1: "Grow 6 stats and level up<br>to become the best version of yourself",
+        ob_title_1: "Build Your Character", ob_desc_1: "Grow 6 stats and level up<br>to become the best version of yourself", ob_message_1: "Success is not money or fame, but your own transformation. We support your success—no, your transformation.",
         ob_title_2: "Daily Quests", ob_desc_2: "Complete daily quests<br>to earn points and stat rewards",
         ob_title_3: "Dungeons & Raids", ob_desc_3: "Defeat bosses and earn loot<br>Join forces with other players!",
         ob_title_4: "Smart Tools", ob_desc_4: "Pomodoro timer, running calculator, and 1RM calculator<br>to manage your focus and fitness smartly",
@@ -1775,7 +1775,7 @@ const i18n = {
         fitness_unsupported_plugin: "このビルドには健康連携モジュールが含まれていません。最新バージョンに更新してください。",
         login_terms_html: '続行すると、BRAVECATの<a href="terms/terms.html" target="_blank">利用規約</a>および<a href="terms/usage-policy.html" target="_blank">利用ポリシー</a>に同意し、<a href="terms/privacy.html" target="_blank">プライバシーポリシー</a>を確認したものとみなされます。',
         // オンボーディングガイド
-        ob_title_1: "キャラクター育成", ob_desc_1: "6つのステータスを成長させレベルアップ<br>最高の自分を目指しましょう",
+        ob_title_1: "キャラクター育成", ob_desc_1: "6つのステータスを成長させレベルアップ<br>最高の自分を目指しましょう", ob_message_1: "成功とはお金や名誉ではなく、あなた自身の変化です。あなたの成功、いや変化を応援しています。",
         ob_title_2: "デイリークエスト", ob_desc_2: "毎日のクエストをクリアして<br>ポイントとステータス報酬をゲット",
         ob_title_3: "ダンジョン＆レイド", ob_desc_3: "ボスを倒して戦利品を獲得<br>他のプレイヤーと連合レイド！",
         ob_title_4: "スマートツール", ob_desc_4: "ポモドーロタイマー、ランニング計算機、1RM計算機で<br>運動と集中をスマートに管理",
