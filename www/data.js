@@ -581,7 +581,7 @@ const i18n = {
         habit_difficulty_hard: "어려움",
         habit_guide_btn: "가이드",
         habit_day_title: "{day}일차",
-        habit_phase_caption: "저항 단계(1~22일) > 과도기 단계(23~44일) > 자동화 단계(45~66일)",
+        habit_phase_caption: "저항 단계({r_start}~{r_end}일) > 과도기 단계({t_start}~{t_end}일) > 자동화 단계({a_start}~{a_end}일)",
         habit_target_date: "달성일: {date}",
         habit_elapsed_days: "경과일: {days}일",
         habit_completion_rate: "달성률: {rate}%",
