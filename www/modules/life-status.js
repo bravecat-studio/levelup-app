@@ -76,16 +76,31 @@
         return '🔥';
     }
 
-    function getStageTypeByDay(day) {
-        if (day <= 22) return 'resistance';
-        if (day <= 44) return 'transition';
+    function getHabitStageRanges(totalDays) {
+        const safeTotalDays = Math.max(1, Number(totalDays) || 1);
+        const stage1End = Math.max(1, Math.round(safeTotalDays / 3));
+        const stage2End = Math.max(stage1End + 1, Math.round((safeTotalDays * 2) / 3));
+        return {
+            stage1Start: 1,
+            stage1End,
+            stage2Start: stage1End + 1,
+            stage2End,
+            stage3Start: stage2End + 1,
+            stage3End: safeTotalDays
+        };
+    }
+
+    function getStageTypeByDay(day, totalDays) {
+        const ranges = getHabitStageRanges(totalDays);
+        if (day <= ranges.stage1End) return 'resistance';
+        if (day <= ranges.stage2End) return 'transition';
         return 'automation';
     }
 
     function buildArrowRow(rowDays, reverse, config, elapsedDays, _t) {
         const items = rowDays.map((day) => {
             const checked = !!config.checks[String(day)];
-            const stageType = getStageTypeByDay(day);
+            const stageType = getStageTypeByDay(day, config.totalDays);
             const shouldFill = day <= elapsedDays;
             const fillColor = shouldFill ? HABIT_STAGE_COLORS[stageType] : 'rgba(255,255,255,0.06)';
             return `<button class="habit-day-dot ${checked ? 'checked' : ''} ${shouldFill ? 'elapsed' : ''}"
@@ -120,9 +135,10 @@
         const targetDateStr = targetDate.toISOString().split('T')[0];
 
         const allDays = Array.from({ length: config.totalDays }, (_, i) => i + 1);
-        const row1 = allDays.slice(0, 22);
-        const row2 = allDays.slice(22, 44);
-        const row3 = allDays.slice(44);
+        const ranges = getHabitStageRanges(config.totalDays);
+        const row1 = allDays.slice(0, ranges.stage1End);
+        const row2 = allDays.slice(ranges.stage1End, ranges.stage2End);
+        const row3 = allDays.slice(ranges.stage2End);
 
         const difficultyButtons = ['easy', 'medium', 'hard'].map((key) => {
             const active = key === config.difficulty;
@@ -149,7 +165,15 @@
                     <div class="habit-difficulty-buttons">${difficultyButtons}</div>
                 </div>
 
-                <div class="habit-phase-caption">${_t.habit_phase_caption || '저항 단계(1~22일) > 과도기 단계(23~44일) > 자동화 단계(45~66일)'}</div>
+                <div class="habit-phase-caption">
+                    ${(_t.habit_phase_caption || '저항 단계({r_start}~{r_end}일) > 과도기 단계({t_start}~{t_end}일) > 자동화 단계({a_start}~{a_end}일)')
+                        .replace('{r_start}', ranges.stage1Start)
+                        .replace('{r_end}', ranges.stage1End)
+                        .replace('{t_start}', ranges.stage2Start)
+                        .replace('{t_end}', ranges.stage2End)
+                        .replace('{a_start}', ranges.stage3Start)
+                        .replace('{a_end}', ranges.stage3End)}
+                </div>
 
                 <div class="habit-arrow-z-wrap">
                     ${buildArrowRow(row1, false, config, elapsedDays, _t)}
@@ -160,9 +184,9 @@
                 </div>
 
                 <div class="habit-stats-row">
-                    <span>${(_t.habit_target_date || '달성일: {date}').replace('{date}', targetDateStr)}</span>
-                    <span>${(_t.habit_elapsed_days || '경과일: {days}일').replace('{days}', elapsedDays)}</span>
-                    <span>${(_t.habit_completion_rate || '달성률: {rate}%').replace('{rate}', completionRate.toFixed(1))}</span>
+                    <span class="habit-stat-item habit-stat-target">${(_t.habit_target_date || '달성일: {date}').replace('{date}', targetDateStr)}</span>
+                    <span class="habit-stat-item habit-stat-elapsed">${(_t.habit_elapsed_days || '경과일: {days}일').replace('{days}', elapsedDays)}</span>
+                    <span class="habit-stat-item habit-stat-rate">${(_t.habit_completion_rate || '달성률: {rate}%').replace('{rate}', completionRate.toFixed(1))}</span>
                 </div>
             </div>
         `;
@@ -301,13 +325,16 @@
         overlay.className = 'report-modal-overlay active';
         overlay.id = 'habit-guide-modal-overlay';
 
+        const guideText = (_t.habit_guide_text || '').trim();
+        const persistNote = (_t.habit_persist_note || '※ 달성 체크 기록은 로그아웃 후에도 동기화되어 유지됩니다.').trim();
+
         overlay.innerHTML = `
             <div class="report-modal-content habit-guide-modal">
                 <div class="habit-guide-title">${_t.habit_guide_title || '습관 형성 가이드'}</div>
                 <div class="habit-guide-body">
-                    ${(_t.habit_guide_text || '').replace(/\n/g, '<br>')}
+                    ${guideText.replace(/\n/g, '<br>')}
                     <br><br>
-                    <strong>${_t.habit_persist_note || '※ 달성 체크 기록은 로그아웃 후에도 동기화되어 유지됩니다.'}</strong>
+                    <strong>${persistNote}</strong>
                 </div>
                 <div style="display:flex; justify-content:flex-end; margin-top:12px;">
                     <button onclick="window.closeHabitGuideModal()" class="btn-info-sm">${_t.ls_btn_cancel || '닫기'}</button>
