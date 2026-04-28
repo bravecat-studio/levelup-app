@@ -246,7 +246,6 @@ jobs:
             exit 1
           fi
           sed -i "s|GOOGLE_WEB_CLIENT_ID_PLACEHOLDER|$GOOGLE_WEB_CLIENT_ID|g" www/app.js
-          sed -i "s|GOOGLE_WEB_CLIENT_ID_PLACEHOLDER|$GOOGLE_WEB_CLIENT_ID|g" www/modules/planner-gcal.js
           echo "✅ Google Web Client ID 주입 완료: ${GOOGLE_WEB_CLIENT_ID:0:40}..."
 
       - name: Firebase Hosting 배포

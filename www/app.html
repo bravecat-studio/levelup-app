@@ -48,8 +48,6 @@
             crossorigin="anonymous"></script>
     <!-- Tesseract.js loaded on-demand when scanner opens (saves initial load time) -->
 
-    <!-- Google Identity Services — native WebView 동적 주입 실패 방지를 위해 정적 pre-load -->
-    <script src="https://accounts.google.com/gsi/client" async id="gis-client"></script>
 
 </head>
 <body>
@@ -907,7 +905,6 @@
                         <button class="btn-info-sm" id="btn-planner-info">ℹ️ <span data-i18n="btn_planner_info">가이드</span></button>
                         <button class="btn-info-sm" id="btn-excel-export" data-i18n="btn_excel_export">📊 내보내기</button>
                         <button class="btn-info-sm" id="btn-excel-import" data-i18n="btn_excel_import">📥 가져오기</button>
-                        <button class="btn-info-sm" id="btn-gcal-sync" data-i18n="btn_gcal_sync">📅 구글 연동</button>
                     </div>
                 </div>
 
