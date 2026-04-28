@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.637] - 2026-04-28
+
+### 변경
+- fix: Firestore disableNetwork 미정의 오류 및 GIS native 로드 실패 수정
+
 ## [1.0.636] - 2026-04-28
 
 ### 변경
