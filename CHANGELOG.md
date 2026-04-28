@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.645] - 2026-04-28
+
+### 변경
+- fix(planner): DIY X버튼 활성화, 일반퀘 완료연동·스탯아이콘, 자동적용 항목 수정불가
+
 ## [1.0.644] - 2026-04-28
 
 ### 변경
