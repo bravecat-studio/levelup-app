@@ -317,7 +317,7 @@
         });
     }
 
-    function exportPlanner() {
+    function _doExport() {
         const work = exportPlannerToCsv();
         if (work && typeof work.catch === 'function') {
             work.catch(err => {
@@ -325,6 +325,18 @@
                 if (AppLogger) AppLogger.error('[PlannerExcel] export error', err);
                 notify(t('excel_export_error'));
             });
+        }
+    }
+
+    function exportPlanner() {
+        const adManager = window.AdManager;
+        if (adManager && typeof adManager.showPlannerExcelRewardedAd === 'function') {
+            adManager.showPlannerExcelRewardedAd(
+                function() { _doExport(); },
+                function() {}
+            );
+        } else {
+            _doExport();
         }
     }
 
@@ -493,7 +505,7 @@
         reader.readAsText(file, 'utf-8');
     }
 
-    function openExcelImportModal() {
+    function _openImportModalUI() {
         const modal = document.getElementById('excel-import-modal');
         if (!modal) return;
         _selectedFile = null;
@@ -509,6 +521,18 @@
         }
         modal.classList.remove('d-none');
         modal.style.display = 'flex';
+    }
+
+    function openExcelImportModal() {
+        const adManager = window.AdManager;
+        if (adManager && typeof adManager.showPlannerExcelRewardedAd === 'function') {
+            adManager.showPlannerExcelRewardedAd(
+                function() { _openImportModalUI(); },
+                function() {}
+            );
+        } else {
+            _openImportModalUI();
+        }
     }
 
     function closeExcelImportModal() {
