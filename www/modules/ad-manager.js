@@ -819,6 +819,56 @@
         }
     }
 
+    // --- 플래너 내보내기/가져오기 보상형 광고 (1일 1회) ---
+    function _plannerExcelAdKey() {
+        const uid = _auth()?.currentUser ? _auth().currentUser.uid : '_anon';
+        return `planner_excel_ad_date_${uid}`;
+    }
+
+    function hasPlannerExcelAdShownToday() {
+        const today = window.getTodayKST();
+        return localStorage.getItem(_plannerExcelAdKey()) === today;
+    }
+
+    function markPlannerExcelAdShown() {
+        const today = window.getTodayKST();
+        localStorage.setItem(_plannerExcelAdKey(), today);
+    }
+
+    async function showPlannerExcelRewardedAd(onSuccess, onFail) {
+        if (!isAdExposureAllowed()) {
+            _logAdGateBlocked('planner_excel_rewarded');
+            if (onSuccess) onSuccess();
+            return;
+        }
+        if (hasPlannerExcelAdShownToday()) {
+            if (onSuccess) onSuccess();
+            return;
+        }
+        if (!_isNative()) {
+            markPlannerExcelAdShown();
+            if (onSuccess) onSuccess();
+            return;
+        }
+        markPlannerExcelAdShown();
+        const result = await showRewarded({
+            context: 'plannerExcel',
+            onSuccess: function() {
+                if (window.AppLogger) AppLogger.info('[AdMob] 플래너 내보내기/가져오기 광고 시청 완료');
+                if (onSuccess) onSuccess();
+            },
+            onFail: function() {
+                localStorage.removeItem(_plannerExcelAdKey());
+                if (window.AppLogger) AppLogger.info('[AdMob] 플래너 내보내기/가져오기 광고 이탈/실패');
+                if (onFail) onFail();
+            }
+        });
+        if (!result) {
+            localStorage.removeItem(_plannerExcelAdKey());
+            if (onFail) onFail();
+        }
+    }
+
     // --- 네이티브 광고 ---
     async function loadNativeAd(tabId) {
         if (!isAdExposureAllowed()) {
@@ -1119,6 +1169,9 @@
         RI_DUNGEON_DAILY_MAX,
         // 플래너 보상형
         showPlannerRewardedAd,
+        // 플래너 내보내기/가져오기 보상형
+        showPlannerExcelRewardedAd,
+        hasPlannerExcelAdShownToday,
         // D-Day 저장 보상형
         showDDayRewardedAd,
         hasDDayAdShownToday,
