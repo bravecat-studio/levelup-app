@@ -13,6 +13,8 @@ export function createQuestStatsModule(deps) {
         monthlyUnlocked: false,
         selectedDate: null,
         chartRange: 'weekly',
+        dailyAllDeselected: false,
+        diyAllDeselected: false,
     };
 
     function syncSingleSelectionFromMulti() {
@@ -99,7 +101,7 @@ export function createQuestStatsModule(deps) {
         const dayNames = { ko:["일","월","화","수","목","금","토"], en:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], ja:["日","月","火","水","木","金","土"] };
         const selectAllLabel = { ko: '전체', en: 'All', ja: '全体' };
         const dowName = (dayNames[lang] || dayNames.en)[refDow];
-        const isAllSelected = state.selectedDailyKeys.length === 0;
+        const isAllSelected = !state.dailyAllDeselected && state.selectedDailyKeys.length === 0;
         menu.innerHTML = [
             `<label class="qstats-diy-dd-item" style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" ${isAllSelected ? 'checked' : ''} onchange="window.toggleQstatsDailyAll(this.checked)">${selectAllLabel[lang] || selectAllLabel.en}</label>`,
             `<div style="padding:4px 12px; font-size:0.62rem; color:var(--text-sub); border-bottom:1px solid rgba(255,255,255,0.06);">${dowName}요일 퀘스트 (멀티 선택)</div>`,
@@ -128,7 +130,7 @@ export function createQuestStatsModule(deps) {
         btn.style.borderColor = 'var(--neon-gold)';
 
         const selectAllLabel = { ko: '전체', en: 'All', ja: '全体' };
-        const isAllSelected = state.selectedDiyIds.length === 0;
+        const isAllSelected = !state.diyAllDeselected && state.selectedDiyIds.length === 0;
         menu.innerHTML = [
             `<label class="qstats-diy-dd-item" style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" ${isAllSelected ? 'checked' : ''} onchange="window.toggleQstatsDiyAll(this.checked)">${selectAllLabel[lang] || selectAllLabel.en}</label>`,
             ...defs.map((q) => {
@@ -373,7 +375,10 @@ export function createQuestStatsModule(deps) {
         window.toggleQstatsDailyDropdown = () => document.getElementById('qstats-daily-dropdown-menu')?.classList.toggle('d-none');
         window.toggleQstatsDailyQuest = (dow, idx) => {
             const key = `${dow}:${idx}`;
-            if (state.selectedDailyKeys.length === 0) {
+            if (state.dailyAllDeselected) {
+                state.dailyAllDeselected = false;
+                state.selectedDailyKeys = [key];
+            } else if (state.selectedDailyKeys.length === 0) {
                 const quests = weeklyQuestData[dow] || [];
                 state.selectedDailyKeys = quests.map((_, i) => `${dow}:${i}`).filter(k => k !== key);
             } else {
@@ -382,14 +387,17 @@ export function createQuestStatsModule(deps) {
                 const allKeys = quests.map((_, i) => `${dow}:${i}`);
                 if (allKeys.length > 0 && allKeys.every(k => state.selectedDailyKeys.includes(k))) state.selectedDailyKeys = [];
             }
-            state.selectedDate = null; state.selectedDiyIds = []; render();
+            state.selectedDate = null; state.selectedDiyIds = []; state.diyAllDeselected = false; render();
         };
-        window.clearQstatsDailySelection = () => { state.selectedDailyKeys = []; state.selectedDate = null; render(); };
-        window.toggleQstatsDailyAll = (checked) => { if (checked) state.selectedDailyKeys = []; state.selectedDate = null; render(); };
+        window.clearQstatsDailySelection = () => { state.selectedDailyKeys = []; state.dailyAllDeselected = false; state.selectedDate = null; render(); };
+        window.toggleQstatsDailyAll = (checked) => { state.dailyAllDeselected = !checked; state.selectedDailyKeys = []; state.selectedDate = null; render(); };
 
         window.toggleQstatsDiyDropdown = () => document.getElementById('qstats-diy-dropdown-menu')?.classList.toggle('d-none');
         window.toggleQstatsDiyQuest = (questId) => {
-            if (state.selectedDiyIds.length === 0) {
+            if (state.diyAllDeselected) {
+                state.diyAllDeselected = false;
+                state.selectedDiyIds = [questId];
+            } else if (state.selectedDiyIds.length === 0) {
                 const defs = AppState.diyQuests.definitions;
                 state.selectedDiyIds = defs.map(q => q.id).filter(id => id !== questId);
             } else {
@@ -397,10 +405,10 @@ export function createQuestStatsModule(deps) {
                 const defs = AppState.diyQuests.definitions;
                 if (defs.length > 0 && defs.every(q => state.selectedDiyIds.includes(q.id))) state.selectedDiyIds = [];
             }
-            state.selectedDate = null; state.selectedDailyKeys = []; render();
+            state.selectedDate = null; state.selectedDailyKeys = []; state.dailyAllDeselected = false; render();
         };
-        window.clearQstatsDiySelection = () => { state.selectedDiyIds = []; state.selectedDate = null; render(); };
-        window.toggleQstatsDiyAll = (checked) => { if (checked) state.selectedDiyIds = []; state.selectedDate = null; render(); };
+        window.clearQstatsDiySelection = () => { state.selectedDiyIds = []; state.diyAllDeselected = false; state.selectedDate = null; render(); };
+        window.toggleQstatsDiyAll = (checked) => { state.diyAllDeselected = !checked; state.selectedDiyIds = []; state.selectedDate = null; render(); };
         window.setQstatsChartRange = (range) => { state.chartRange = range === 'weekly' ? 'weekly' : 'monthly'; render(); };
     }
 
