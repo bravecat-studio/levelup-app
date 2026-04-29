@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.657] - 2026-04-29
+
+### 변경
+- Implement incremental scheduled backup cursor processing
+
 ## [1.0.656] - 2026-04-29
 
 ### 변경
