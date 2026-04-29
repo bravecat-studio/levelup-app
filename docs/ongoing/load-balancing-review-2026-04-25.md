@@ -84,11 +84,25 @@
   - `functions/backupScheduler.js` (`runScheduledBackup`)
 
 :::task-stub{title="백업 파이프라인 증분/분산 처리 전환"}
-1. 전체 스캔 대신 증분 백업 기준(`updatedAt`/`lastBackupAt`)을 도입한다.
-2. 대상 범위를 시간/UID 범위로 분할해 다중 작업으로 실행한다.
-3. 실행당 최대 처리량/최대 실행시간 컷오프를 설정한다.
-4. 실패 샤드만 재실행 가능한 구조를 추가한다.
-5. 세션 메타데이터에 샤드별 성공/실패 통계를 저장한다.
+구현안(비용/안정성 개선 초안):
+
+- [ ] `users` 문서에 `lastBackupAt` 필드를 추가하고, 백업 기준 시각(`cursorTs`) 이후 변경분만 조회
+- [ ] `updatedAt >= cursorTs` + `uidHash % shardCount` 조건으로 샤드 워커 분리 실행
+- [ ] 워커별 `MAX_DOCS_PER_RUN`, `MAX_MS_PER_RUN` 컷오프 적용 후 다음 커서 예약
+- [ ] `backup_sessions/{sessionId}`에 샤드 상태(`pending/running/succeeded/failed`) 및 처리 건수 기록
+- [ ] 실패 샤드만 재시도하는 재실행 엔드포인트(또는 스케줄러) 추가
+
+권장 파라미터(초기값):
+1. `BACKUP_SHARD_COUNT=8`
+2. `BACKUP_MAX_DOCS_PER_RUN=2000`
+3. `BACKUP_MAX_MS_PER_RUN=240000`
+4. `BACKUP_RETRY_LIMIT=3`
+5. `BACKUP_CURSOR_LAG_MINUTES=10` (late write 흡수)
+
+검증 지표:
+- 백업 1회당 Firestore read/write 사용량
+- 샤드별 p95 실행시간/실패율
+- 재시도 후 최종 성공률 및 누락 건수
 :::
 
 ---
