@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.646] - 2026-04-29
+
+### 변경
+- feat: 구독 서비스 테스트 계정 생성 기반 구현
+
 ## [1.0.645] - 2026-04-28
 
 ### 변경
