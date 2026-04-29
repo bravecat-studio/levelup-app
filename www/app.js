@@ -8,6 +8,7 @@ import { httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.1/firebas
 import { NetworkMonitor } from './modules/network-monitor.js';
 import { ConversionTracker, initRemoteConfig, getExperimentVariant } from './modules/conversion-tracker.js';
 import { bootstrapCoreServices, attachFirestoreNetworkResilience } from './modules/core/bootstrap.js';
+import { callWithRegionalFailover } from './modules/core/call-with-failover.js';
 import { getDefaultNewUserName, getInitialAppState, getWeekStartDate } from './modules/core/app-state.js';
 import { loadNavOrder, initNavDragReorder, wasNavDragJustEnded } from './modules/core/nav-ui.js';
 import { initAppEntryOrchestrator } from './modules/core/entry-orchestrator.js';
@@ -27,7 +28,7 @@ if (!self.__FIREBASE_CONFIG) {
     console.error('[App] firebase-config.js가 로드되지 않았습니다. npm run generate-config를 실행하세요.');
 }
 const firebaseConfig = self.__FIREBASE_CONFIG;
-const APP_VERSION = '1.0.668';
+const APP_VERSION = '1.0.670';
 window.__APP_VERSION__ = APP_VERSION;
 if (window.AppLogger) {
     AppLogger.info('[AppStart] 빌드 버전: v' + APP_VERSION);
@@ -39,6 +40,7 @@ const {
     db,
     storage,
     functions,
+    functionsSecondary,
     analytics,
     remoteConfig,
     messaging,
@@ -3568,8 +3570,7 @@ async function deleteMyAccount() {
         AppLogger.info('[Auth] 계정 삭제 요청');
         let result;
         try {
-            const deleteFn = httpsCallable(functions, 'pingDeleteMyAccount');
-            result = await deleteFn({});
+            result = await callWithRegionalFailover(httpsCallable, functions, functionsSecondary, 'pingDeleteMyAccount', {});
         } catch (e) {
             const code = String((e && (e.code || e.message)) || '');
             if (code.includes('functions/not-found') || code.includes('NOT_FOUND') || code.includes('404')) {
@@ -7542,6 +7543,10 @@ window.showInAppNotification = showInAppNotification;
 window.changeLanguage = changeLanguage;
 window._httpsCallable = httpsCallable;
 window._functions = functions;
+window._functionsSecondary = functionsSecondary;
+// IIFE 모듈용 래퍼 — 모듈 내에서 httpsCallable/functions 참조를 직접 전달할 필요 없음
+window._callWithRegionalFailover = (name, payload) =>
+    callWithRegionalFailover(httpsCallable, functions, functionsSecondary, name, payload);
 window.checkReadingRareTitles = checkReadingRareTitles;
 window.checkMovieRareTitles = checkMovieRareTitles;
 window.checkSavingsRareTitles = checkSavingsRareTitles;
