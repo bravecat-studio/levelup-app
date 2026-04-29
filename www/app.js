@@ -889,6 +889,7 @@ function bindEvents() {
     document.getElementById('btn-history-close').addEventListener('click', closeTitleModal);
     document.getElementById('btn-status-info').addEventListener('click', openStatusInfoModal);
     document.getElementById('btn-quest-info').addEventListener('click', openQuestInfoModal);
+    document.getElementById('btn-weekly-quest-list-info').addEventListener('click', openWeeklyQuestListModal);
     document.getElementById('btn-quest-settings').addEventListener('click', openQuestSettingsModal);
     document.getElementById('btn-diy-quest-info').addEventListener('click', openDiyQuestInfoModal);
     document.getElementById('btn-dungeon-info').addEventListener('click', openDungeonInfoModal);
@@ -4417,36 +4418,14 @@ function openStatusInfoModal() {
 }
 
 function openQuestInfoModal() {
-    document.getElementById('info-modal-title').innerText = i18n[AppState.currentLang].modal_quest_title || "주간 퀘스트 목록";
+    const questGuideTitle = {
+        ko: '퀘스트 가이드',
+        en: 'Quest Guide',
+        ja: 'クエストガイド'
+    };
+    document.getElementById('info-modal-title').innerText = questGuideTitle[AppState.currentLang] || questGuideTitle.ko;
     const body = document.getElementById('info-modal-body');
-    const dayNames = { ko: ["일","월","화","수","목","금","토"], en: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], ja: ["日","月","火","水","木","金","土"] };
-    
-    let html = `<p style="font-size:0.75rem; color:var(--neon-gold); margin:0 0 8px 0;">${i18n[AppState.currentLang].quest_hint}</p>`;
-    html += `<table class="info-table">
-        <thead>
-            <tr>
-                <th>${i18n[AppState.currentLang].th_day}</th>
-                <th>${i18n[AppState.currentLang].th_stat}</th>
-                <th>${i18n[AppState.currentLang].th_quest}</th>
-            </tr>
-        </thead>
-        <tbody>`;
-    
-    weeklyQuestData.forEach((dayQuests, i) => { 
-        dayQuests.forEach((q, j) => {
-            const rowSpan = j === 0 ? `<td rowspan="${dayQuests.length}" style="text-align:center; vertical-align:middle; background:rgba(255,255,255,0.05);"><b>${dayNames[AppState.currentLang][i]}</b></td>` : '';
-            const title = q.title[AppState.currentLang] || q.title.ko;
-            const desc = q.desc[AppState.currentLang] || q.desc.ko;
-
-            html += `<tr>
-                ${rowSpan}
-                <td style="text-align:center;"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${q.stat}</span></td>
-                <td><b style="color:var(--text-main);">${title}</b><br><span style="font-size:0.65rem; color:var(--text-sub);">${desc}</span></td>
-            </tr>`; 
-        }); 
-    });
-    
-    html += `</tbody></table>`;
+    let html = '';
 
     // P2: 크리티컬 히트 & 루트 드롭 안내
     const questExtra = {
@@ -4526,6 +4505,43 @@ function openQuestInfoModal() {
         <div style="font-weight:bold; color:var(--neon-purple); margin-bottom:6px;">${rg.title}</div>
         <p style="font-size:0.75rem; color:var(--text-sub); line-height:1.5; margin:0;">${rg.desc}</p>
     </div>`;
+
+    body.innerHTML = html;
+    const m = document.getElementById('infoModal');
+    m.classList.remove('d-none');
+    m.classList.add('d-flex');
+}
+
+function openWeeklyQuestListModal() {
+    document.getElementById('info-modal-title').innerText = i18n[AppState.currentLang].modal_quest_title || "주간 퀘스트 목록";
+    const body = document.getElementById('info-modal-body');
+    const dayNames = { ko: ["일","월","화","수","목","금","토"], en: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], ja: ["日","月","火","水","木","金","土"] };
+
+    let html = `<p style="font-size:0.75rem; color:var(--neon-gold); margin:0 0 8px 0;">${i18n[AppState.currentLang].quest_hint}</p>`;
+    html += `<table class="info-table">
+        <thead>
+            <tr>
+                <th>${i18n[AppState.currentLang].th_day}</th>
+                <th>${i18n[AppState.currentLang].th_stat}</th>
+                <th>${i18n[AppState.currentLang].th_quest}</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    weeklyQuestData.forEach((dayQuests, i) => {
+        dayQuests.forEach((q, j) => {
+            const rowSpan = j === 0 ? `<td rowspan="${dayQuests.length}" style="text-align:center; vertical-align:middle; background:rgba(255,255,255,0.05);"><b>${dayNames[AppState.currentLang][i]}</b></td>` : '';
+            const title = q.title[AppState.currentLang] || q.title.ko;
+            const desc = q.desc[AppState.currentLang] || q.desc.ko;
+            html += `<tr>
+                ${rowSpan}
+                <td style="text-align:center;"><span class="quest-stat-tag" style="border-color:var(--neon-blue); color:var(--neon-blue);">${q.stat}</span></td>
+                <td><b style="color:var(--text-main);">${title}</b><br><span style="font-size:0.65rem; color:var(--text-sub);">${desc}</span></td>
+            </tr>`;
+        });
+    });
+
+    html += `</tbody></table>`;
 
     body.innerHTML = html;
     const m = document.getElementById('infoModal');
