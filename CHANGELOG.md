@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.669] - 2026-04-29
+
+### 변경
+- fix: refreshDungeonMapUserLocation에서 OS 위치 권한 팝업 제거
+
 ## [1.0.668] - 2026-04-29
 
 ### 변경
