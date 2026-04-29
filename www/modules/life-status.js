@@ -336,7 +336,7 @@
                         AppState.user.pendingStats.agi += agiReward;
                     }
                     const msgTpl = _t.habit_check_reward_msg || '습관 달성! ⚡ AGI +{agi}';
-                    window.showToast?.(msgTpl.replace('{agi}', String(agiReward)));
+                    window.showInAppNotification?.('', msgTpl.replace('{agi}', String(agiReward)));
 
                     if (!Array.isArray(cfg.stageBonusAwarded)) cfg.stageBonusAwarded = [false, false, false];
                     const ranges = getHabitStageRanges(cfg.totalDays);
@@ -363,7 +363,7 @@
                         const bonusMsg = (_t.habit_stage_bonus_msg || '🎉 {stage} 완료! 보너스 AGI +{bonus}')
                             .replace('{stage}', stageNames[idx])
                             .replace('{bonus}', String(bonusAgi));
-                        setTimeout(() => window.showToast?.(bonusMsg), 1500);
+                        setTimeout(() => window.showInAppNotification?.('', bonusMsg), 1500);
                     });
                 }
                 saveHabitProjectConfig(cfg);
