@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.677] - 2026-04-30
+
+### 변경
+- fix: 목돈 지출 체크박스 라벨 하단 공백 제거
+
 ## [1.0.676] - 2026-04-30
 
 ### 변경
