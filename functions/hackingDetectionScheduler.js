@@ -11,8 +11,21 @@ function db() {
 
 const scheduleOpts = { region: "asia-northeast3" };
 const SCAN_INTERVAL = process.env.HACKING_SCAN_INTERVAL || "*/5 * * * *";
-const SMS_DAILY_CAP = Number(process.env.SMS_DAILY_CAP || 200);
+const SMS_DAILY_CAP_DEFAULT = Number(process.env.SMS_DAILY_CAP || 200);
 const SMS_SCORE_THRESHOLD = 80;
+
+// admin_config/hacking_detection 에서 설정값 로드 (없으면 env/기본값 사용)
+async function loadSmsConfig() {
+    try {
+        const snap = await db().collection("admin_config").doc("hacking_detection").get();
+        const data = snap.exists ? snap.data() : {};
+        return {
+            dailyCap: typeof data.smsDailyCap === "number" ? data.smsDailyCap : SMS_DAILY_CAP_DEFAULT,
+        };
+    } catch {
+        return { dailyCap: SMS_DAILY_CAP_DEFAULT };
+    }
+}
 
 // ─── 탐지 룰 기본값 ───
 // security_rules/{ruleId} 문서가 없으면 이 값을 사용한다.
@@ -217,10 +230,11 @@ async function triggerSmsIfNeeded(finding, rule, runId) {
         return;
     }
 
-    // 일일 상한 체크
+    // 일일 상한 체크 (Firestore 설정값 우선, 없으면 env/기본값)
+    const { dailyCap } = await loadSmsConfig();
     const dailyCount = await getDailySmsSentCount();
-    if (dailyCount >= SMS_DAILY_CAP) {
-        console.warn(`[HackingDetection] 일일 SMS 상한 도달 (${dailyCount}/${SMS_DAILY_CAP})`);
+    if (dailyCount >= dailyCap) {
+        console.warn(`[HackingDetection] 일일 SMS 상한 도달 (${dailyCount}/${dailyCap})`);
         await logSms({ finding, rule, status: "skipped_cap", recipients: [], runId });
         return;
     }

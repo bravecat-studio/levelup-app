@@ -4801,3 +4801,39 @@ exports.removeAdminContact = onCall(adminCallableOpts, async (request) => {
     await db.collection("admin_contacts").doc(uid).delete();
     return { ok: true };
 });
+
+// ─── SMS 설정 조회 (admin) ───
+exports.getSmsConfig = onCall(adminCallableOpts, async (request) => {
+    await assertAdmin(request);
+    const snap = await db.collection("admin_config").doc("hacking_detection").get();
+    const data = snap.exists ? snap.data() : {};
+    const envCap = Number(process.env.SMS_DAILY_CAP || 200);
+    return {
+        smsDailyCap: typeof data.smsDailyCap === "number" ? data.smsDailyCap : envCap,
+        envDefault: envCap,
+    };
+});
+
+// ─── SMS 설정 수정 (master 전용) ───
+exports.updateSmsConfig = onCall(adminCallableOpts, async (request) => {
+    await assertMaster(request);
+    const { smsDailyCap } = request.data || {};
+    if (typeof smsDailyCap !== "number" || smsDailyCap < 0 || smsDailyCap > 10000) {
+        throw new HttpsError("invalid-argument", "smsDailyCap 은 0–10000 사이 숫자여야 합니다.");
+    }
+
+    const { FieldValue: FV } = require("firebase-admin/firestore");
+    await db.collection("admin_config").doc("hacking_detection").set(
+        { smsDailyCap, updatedAt: FV.serverTimestamp(), updatedBy: request.auth.uid },
+        { merge: true }
+    );
+
+    await db.collection("audit_logs").add({
+        action: "update_sms_config",
+        changes: { smsDailyCap },
+        performedBy: request.auth.uid,
+        performedAt: FV.serverTimestamp(),
+    });
+
+    return { ok: true, smsDailyCap };
+});
