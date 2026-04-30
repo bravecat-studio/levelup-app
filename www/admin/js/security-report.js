@@ -8,6 +8,8 @@ const getSecurityFindings   = httpsCallable(functions, "getSecurityFindings");
 const getSecurityRules      = httpsCallable(functions, "getSecurityRules");
 const updateSecurityRule    = httpsCallable(functions, "updateSecurityRule");
 const getSmsAlertLogs       = httpsCallable(functions, "getSmsAlertLogs");
+const getSmsConfig          = httpsCallable(functions, "getSmsConfig");
+const updateSmsConfig       = httpsCallable(functions, "updateSmsConfig");
 const registerAdminContact  = httpsCallable(functions, "registerAdminContact");
 const getAdminContacts      = httpsCallable(functions, "getAdminContacts");
 const removeAdminContact    = httpsCallable(functions, "removeAdminContact");
@@ -126,6 +128,16 @@ function render() {
                 <h2>SMS 발송 이력</h2>
                 <button class="btn btn-outline btn-sm" id="sr-btn-load-sms">조회</button>
             </div>
+            <div id="sr-sms-config-area" style="margin-bottom:14px; padding:10px 14px; background:#1a1a1a; border-radius:6px; border:1px solid #333;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <span class="text-sm" style="color:var(--text-sub);">일일 SMS 상한</span>
+                    <input id="sr-sms-daily-cap" type="number" min="0" max="10000" placeholder="로딩 중..."
+                        style="width:90px; padding:4px 8px; background:#111; color:#fff; border:1px solid #444; border-radius:4px; font-size:0.85rem;"
+                        ${!isMaster() ? "disabled" : ""}>
+                    <span class="text-sub" style="font-size:0.78rem;" id="sr-sms-cap-hint"></span>
+                    ${isMaster() ? `<button class="btn btn-sm" id="sr-btn-save-cap">저장</button>` : ""}
+                </div>
+            </div>
             <div id="sr-sms-area"><p class="text-sub text-sm">조회 버튼을 눌러 SMS 이력을 불러오세요.</p></div>
         </div>
 
@@ -141,6 +153,10 @@ function render() {
     document.getElementById("sr-finding-severity").addEventListener("change", e => { _findingSeverity = e.target.value; });
 
     document.getElementById("sr-btn-load-sms").addEventListener("click", loadSmsLogs);
+    loadSmsConfig();
+    if (isMaster()) {
+        document.getElementById("sr-btn-save-cap")?.addEventListener("click", saveSmsConfig);
+    }
 
     if (isMaster()) {
         document.getElementById("sr-btn-load-rules").addEventListener("click", loadRules);
@@ -536,3 +552,37 @@ window._srRemoveContact = async (uid) => {
         terror("Contacts", "삭제 실패: " + e.message);
     }
 };
+
+// ─── SMS 일일 상한 설정 ───
+
+async function loadSmsConfig() {
+    const input = document.getElementById("sr-sms-daily-cap");
+    const hint  = document.getElementById("sr-sms-cap-hint");
+    if (!input) return;
+    try {
+        const result = await getSmsConfig({});
+        const { smsDailyCap, envDefault } = result.data || {};
+        input.value = smsDailyCap ?? envDefault ?? 200;
+        if (hint) hint.textContent = `(환경변수 기본값: ${envDefault ?? 200}건)`;
+    } catch (e) {
+        if (hint) hint.textContent = "설정 로드 실패";
+        terror("SmsConfig", "SMS 설정 조회 실패: " + e.message);
+    }
+}
+
+async function saveSmsConfig() {
+    const input = document.getElementById("sr-sms-daily-cap");
+    const cap = parseInt(input?.value, 10);
+    if (isNaN(cap) || cap < 0 || cap > 10000) {
+        twarn("SmsConfig", "0–10000 사이 숫자를 입력하세요.");
+        return;
+    }
+    try {
+        await updateSmsConfig({ smsDailyCap: cap });
+        tok("SmsConfig", `일일 SMS 상한이 ${cap}건으로 저장되었습니다.`);
+        const hint = document.getElementById("sr-sms-cap-hint");
+        if (hint) hint.textContent = `저장됨 — (환경변수 기본값과 별개로 적용)`;
+    } catch (e) {
+        terror("SmsConfig", "저장 실패: " + e.message);
+    }
+}
