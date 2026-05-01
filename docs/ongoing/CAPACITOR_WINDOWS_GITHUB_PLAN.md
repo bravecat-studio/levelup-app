@@ -72,11 +72,11 @@ npx cap run android
 - `.env`는 커밋 금지
 - 환경별 파일 분리(`.env.dev`, `.env.prod`)
 - GitHub Secrets 예시
-  - `ANDROID_KEYSTORE_BASE64`
-  - `ANDROID_KEYSTORE_PASSWORD`
-  - `ANDROID_KEY_ALIAS`
-  - `ANDROID_KEY_PASSWORD`
-  - `FIREBASE_SERVICE_ACCOUNT_JSON`
+  - `RELEASE_KEYSTORE_BASE64`
+  - `RELEASE_KEYSTORE_PASSWORD`
+  - `RELEASE_KEY_ALIAS`
+  - `RELEASE_KEY_PASSWORD`
+  - `FIREBASE_SERVICE_ACCOUNT`
 
 ## 5단계: 릴리즈 운영
 1. `develop` 안정화 후 `main` PR 생성
