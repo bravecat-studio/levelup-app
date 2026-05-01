@@ -1,230 +1,150 @@
-# Capacitor iOS 빌드/배포 구체화 가이드 (GitHub 중심)
+# Capacitor iOS 빌드/배포 구체화 가이드 (저장소 자산 중심)
 
-## 목적
-- Windows 중심 개발팀이 **iOS 빌드/서명/배포를 재현 가능**하게 운영할 수 있도록 절차를 표준화한다.
-- GitHub Actions(macOS runner) 기반으로 수동 실수(서명/프로비저닝/버전 누락)를 줄인다.
+## 왜 수정했는가
+- 기존 문서는 로컬(macOS/Xcode) 준비 절차 비중이 높아, **현재 저장소에 이미 있는 CI 자산을 활용하는 관점**이 약했다.
+- 이 문서는 `./github/workflows` 및 현재 Android 자동화 패턴을 기준으로 iOS를 확장하는 계획으로 재정리한다.
 
-## 범위
-- 포함: iOS 앱 빌드, 코드서명, TestFlight 업로드, 운영 체크리스트
-- 제외: UI/기능 개발, App Store 심사 대응 문구 작성
-
----
-
-## 1) 사전 준비 체크리스트
-
-### 1-1. Apple Developer 준비
-- Apple Developer Program 팀 등록 완료
-- App ID 생성 (Bundle ID 확정)
-- App Store Connect 앱 레코드 생성
-- 최소 1개 배포 대상(Internal TestFlight 그룹) 생성
-
-### 1-2. 로컬/저장소 준비
-- Capacitor 프로젝트에서 iOS 플랫폼 추가
-  ```bash
-  npm ci
-  npm run build
-  npx cap add ios   # 최초 1회
-  npx cap sync ios
-  ```
-- `ios/App/App.xcodeproj`가 저장소에 포함되어 있어야 함
-- `Podfile.lock` 커밋 유지(재현 가능한 의존성 고정)
-
-### 1-3. 서명 자산 준비
-- Distribution Certificate(.p12)
-- Provisioning Profile(.mobileprovision)
-- App Store Connect API Key (`.p8`, key id, issuer id)
+## 저장소 기준 현재 상태(2026-05-01)
+- Android 자동화는 이미 다수 워크플로우로 운영 중이며, 버전 동기화/시크릿 주입/릴리즈 빌드 패턴이 존재한다.
+- iOS 전용 워크플로우(`ios-*.yml`)와 iOS 네이티브 프로젝트 디렉토리(`ios/`)는 아직 저장소에 없다.
+- 따라서 1차 목표는 “로컬 개발 가이드”가 아니라, **저장소에 커밋 가능한 iOS CI 자산 정의**다.
 
 ---
 
-## 2) 브랜치/릴리즈 정책
+## 1) 먼저 만들 저장소 자산(Artifacts)
 
-- `main`: App Store 제출 기준 브랜치
-- `develop`: 통합 개발 브랜치
-- `release/*`: 릴리즈 안정화 브랜치(선택)
+### 1-1. 워크플로우 파일
+1. `.github/workflows/ios-build.yml`  
+   - PR/수동 트리거  
+   - 서명 없이 시뮬레이터 빌드(회귀 확인)
+2. `.github/workflows/ios-release.yml`  
+   - 태그(`v*`) + 수동 트리거  
+   - archive/export/TestFlight 업로드
 
-### 태그 정책
-- 태그 형식: `vMAJOR.MINOR.PATCH` (예: `v1.8.2`)
-- iOS 배포 워크플로우 트리거: `workflow_dispatch` + `v*` 태그 푸시
+### 1-2. 스크립트 파일
+1. `scripts/ci/ios/setup-signing.sh`  
+   - base64 디코딩, keychain 생성, 인증서 import, provisioning profile 배치
+2. `scripts/ci/ios/set-build-number.sh`  
+   - `CFBundleVersion` 자동 증가(run number 기반)
 
-### 버전 정책
-- `CFBundleShortVersionString`: 사용자 노출 버전 (`1.8.2`)
-- `CFBundleVersion`: 빌드 번호 (정수 증가)
-- 권장: GitHub Actions run number 또는 날짜+증분 사용
-
----
-
-## 3) GitHub Secrets/Variables 설계
-
-### 필수 Secrets
-- `IOS_P12_BASE64`: 배포 인증서(.p12) base64
-- `IOS_P12_PASSWORD`: .p12 비밀번호
-- `IOS_PROFILE_BASE64`: provisioning profile base64
-- `KEYCHAIN_PASSWORD`: 임시 keychain 비밀번호
-- `ASC_API_KEY_ID`: App Store Connect API key id
-- `ASC_API_ISSUER_ID`: issuer id
-- `ASC_API_PRIVATE_KEY_BASE64`: `.p8` base64
-
-### 권장 Variables
-- `IOS_WORKSPACE`: `ios/App/App.xcworkspace`
-- `IOS_SCHEME`: `App`
-- `IOS_EXPORT_METHOD`: `app-store`
-- `BUNDLE_ID`: 예) `com.company.levelup`
+### 1-3. 설정 템플릿
+1. `ios/exportOptions.plist.template`  
+   - `method=app-store`, `teamID`, `signingStyle` 등
+2. `docs/ongoing/IOS_SECRETS_CHECKLIST.md`  
+   - 시크릿 이름/용도/갱신주기/소유자
 
 ---
 
-## 4) GitHub Actions 표준 플로우
+## 2) 기존 저장소 자산 재사용 원칙
 
-## 4-1. Build-only (PR 검증)
-목적: 서명 없이 iOS 컴파일 회귀를 조기 탐지.
+### 2-1. 워크플로우 패턴 재사용
+- `.github/workflows/build.yml`의 공통 패턴 재사용
+  - `actions/checkout`
+  - `actions/setup-node`
+  - `npm ci`
+  - `npm run build`
+  - `npx cap sync ...`
+- `.github/workflows/release-aab.yml`의 릴리즈 운영 패턴 재사용
+  - 수동 입력 + 태그 트리거 병행
+  - 버전/체인지로그 동기화 관점 유지
 
-주요 단계:
-1. `actions/checkout`
-2. Node 설치 + `npm ci`
+### 2-2. 버전 관리 일원화
+- 저장소 `VERSION` 파일을 단일 소스로 유지
+- iOS `CFBundleShortVersionString`는 `VERSION`과 동기화
+- iOS `CFBundleVersion`은 GitHub Actions run number 또는 별도 계산식 사용
+
+---
+
+## 3) ios-build.yml (PR 품질 게이트) 요구사항
+
+## 트리거
+- `pull_request` (main/develop 대상)
+- `workflow_dispatch`
+
+## 필수 단계
+1. 체크아웃
+2. Node 20 + `npm ci`
 3. `npm run build`
 4. `npx cap sync ios`
-5. CocoaPods install
-6. `xcodebuild` 시뮬레이터 대상 빌드
+5. `pod install` (ios/App)
+6. `xcodebuild` 시뮬레이터 빌드
 
-예시 명령:
-```bash
-xcodebuild \
-  -workspace ios/App/App.xcworkspace \
-  -scheme App \
-  -configuration Debug \
-  -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 15' \
-  build
-```
-
-## 4-2. Release (태그/수동 실행)
-목적: archive/export 후 TestFlight 업로드 자동화.
-
-주요 단계:
-1. macOS runner에서 인증서/프로파일 설치
-2. 임시 keychain 생성 및 codesign 설정
-3. `xcodebuild archive`
-4. `xcodebuild -exportArchive`
-5. `xcrun altool` 또는 `iTMSTransporter`로 업로드
-6. 결과 아티팩트/로그 보관
+## 실패 기준
+- 위 1개라도 실패 시 PR 머지 불가(CI required check)
 
 ---
 
-## 5) 권장 워크플로우 YAML 스켈레톤
+## 4) ios-release.yml (태그 릴리즈) 요구사항
 
-```yaml
-name: ios-release
+## 트리거
+- `push.tags: v*`
+- `workflow_dispatch`
 
-on:
-  workflow_dispatch:
-  push:
-    tags:
-      - 'v*'
+## 필수 단계
+1. 체크아웃 + Node 세팅 + 웹 빌드
+2. `npx cap sync ios`
+3. signing setup 스크립트 실행
+4. archive
+5. export ipa
+6. TestFlight 업로드
+7. 아티팩트(ipa, xcarchive 로그) 업로드
 
-jobs:
-  release-ios:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install deps
-        run: npm ci
-
-      - name: Build web
-        run: npm run build
-
-      - name: Sync iOS
-        run: npx cap sync ios
-
-      - name: Install CocoaPods
-        run: |
-          cd ios/App
-          pod install
-
-      - name: Setup signing assets
-        run: |
-          # 1) base64 decode certificate/profile
-          # 2) create temporary keychain
-          # 3) import certificate
-          # 4) place provisioning profile
-          echo "Signing setup"
-
-      - name: Archive
-        run: |
-          xcodebuild -workspace ios/App/App.xcworkspace \
-            -scheme App \
-            -configuration Release \
-            -archivePath build/App.xcarchive \
-            archive
-
-      - name: Export IPA
-        run: |
-          xcodebuild -exportArchive \
-            -archivePath build/App.xcarchive \
-            -exportPath build \
-            -exportOptionsPlist ios/exportOptions.plist
-
-      - name: Upload to TestFlight
-        run: |
-          echo "Upload step with App Store Connect API key"
-```
-
-> 주의: 실제 운영 시 `Setup signing assets`와 `Upload` 단계는 팀 보안정책에 맞게 구체 스크립트로 분리 권장.
+## 보안 원칙
+- 인증서/프로파일/p8 원문 파일은 저장소 커밋 금지
+- GitHub Secrets(base64)로만 주입
+- keychain은 job 종료 시 삭제
 
 ---
 
-## 6) 실패 유형별 트러블슈팅
+## 5) GitHub Secrets 표준(저장소 자산 기준)
 
-### 6-1. Signing certificate/profile mismatch
-- 증상: `No signing certificate` 또는 `Provisioning profile doesn't match`
-- 조치:
-  1. Bundle ID 일치 확인
-  2. 프로파일 만료일 확인
-  3. 인증서 재발급 후 Secrets 재등록
+### Required
+- `IOS_P12_BASE64`
+- `IOS_P12_PASSWORD`
+- `IOS_PROFILE_BASE64`
+- `KEYCHAIN_PASSWORD`
+- `ASC_API_KEY_ID`
+- `ASC_API_ISSUER_ID`
+- `ASC_API_PRIVATE_KEY_BASE64`
 
-### 6-2. CocoaPods 해상도 실패
-- 증상: `pod install` 실패
-- 조치:
-  1. `Podfile.lock` 변경 이력 확인
-  2. Capacitor/iOS deployment target 호환성 점검
+### Optional
+- `APPLE_TEAM_ID`
+- `IOS_BUNDLE_ID`
 
-### 6-3. Build number 중복
-- 증상: TestFlight 업로드 거절
-- 조치:
-  1. `CFBundleVersion` 자동 증가 로직 반영
-  2. 태그 재발행 대신 새 패치버전 발행
+> Android에서 이미 사용 중인 “base64 시크릿 복원” 패턴을 동일하게 적용한다.
 
 ---
 
-## 7) 운영 체크리스트 (배포 당일)
+## 6) 단계별 도입 로드맵 (저장소 반영 중심)
 
-1. `main` 기준 태그 생성 전 체크
-   - 변경사항 승인 완료
-   - CI 녹색(웹/Android/iOS build-only)
-2. 릴리즈 태그 발행 (`vX.Y.Z`)
-3. iOS release workflow 실행 성공 확인
-4. TestFlight 빌드 배포 그룹 할당
-5. 스모크 테스트
-   - 로그인
-   - 결제/핵심 액션
-   - 푸시/딥링크(사용 시)
-6. 이슈 없으면 App Store 제출
+### Phase 1 — CI 스캐폴딩 커밋
+- `ios-build.yml` 추가
+- iOS 폴더 미존재 시 실패 메시지를 명확히 출력(가이드 링크 포함)
+- 목적: 파이프라인 틀 먼저 고정
 
----
+### Phase 2 — 네이티브 프로젝트 반영
+- macOS에서 `npx cap add ios` 수행 후 `ios/` 커밋
+- `ios-build.yml`을 실제 컴파일 가능 상태로 전환
 
-## 8) 역할 분담 (RACI 간소화)
-- Dev: 기능 병합, 버전 업데이트, 릴리즈 노트 초안
-- Release Manager: 태그 발행, 배포 워크플로우 실행/검증
-- QA: TestFlight 스모크 테스트
-- Owner/PM: 제출 승인
+### Phase 3 — 릴리즈 자동화
+- `ios-release.yml` + signing 스크립트 + exportOptions 템플릿 커밋
+- TestFlight 업로드까지 E2E 1회 검증
+
+### Phase 4 — 운영 표준화
+- 브랜치 보호 규칙에 iOS build check 추가
+- 릴리즈 체크리스트/롤백 절차 문서 확정
 
 ---
 
-## 9) 완료 기준 (Definition of Done)
-- 태그 1회로 iOS archive/export/TestFlight 업로드 자동 수행
-- 서명 관련 민감정보가 GitHub Secrets 외부에 노출되지 않음
-- 신규 담당자도 문서 기준으로 1회 릴리즈를 단독 수행 가능
+## 7) Done 기준 (문서가 아닌 저장소 결과물 기준)
+- `.github/workflows/ios-build.yml`이 main에 존재하고 PR에서 동작
+- `.github/workflows/ios-release.yml`이 태그 기준으로 동작
+- iOS 시크릿 체크리스트 문서가 저장소에 존재
+- 신규 담당자가 “저장소 문서 + Actions 로그”만으로 TestFlight 업로드 재현 가능
+
+---
+
+## 8) 즉시 실행 액션(다음 PR)
+1. `ios-build.yml` 초안 추가(PR check 전용)
+2. `docs/ongoing/IOS_SECRETS_CHECKLIST.md` 추가
+3. `CAPACITOR_WINDOWS_GITHUB_PLAN.md`의 iOS 섹션을 “저장소 자산 기반 단계”로 교체
