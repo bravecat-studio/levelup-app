@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.695] - 2026-05-01
+
+### 변경
+- fix: gitleaks-action@v2를 CLI 직접 설치 방식으로 교체 (Private 레포 무료 대응)
+
 ## [1.0.694] - 2026-05-01
 
 ### 변경
