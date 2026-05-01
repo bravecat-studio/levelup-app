@@ -65,7 +65,7 @@ npx cap run android
 
 ### 3-3. iOS 관련 주의사항
 - Windows에서 iOS 서명/아카이브는 불가
-- GitHub Actions macOS runner 또는 외부 macOS CI 필요
+- GitHub Actions **macOS runner(macos-15 고정)** 로 iOS 빌드/서명/업로드 수행
 - Windows에서는 웹코드/공통 로직 검증 중심으로 운영
 
 ## 4단계: 환경변수/시크릿 정책
