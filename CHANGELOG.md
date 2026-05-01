@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.701] - 2026-05-01
+
+### 변경
+- Add DIY quest recurrence settings with weekly weekday multi-select
+
 ## [1.0.700] - 2026-05-01
 
 ### 변경
