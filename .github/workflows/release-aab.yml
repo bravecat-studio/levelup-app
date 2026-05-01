@@ -19,6 +19,10 @@ on:
         description: '영문 출시 노트 (구글 플레이 en-US, 미입력 시 기본 메시지 사용)'
         required: false
         default: ''
+      ja_changelog_entry:
+        description: '일본어 출시 노트 (구글 플레이 ja-JP, 미입력 시 기본 메시지 사용)'
+        required: false
+        default: ''
   push:
     branches: [ "main" ]
 
@@ -701,11 +705,19 @@ jobs:
             EN_NOTES="Bug fixes and performance improvements."
           fi
 
+          # 일본어 노트 (입력값 우선, 없으면 기본 메시지)
+          JA_NOTES="${{ github.event.inputs.ja_changelog_entry }}"
+          if [ -z "$JA_NOTES" ]; then
+            JA_NOTES="バグ修正とパフォーマンスの改善を行いました。"
+          fi
+
           # 500자 초과 경고 (플레이스토어 제한)
           KO_LEN=$(printf '%s' "$KO_NOTES" | wc -c)
           EN_LEN=$(printf '%s' "$EN_NOTES" | wc -c)
+          JA_LEN=$(printf '%s' "$JA_NOTES" | wc -c)
           [ "$KO_LEN" -gt 500 ] && echo "⚠️ 한국어 출시 노트 ${KO_LEN}자 — 500자 초과 시 플레이스토어에서 잘릴 수 있습니다."
           [ "$EN_LEN" -gt 500 ] && echo "⚠️ 영문 출시 노트 ${EN_LEN}자 — 500자 초과 시 플레이스토어에서 잘릴 수 있습니다."
+          [ "$JA_LEN" -gt 500 ] && echo "⚠️ 일본어 출시 노트 ${JA_LEN}자 — 500자 초과 시 플레이스토어에서 잘릴 수 있습니다."
 
           # 플레이스토어 형식 파일 생성
           mkdir -p release-notes
@@ -717,6 +729,9 @@ jobs:
             printf '<en-US>\n'
             printf '%s\n' "$EN_NOTES"
             printf '</en-US>\n'
+            printf '<ja-JP>\n'
+            printf '%s\n' "$JA_NOTES"
+            printf '</ja-JP>\n'
           } > "$NOTES_FILE"
 
           echo "✅ 출시 노트 생성 완료: $NOTES_FILE"
