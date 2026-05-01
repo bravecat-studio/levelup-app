@@ -65,7 +65,7 @@ npx cap run android
 
 ### 3-3. iOS 관련 주의사항
 - Windows에서 iOS 서명/아카이브는 불가
-- GitHub Actions macOS runner 또는 외부 macOS CI 필요
+- GitHub Actions **macOS runner(macos-15 고정)** 로 iOS 빌드/서명/업로드 수행
 - Windows에서는 웹코드/공통 로직 검증 중심으로 운영
 
 ## 4단계: 환경변수/시크릿 정책
@@ -113,3 +113,7 @@ npx cap run android
 - PR 생성 시 CI 자동 실행 및 품질 게이트 동작
 - 태그 푸시 시 Android 아티팩트 자동 생성
 - 릴리즈 체크리스트 기반으로 제출/롤백 절차 문서화 완료
+
+
+## 참고 문서
+- iOS 빌드/서명/배포 상세: `docs/ongoing/CAPACITOR_IOS_BUILD_DETAIL_PLAN.md`
