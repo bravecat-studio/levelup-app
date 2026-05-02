@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.713] - 2026-05-02
+
+### 변경
+- Replace rg with grep in iOS CI failure summary
+
 ## [1.0.712] - 2026-05-02
 
 ### 변경
