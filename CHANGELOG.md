@@ -5,6 +5,21 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.719] - 2026-05-02
+
+### 변경
+- fix(i18n): update side quest guide descriptions across locales
+
+## [1.0.718] - 2026-05-02
+
+### 변경
+- fix(i18n): unify remaining quest naming on settings and stats
+
+## [1.0.717] - 2026-05-02
+
+### 변경
+- feat(i18n): rename regular/DIY quest labels to weekly/side
+
 ## [1.0.716] - 2026-05-02
 
 ### 변경
