@@ -19,11 +19,7 @@
    - 서명 없이 시뮬레이터 빌드(회귀 확인)
 2. `.github/workflows/ios-release.yml`  
    - 태그(`v*`) + 수동 트리거  
-<<<<<<< codex/create-ios-build-documentation-markdown-tb2uu5
    - **`runs-on: macos-15` 고정**으로 archive/export/TestFlight 업로드
-=======
-   - archive/export/TestFlight 업로드
->>>>>>> main
 
 ### 1-2. 스크립트 파일
 1. `scripts/ci/ios/setup-signing.sh`  
@@ -61,14 +57,11 @@
 
 ## 3) ios-build.yml (PR 품질 게이트) 요구사항
 
-<<<<<<< codex/create-ios-build-documentation-markdown-tb2uu5
 ### 러너 정책
 - `runs-on: macos-15` (기본)
 - Xcode 메이저 업데이트 영향 최소화를 위해 `macos-latest` 대신 고정 버전 사용
 - 분기별 1회 `macos-latest` 테스트 브랜치 검증 후 버전 상향
 
-=======
->>>>>>> main
 ## 트리거
 - `pull_request` (main/develop 대상)
 - `workflow_dispatch`
@@ -88,14 +81,11 @@
 
 ## 4) ios-release.yml (태그 릴리즈) 요구사항
 
-<<<<<<< codex/create-ios-build-documentation-markdown-tb2uu5
 ### 러너 정책
 - `runs-on: macos-15`
 - 필요 시 `environment: ios-release` 보호 규칙(승인자) 적용
 - 릴리즈 잡은 동시 실행 충돌 방지를 위해 `concurrency: ios-release` 적용
 
-=======
->>>>>>> main
 ## 트리거
 - `push.tags: v*`
 - `workflow_dispatch`
@@ -154,9 +144,50 @@
 - 브랜치 보호 규칙에 iOS build check 추가
 - 릴리즈 체크리스트/롤백 절차 문서 확정
 
+### Phase 5 — 안정화/운영 점검
+- Runner 이미지 변경 알림 시 `ios-build.yml` 선검증 후 `ios-release.yml` 실행
+- 워크플로우 로그에 Xcode 버전/SDK 버전 출력 고정
+- 분기별 시크릿 만료/권한 점검 및 체크리스트 업데이트
+
 ---
 
-## 7) Done 기준 (문서가 아닌 저장소 결과물 기준)
+## 7) 단계별 구현 체크리스트 (실행 순서)
+
+### Step 1. `ios-build.yml` 스캐폴드 생성
+- [ ] 파일 생성: `.github/workflows/ios-build.yml`
+- [ ] 트리거: `pull_request`, `workflow_dispatch`
+- [ ] 공통 단계: checkout → node setup → npm ci → build
+- [ ] `ios/` 미존재 시 명확한 실패 메시지 출력
+
+### Step 2. iOS 네이티브 프로젝트 커밋
+- [ ] macOS 로컬에서 `npx cap add ios`
+- [ ] `ios/` 디렉토리 및 필수 파일 커밋
+- [ ] PR에서 `ios-build.yml` green 확인
+
+### Step 3. 릴리즈 워크플로우/스크립트 반영
+- [ ] 파일 생성: `.github/workflows/ios-release.yml`
+- [ ] 파일 생성: `scripts/ci/ios/setup-signing.sh`
+- [ ] 파일 생성: `scripts/ci/ios/set-build-number.sh`
+- [ ] 파일 생성: `ios/exportOptions.plist.template`
+
+### Step 4. 시크릿 문서화 및 주입
+- [ ] 문서 생성: `docs/ongoing/IOS_SECRETS_CHECKLIST.md`
+- [ ] 저장소/Environment Secrets 등록
+- [ ] 최소 권한 원칙 및 소유자 명시
+
+### Step 5. TestFlight 업로드 검증
+- [ ] 태그 `vX.Y.Z` 또는 수동 실행으로 릴리즈 실행
+- [ ] archive/export/TestFlight 업로드 성공 확인
+- [ ] ipa/로그 아티팩트 다운로드 검증
+
+### Step 6. 브랜치 보호/운영 룰 적용
+- [ ] main/develop에 iOS build check required 설정
+- [ ] `ios-release` 환경 승인자/동시성 룰 적용
+- [ ] 실패 시 롤백/재실행 절차 문서화
+
+---
+
+## 8) Done 기준 (문서가 아닌 저장소 결과물 기준)
 - `.github/workflows/ios-build.yml`이 main에 존재하고 PR에서 동작
 - `.github/workflows/ios-release.yml`이 태그 기준으로 동작
 - iOS 시크릿 체크리스트 문서가 저장소에 존재
@@ -164,16 +195,12 @@
 
 ---
 
-## 8) 즉시 실행 액션(다음 PR)
+## 9) 즉시 실행 액션(다음 PR)
 1. `ios-build.yml` 초안 추가(PR check 전용)
 2. `docs/ongoing/IOS_SECRETS_CHECKLIST.md` 추가
 3. `CAPACITOR_WINDOWS_GITHUB_PLAN.md`의 iOS 섹션을 “저장소 자산 기반 단계”로 교체
-<<<<<<< codex/create-ios-build-documentation-markdown-tb2uu5
 
-
-## 9) macOS runner 운영 체크포인트
+## 10) macOS runner 운영 체크포인트
 - GitHub-hosted macOS runner 사용을 기본값으로 한다.
 - 워크플로우 로그에 `Xcode` 버전 출력 단계를 추가해 빌드 재현성 확보.
 - runner 이미지 변경 공지 시, `ios-build.yml`을 먼저 실행해 호환성 확인 후 `ios-release.yml` 실행.
-=======
->>>>>>> main
