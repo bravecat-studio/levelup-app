@@ -45,37 +45,30 @@ jobs:
             echo "ℹ️ www/app.html이 없어 엔트리포인트 복사를 건너뜁니다."
           fi
 
-      - name: iOS 프로젝트 존재 확인
-        id: ios_project
+      - name: iOS 플랫폼 의존성 보장
         run: |
-          if [ -d "ios/App" ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "✅ iOS 네이티브 프로젝트(ios/App) 확인됨"
+          if node -e "const d=require('./package.json'); const deps={...(d.dependencies||{}),...(d.devDependencies||{})}; process.exit(deps['@capacitor/ios']?0:1)"; then
+            echo "✅ @capacitor/ios 이미 선언됨"
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️ iOS 네이티브 프로젝트(ios/App)가 없어 iOS 컴파일 단계를 건너뜁니다."
-            echo "   macOS에서 'npx cap add ios' 실행 후 ios/ 디렉토리를 커밋하면 이 워크플로우가 컴파일 검증까지 수행됩니다."
-            echo "   가이드: docs/ongoing/CAPACITOR_IOS_BUILD_DETAIL_PLAN.md"
+            echo "ℹ️ @capacitor/ios 미선언 - CI에서 임시 설치"
+            npm install --no-save @capacitor/ios@^6.2.0
           fi
 
-      - name: Capacitor iOS 동기화
-        if: steps.ios_project.outputs.exists == 'true'
-        run: npx cap sync ios
+      - name: iOS 네이티브 프로젝트 생성/동기화
         env:
           CI: true
+        run: |
+          if [ ! -d "ios/App" ]; then
+            echo "ℹ️ ios/App 없음 - CI에서 cap add ios 실행"
+            npx cap add ios
+          fi
+          npx cap sync ios
 
       - name: CocoaPods 설치
-        if: steps.ios_project.outputs.exists == 'true'
         working-directory: ios/App
         run: pod install
 
       - name: 시뮬레이터 빌드
-        if: steps.ios_project.outputs.exists == 'true'
         working-directory: ios/App
         run: |
-          xcodebuild \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
-            build
+          xcodebuild             -workspace App.xcworkspace             -scheme App             -configuration Debug             -destination 'generic/platform=iOS Simulator'             build
