@@ -36,6 +36,17 @@ export function createQuestStatsModule(deps) {
         state.selectedDiyId = null;
     }
 
+
+    function isDiyQuestActiveOnDate(q, dateObj = new Date()) {
+        if (!q || q.scheduleType !== 'weekly') return true;
+        const days = Array.isArray(q.scheduleDays) ? q.scheduleDays : [];
+        return days.includes(dateObj.getDay());
+    }
+
+    function getActiveDiyDefsForDate(dateObj = new Date()) {
+        return (AppState.diyQuests.definitions || []).filter((q) => isDiyQuestActiveOnDate(q, dateObj));
+    }
+
     function renderQstatsCalendar() {
         const container = document.getElementById('qstats-calendar-grid');
         if (!container) return;
@@ -51,8 +62,10 @@ export function createQuestStatsModule(deps) {
             const iterDate = new Date(startOfWeek); iterDate.setDate(startOfWeek.getDate() + i); iterDate.setHours(0, 0, 0, 0);
             const dateStr = `${iterDate.getFullYear()}-${String(iterDate.getMonth() + 1).padStart(2, '0')}-${String(iterDate.getDate()).padStart(2, '0')}`;
             const isToday = dateStr === todayStr; const isFuture = iterDate > today;
-            const diyCount = AppState.diyQuests.definitions.length; let count = 0, total = 12;
-            if (isToday) { const s = AppState.quest.completedState[AppState.quest.currentDayOfWeek]; count = s.filter(v => v).length + Object.values(AppState.diyQuests.completedToday).filter(v => v).length; total = 12 + diyCount; }
+            const activeDiyDefs = getActiveDiyDefsForDate(iterDate);
+            const activeDiyIds = new Set(activeDiyDefs.map((q) => q.id));
+            const diyCount = activeDiyDefs.length; let count = 0, total = 12;
+            if (isToday) { const s = AppState.quest.completedState[AppState.quest.currentDayOfWeek]; count = s.filter(v => v).length + Object.entries(AppState.diyQuests.completedToday || {}).filter(([id, v]) => activeDiyIds.has(id) && v).length; total = 12 + diyCount; }
             else if (isFuture) total = 12 + diyCount;
             else { const hist = AppState.questHistory && AppState.questHistory[dateStr]; if (hist) { count = (hist.r || 0) + (hist.d || 0); total = hist.t || 12; } }
             return `<div class="cal-day ${isToday ? 'today' : ''}"><div class="cal-name">${dayNames[AppState.currentLang][i]}</div><div class="cal-date">${iterDate.getDate()}</div><div class="cal-score">${isFuture ? '-' : count + '/' + total}</div></div>`;
@@ -70,7 +83,7 @@ export function createQuestStatsModule(deps) {
 
     function getDiyQuestDoneTotal(questId, rec, isToday) {
         if (isToday) {
-            const exists = AppState.diyQuests.definitions.some((q) => q.id === questId);
+            const exists = getActiveDiyDefsForDate(new Date()).some((q) => q.id === questId);
             if (!exists) return { done: 0, total: 0 };
             return { done: AppState.diyQuests.completedToday[questId] === true ? 1 : 0, total: 1 };
         }
@@ -193,7 +206,7 @@ export function createQuestStatsModule(deps) {
             let level = 0, done = 0, total = 0;
             if (state.selectedDailyDow !== null && !isFuture) { const dateDow = new Date(key + 'T00:00:00').getDay(); if (dateDow === state.selectedDailyDow) { ({ done, total } = getDailyQuestDoneTotal(state.selectedDailyDow, state.selectedDailyIdx, rec, isToday)); if (total > 0) level = done > 0 ? 4 : 1; } }
             else if (state.selectedDiyId && !isFuture) { ({ done, total } = getDiyQuestDoneTotal(state.selectedDiyId, rec, isToday)); if (total > 0) level = done > 0 ? 4 : 1; }
-            else if (isToday) { const diyCount = AppState.diyQuests.definitions.length; const regularDone = (AppState.quest.completedState[AppState.quest.currentDayOfWeek] || []).filter(v => v).length; const diyDone = Object.values(AppState.diyQuests.completedToday || {}).filter(v => v).length; done = state.diyOnly ? diyDone : (regularDone + diyDone); total = state.diyOnly ? diyCount : (12 + diyCount); const rate = total > 0 ? done / total * 100 : 0; level = rate >= 76 ? 4 : rate >= 51 ? 3 : rate >= 26 ? 2 : rate >= 1 ? 1 : 0; }
+            else if (isToday) { const activeDiyDefs = getActiveDiyDefsForDate(new Date(key + "T00:00:00")); const activeDiyIds = new Set(activeDiyDefs.map((q) => q.id)); const diyCount = activeDiyDefs.length; const regularDone = (AppState.quest.completedState[AppState.quest.currentDayOfWeek] || []).filter(v => v).length; const diyDone = Object.entries(AppState.diyQuests.completedToday || {}).filter(([id, v]) => activeDiyIds.has(id) && v).length; done = state.diyOnly ? diyDone : (regularDone + diyDone); total = state.diyOnly ? diyCount : (12 + diyCount); const rate = total > 0 ? done / total * 100 : 0; level = rate >= 76 ? 4 : rate >= 51 ? 3 : rate >= 26 ? 2 : rate >= 1 ? 1 : 0; }
             else if (rec && !isFuture) { done = state.diyOnly ? (rec.d || 0) : (rec.r + rec.d); total = state.diyOnly ? (rec.dt != null ? rec.dt : (rec.t - 12)) : rec.t; const rate = done / Math.max(total, 1) * 100; level = rate >= 76 ? 4 : rate >= 51 ? 3 : rate >= 26 ? 2 : rate >= 1 ? 1 : 0; }
             const ratioHTML = (isToday ? total > 0 : (!!rec && !isFuture && total > 0)) ? `<span class="cell-ratio">${done}/${total}</span>` : '';
             gridHTML += `<div class="qstats-heatmap-cell level-${level}${isSelected ? ' selected' : ''}" onclick="window.selectQstatsDate('${key}')"><span class="cell-day">${d}</span>${ratioHTML}</div>`;
@@ -225,10 +238,12 @@ export function createQuestStatsModule(deps) {
                     const rec = history[k];
                     if (!rec && k !== todayStr) return null;
                     if (k === todayStr) {
+                        const activeDiyDefs = getActiveDiyDefsForDate(new Date(k + "T00:00:00"));
+                        const activeDiyIds = new Set(activeDiyDefs.map((q) => q.id));
                         const regularDone = (AppState.quest.completedState[AppState.quest.currentDayOfWeek] || []).filter(v => v).length;
-                        const diyDone = Object.values(AppState.diyQuests.completedToday || {}).filter(v => v).length;
+                        const diyDone = Object.entries(AppState.diyQuests.completedToday || {}).filter(([id, v]) => activeDiyIds.has(id) && v).length;
                         const done = state.diyOnly ? diyDone : (regularDone + diyDone);
-                        const total = state.diyOnly ? AppState.diyQuests.definitions.length : (12 + AppState.diyQuests.definitions.length);
+                        const total = state.diyOnly ? activeDiyDefs.length : (12 + activeDiyDefs.length);
                         return total > 0 ? (done / total) : 0;
                     }
                     const done = state.diyOnly ? (rec.d || 0) : ((rec.r || 0) + (rec.d || 0));
