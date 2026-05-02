@@ -54,6 +54,11 @@ jobs:
             npm install --no-save @capacitor/ios@^6.2.0
           fi
 
+      - name: CI 전용 AdMob 플러그인 제외 (iOS 컴파일 안정화)
+        run: |
+          npm uninstall @capacitor-community/admob --no-save || true
+          echo "ℹ️ CI에서는 CapacitorCommunityAdmob Swift 모듈 오류 회피를 위해 iOS 빌드 대상에서 제외"
+
       - name: iOS 네이티브 프로젝트 생성/동기화
         env:
           CI: true
