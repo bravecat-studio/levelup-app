@@ -98,7 +98,7 @@ jobs:
         working-directory: ios/App
         run: |
           echo "=== xcodebuild error summary ==="
-          rg -n "error:|\*\* BUILD FAILED \*\*|no such module|Undefined symbols|CodeSign|Provisioning" build-logs/xcodebuild.log | tail -n 50 || true
+          grep -En "error:|\*\* BUILD FAILED \*\*|no such module|Undefined symbols|CodeSign|Provisioning" build-logs/xcodebuild.log | tail -n 50 || true
 
       - name: xcodebuild 로그 업로드
         if: always() && hashFiles('ios/App/build-logs/xcodebuild.log') != ''
