@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.708] - 2026-05-02
+
+### 변경
+- Build iOS in GitHub Actions cloud by provisioning ios platform
+
 ## [1.0.707] - 2026-05-02
 
 ### 변경
