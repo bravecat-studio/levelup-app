@@ -28,6 +28,16 @@ jobs:
       - name: npm 패키지 설치
         run: npm ci
 
+      - name: AdMob iOS SDK 호환 패치 (UMPConsentStatus → ConsentStatus)
+        run: |
+          FILE="node_modules/@capacitor-community/admob/ios/Sources/AdMobPlugin/Consent/ConsentExecutor.swift"
+          if [ -f "$FILE" ]; then
+            sed -i '' 's/UMPConsentStatus/ConsentStatus/g' "$FILE"
+            echo "✅ $FILE 패치 적용"
+          else
+            echo "ℹ️ AdMob 플러그인 파일이 없어 패치를 건너뜁니다."
+          fi
+
       - name: 웹 빌드 (스크립트 존재 시)
         run: |
           if node -e "const s=require('./package.json').scripts||{}; process.exit(s.build?0:1)"; then
