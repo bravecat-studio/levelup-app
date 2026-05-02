@@ -71,4 +71,20 @@ jobs:
       - name: 시뮬레이터 빌드
         working-directory: ios/App
         run: |
-          xcodebuild             -workspace App.xcworkspace             -scheme App             -configuration Debug             -destination 'generic/platform=iOS Simulator'             build
+          set -o pipefail
+          mkdir -p build-logs
+          xcodebuild             -workspace App.xcworkspace             -scheme App             -configuration Debug             -destination 'platform=iOS Simulator,name=iPhone 16'             -sdk iphonesimulator             CODE_SIGNING_ALLOWED=NO             build 2>&1 | tee build-logs/xcodebuild.log
+
+      - name: 빌드 실패 원인 요약
+        if: failure()
+        working-directory: ios/App
+        run: |
+          echo "=== xcodebuild error summary ==="
+          rg -n "error:|\*\* BUILD FAILED \*\*|no such module|Undefined symbols|CodeSign|Provisioning" build-logs/xcodebuild.log | tail -n 50 || true
+
+      - name: xcodebuild 로그 업로드
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-xcodebuild-log
+          path: ios/App/build-logs/xcodebuild.log
