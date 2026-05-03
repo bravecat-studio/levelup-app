@@ -6403,7 +6403,7 @@ function getTodayKST() {
 // --- Reels 기능: modules/reels.js로 분리됨 ---
 
 function applyTheme(theme) {
-    const safeTheme = (theme === 'light' || theme === 'rose') ? theme : 'dark';
+    const safeTheme = ['dark', 'light', 'rose', 'forest', 'sunset', 'violet', 'ocean'].includes(theme) ? theme : 'dark';
     if (safeTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', '');
     } else {
@@ -6419,7 +6419,7 @@ function updateThemePickerUI(theme) {
 }
 
 function changeTheme(theme) {
-    const safeTheme = (theme === 'light' || theme === 'rose') ? theme : 'dark';
+    const safeTheme = ['dark', 'light', 'rose', 'forest', 'sunset', 'violet', 'ocean'].includes(theme) ? theme : 'dark';
     applyTheme(safeTheme);
     updateThemePickerUI(safeTheme);
 }

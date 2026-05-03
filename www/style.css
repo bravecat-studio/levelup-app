@@ -19,6 +19,30 @@
     --neon-blue: #FF7CCB; --neon-gold: #FFC2E8; --neon-purple: #D586FF;
     --neon-red: #FF7F9B; --neon-green: #8EE8C6; --nav-bg: #180D1F;
 }
+[data-theme="forest"] {
+    --bg-dark: #08140f; --panel-bg: rgba(18, 45, 34, 0.95);
+    --text-main: #E8FFF4; --text-sub: #A9D5BF; --border-color: #2F5C49;
+    --neon-blue: #4ECDC4; --neon-gold: #FFD166; --neon-purple: #9D4EDD;
+    --neon-red: #FF6B6B; --neon-green: #2EC27E; --nav-bg: #07110d;
+}
+[data-theme="sunset"] {
+    --bg-dark: #1A0F0A; --panel-bg: rgba(52, 28, 20, 0.95);
+    --text-main: #FFF1E6; --text-sub: #E6B8A2; --border-color: #7A4A36;
+    --neon-blue: #FF8A5B; --neon-gold: #FFD166; --neon-purple: #C77DFF;
+    --neon-red: #FF5D73; --neon-green: #8BD3A8; --nav-bg: #160d09;
+}
+[data-theme="violet"] {
+    --bg-dark: #120C1F; --panel-bg: rgba(36, 24, 58, 0.95);
+    --text-main: #F3ECFF; --text-sub: #C4B5E6; --border-color: #5A4A82;
+    --neon-blue: #7DD3FC; --neon-gold: #F9C74F; --neon-purple: #A78BFA;
+    --neon-red: #FB7185; --neon-green: #34D399; --nav-bg: #0f0a1a;
+}
+[data-theme="ocean"] {
+    --bg-dark: #071522; --panel-bg: rgba(15, 39, 61, 0.95);
+    --text-main: #E8F7FF; --text-sub: #A9C9DD; --border-color: #355A75;
+    --neon-blue: #38BDF8; --neon-gold: #FACC15; --neon-purple: #818CF8;
+    --neon-red: #FB7185; --neon-green: #22D3EE; --nav-bg: #06111b;
+}
 
 body {
     background-color: var(--bg-dark); color: var(--text-main);
@@ -477,6 +501,10 @@ input:checked + .slider:before { transform: translateX(18px); }
 .theme-dot[data-theme-option="dark"] { background: linear-gradient(135deg, #0d1117, #1f2937); }
 .theme-dot[data-theme-option="light"] { background: linear-gradient(135deg, #f8fafc, #dbeafe); }
 .theme-dot[data-theme-option="rose"] { background: linear-gradient(135deg, #fbcfe8, #f472b6); }
+.theme-dot[data-theme-option="forest"] { background: linear-gradient(135deg, #0b2f1f, #1f6b45); }
+.theme-dot[data-theme-option="sunset"] { background: linear-gradient(135deg, #ff8a5b, #ff5d73); }
+.theme-dot[data-theme-option="violet"] { background: linear-gradient(135deg, #6d28d9, #a78bfa); }
+.theme-dot[data-theme-option="ocean"] { background: linear-gradient(135deg, #0ea5e9, #1d4ed8); }
 
 nav { position: fixed; bottom: env(safe-area-inset-bottom); width: 100%; height: 65px; background: var(--nav-bg); display: flex; border-top: 1px solid var(--border-color); z-index: 10; }
 .nav-item { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.6rem; color: var(--text-sub); cursor: pointer; transition: transform 0.15s, background 0.15s; user-select: none; -webkit-user-select: none; }
