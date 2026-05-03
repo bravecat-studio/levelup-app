@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.728] - 2026-05-03
+
+### 변경
+- 명상 카드 가이드 버튼 및 실행 안내 문구 추가
+
 ## [1.0.727] - 2026-05-03
 
 ### 변경
