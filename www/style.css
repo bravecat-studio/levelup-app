@@ -722,6 +722,14 @@ nav.nav-reorder-mode { border-top-color: var(--neon-blue); }
     white-space: normal;
     line-height: 1.25;
 }
+
+.qstats-diy-dropdown-menu,
+.qstats-diy-dropdown-menu .qstats-diy-dd-item,
+.qstats-diy-dropdown-menu .qstats-dd-subheader {
+    color: #eaf6ff !important;
+    -webkit-text-fill-color: #eaf6ff !important;
+    opacity: 1 !important;
+}
 .qstats-diy-dd-item:last-child { border-bottom: none; }
 .qstats-diy-dd-item:hover { background: rgba(0,217,255,0.08); color: var(--text-main); }
 .qstats-diy-dd-item.active { color: var(--neon-gold); font-weight: bold; background: rgba(255,200,0,0.05); }
