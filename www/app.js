@@ -6480,8 +6480,18 @@ function applyBackgroundTheme(themeId) {
 function updateBackgroundThemeTileUI(themeId) {
     document.querySelectorAll('[data-bg-theme]').forEach((el) => el.classList.toggle('active', el.dataset.bgTheme === themeId));
 }
-function openBackgroundThemeModal() { document.getElementById('bg-theme-modal')?.classList.remove('d-none'); }
-function closeBackgroundThemeModal() { document.getElementById('bg-theme-modal')?.classList.add('d-none'); }
+function openBackgroundThemeModal() {
+    const modal = document.getElementById('bg-theme-modal');
+    if (!modal) return;
+    modal.classList.remove('d-none');
+    modal.classList.add('d-flex');
+}
+function closeBackgroundThemeModal() {
+    const modal = document.getElementById('bg-theme-modal');
+    if (!modal) return;
+    modal.classList.add('d-none');
+    modal.classList.remove('d-flex');
+}
 
 // --- GPS 및 건강 데이터 설정 ---
 
