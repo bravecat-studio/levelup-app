@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.731] - 2026-05-03
+
+### 변경
+- Set generateThumbnail trigger to asia-northeast1
+
 ## [1.0.730] - 2026-05-03
 
 ### 변경
