@@ -5,6 +5,11 @@
 형식: [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)
 버전 관리: [Semantic Versioning](https://semver.org/lang/ko/)
 
+## [1.0.732] - 2026-05-03
+
+### 변경
+- 설정 배경테마 UI 이동 및 계정별 테마 저장 개선
+
 ## [1.0.731] - 2026-05-03
 
 ### 변경
