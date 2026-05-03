@@ -78,7 +78,7 @@ function getAzureInitError() {
 
 // Callable 함수 공통 옵션 (Gen 2 Cloud Run 호환)
 const callableOpts = {
-    region: "asia-northeast3",
+        region: "asia-northeast3",
     cors: true,
     invoker: "public",
     enforceAppCheck: true,
@@ -4582,7 +4582,8 @@ const CACHE_CONTROL_MAP = {
 };
 
 exports.generateThumbnail = onObjectFinalized({
-    region: "asia-northeast3",
+    // Storage 트리거는 버킷 위치와 동일 권역이어야 배포가 안정적임
+    region: "asia-northeast1",
     memory: "256MiB",
     timeoutSeconds: 60,
 }, async (event) => {
